@@ -77,7 +77,7 @@
                         <li class="sidebar-item">
                             <a href="{{ route('leaders.members.select') }}" class='sidebar-link'> <i <i
                                     class="bi bi-person-badge-fill"></i>
-                                <span>Operational</span>
+                                <span>Select Member</span>
                             </a>
                         </li>                        
                         <li class="sidebar-title">Account</li>

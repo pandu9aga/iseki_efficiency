@@ -17,38 +17,66 @@ class LeaderController extends Controller
 {
     public function index(Request $request)
     {
-        // Ambil tanggal dari request, default hari ini
         $date = $request->filled('date')
-            ? Carbon::parse($request->date)
+            ? Carbon::parse($request->date)->startOfDay()
             : Carbon::today();
 
         $dateString = $date->format('Y-m-d');
+        $isToday = $date->isToday();
 
-        $scans = Scan::whereDate('Time_Scan', $dateString)
-            ->with('tractor')
-            ->get();
-
+        // Ambil data umum
+        $scans = Scan::whereDate('Time_Scan', $dateString)->with('tractor')->get();
         $costs = Cost::whereDate('Start_Cost', $dateString)->get();
-
         $report = Report::where('Day_Report', $dateString)->first();
-        $reportHours = $report ? (float)$report->Total_Hours_Report : 0;
-        $reportMembers = $report ? (int)$report->Total_Member_Report : 0;
+        $reportMembers = $report ? (int) $report->Total_Member_Report : 0;
 
         $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
-
         $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
-
         $powerTotal = $powers->sum('Leave_Hour_Power');
 
+        // 🔸 Hitung Member Hours (Real-time untuk hari ini, historis untuk tanggal lalu)
+        if ($isToday) {
+            $now = Carbon::now();
+            $start = Carbon::today()->setTime(7, 30); // 07.30
+            $endOfWork = Carbon::today()->setTime(16, 30); // 16.30
+
+            if ($now->lt($start)) {
+                $memberHours = 0.0;
+            } elseif ($now->gt($endOfWork)) {
+                $memberHours = $reportMembers * 8.0;
+            } else {
+                // 🔸 Hitung total jam sejak 07.30
+                $totalHours = $start->diffInRealSeconds($now) / 3600.0;
+
+                // 🔸 Kurangi jeda istirahat (dalam jam)
+                if ($now->gt(Carbon::today()->setTime(10, 0))) {
+                    $totalHours -= (10 / 60); // 10 menit = 0.1667 jam
+                }
+                if ($now->gt(Carbon::today()->setTime(12, 0))) {
+                    $totalHours -= (40 / 60); // 40 menit = 0.6667 jam
+                }
+                if ($now->gt(Carbon::today()->setTime(15, 0))) {
+                    $totalHours -= (10 / 60); // 10 menit = 0.1667 jam
+                }
+
+                // Pastikan tidak negatif
+                $totalHours = max(0, $totalHours);
+
+                $memberHours = $reportMembers * $totalHours;
+            }
+        } else {
+            $memberHours = $report ? (float) $report->Total_Hours_Report : 0.0;
+        }
         return view('leaders.dashboard', compact(
             'scans',
             'costs',
-            'reportHours',
+            'memberHours',       // ✅ bukan reportHours
             'reportMembers',
             'powers',
             'penanganans',
             'powerTotal',
-            'dateString' // Kirim tanggal ke view
+            'dateString',
+            'isToday'            // ✅ penting untuk info real-time
         ));
     }
 }

@@ -46,6 +46,7 @@ Route::middleware('web')->group(function () {
 */
 Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/export', [AdminController::class, 'export'])->name('dashboard.export'); // 🔻 Tambahkan ini
 
     // CRUD User (hanya admin yang boleh kelola user)
     Route::prefix('users')->name('users.')->group(function () {

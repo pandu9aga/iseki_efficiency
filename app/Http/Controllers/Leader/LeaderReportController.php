@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Report;
-use App\Models\ListMember; // hanya untuk count()
+use App\Models\ListMember;
 use App\Models\Cost;
 use App\Models\Power;
 use App\Models\Penanganan;
@@ -18,27 +18,27 @@ class LeaderReportController extends Controller
     public function index(Request $request)
     {
         $date = $request->filled('date')
-            ? Carbon::parse($request->date)
+            ? Carbon::parse($request->date)->startOfDay()
             : Carbon::today();
 
         $dateString = $date->format('Y-m-d');
-        $timestamp = $date->format('Y-m-d H:i:s');
 
-        // Data yang sudah direkam (dari tabel reports)
         $recordedReport = Report::where('Day_Report', $dateString)->first();
         $reportExists = $recordedReport !== null;
 
-        // Data saat ini (live dari ListMember)
         $currentTotalMembers = ListMember::count();
         $currentTotalHours = round($currentTotalMembers * 8, 2);
 
-        // Ambil data historis lainnya
         $costs = Cost::whereDate('Start_Cost', $dateString)->get();
         $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
         $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
-        $allMembers = Member::orderBy('nama')->get();
 
-        // Ambil data scan berdasarkan tanggal yang sama
+        // ✅ Tambahkan ini: ambil daftar anggota aktif (dari list_members + relasi ke Member)
+        $activeMembers = ListMember::with('member')
+            ->get()
+            ->filter(fn($lm) => $lm->member !== null)
+            ->sortBy('member.nama');
+
         $scans = Scan::whereDate('Time_Scan', $dateString)
             ->with('member', 'tractor')
             ->orderBy('Time_Scan', 'desc')
@@ -46,7 +46,6 @@ class LeaderReportController extends Controller
 
         return view('leaders.reports.index', compact(
             'dateString',
-            'timestamp',
             'reportExists',
             'recordedReport',
             'currentTotalMembers',
@@ -54,34 +53,50 @@ class LeaderReportController extends Controller
             'costs',
             'powers',
             'penanganans',
-            'allMembers',
+            'activeMembers', // ✅ JANGAN LUPA TAMBAHKAN INI
             'scans'
         ));
     }
-
-    // Simpan Report untuk hari ini berdasarkan jumlah member AKTIF saat ini
+    
     public function storeReport(Request $request)
     {
+        $request->validate(['date' => 'required|date']);
+
         $date = Carbon::parse($request->date)->format('Y-m-d');
         $totalMembers = ListMember::count();
         $totalHours = round($totalMembers * 8, 2);
 
-        // Upsert: buat atau update
+        $existing = Report::where('Day_Report', $date)->exists();
+
         Report::updateOrCreate(
-            ['Day_Report' => $date], // kondisi
+            ['Day_Report' => $date],
             [
                 'Total_Hours_Report' => $totalHours,
                 'Total_Member_Report' => $totalMembers,
             ]
         );
 
-        return redirect()->back()->with('success', 'Report berhasil ' . (Report::where('Day_Report', $date)->count() > 1 ? 'diperbarui' : 'disimpan') . '.');
+        $message = $existing
+            ? 'Report berhasil diperbarui.'
+            : 'Report berhasil disimpan.';
+
+        return redirect()->back()->with('success', $message);
     }
 
-    // COSTW
+    // COST — versi lengkap dengan validasi
     public function storeCost(Request $request)
     {
-        $timestamp = $request->date_part . ' ' . ($request->time_part ? $request->time_part . ':00' : '00:00:00');
+        $request->validate([
+            'Non_Operational_Cost' => 'required|numeric|min:0',
+            'Keterangan_Cost' => 'required|string|max:255',
+            'date_part' => 'required|date',
+            'time_part' => 'nullable|date_format:H:i',
+        ]);
+
+        $timestamp = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $request->date_part . ' ' . ($request->time_part ?? '07:30')
+        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         Cost::create([
             'Non_Operational_Cost' => $request->Non_Operational_Cost,
@@ -94,7 +109,17 @@ class LeaderReportController extends Controller
 
     public function updateCost(Request $request, Cost $cost)
     {
-        $timestamp = $request->date_part . ' ' . ($request->time_part ? $request->time_part . ':00' : '00:00:00');
+        $request->validate([
+            'Non_Operational_Cost' => 'required|numeric|min:0',
+            'Keterangan_Cost' => 'required|string|max:255',
+            'date_part' => 'required|date',
+            'time_part' => 'nullable|date_format:H:i',
+        ]);
+
+        $timestamp = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $request->date_part . ' ' . ($request->time_part ?? '07:30')
+        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         $cost->update([
             'Non_Operational_Cost' => $request->Non_Operational_Cost,
@@ -111,10 +136,21 @@ class LeaderReportController extends Controller
         return redirect()->back()->with('success', 'Cost berhasil dihapus.');
     }
 
-    // POWER
+    // POWER — DIPERBAIKI: validasi pakai list_members, bukan members
     public function storePower(Request $request)
     {
-        $timestamp = $request->date_part . ' ' . ($request->time_part ? $request->time_part . ':00' : '00:00:00');
+        $request->validate([
+            'Id_Member' => 'required|exists:list_members,Id_Member', // ✅ PERBAIKAN UTAMA
+            'Leave_Hour_Power' => 'required|numeric|min:0',
+            'Keterangan_Power' => 'required|string|max:255',
+            'date_part' => 'required|date',
+            'time_part' => 'nullable|date_format:H:i',
+        ]);
+
+        $timestamp = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $request->date_part . ' ' . ($request->time_part ?? '07:30')
+        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         Power::create([
             'Id_Member' => $request->Id_Member,
@@ -122,12 +158,24 @@ class LeaderReportController extends Controller
             'Keterangan_Power' => $request->Keterangan_Power,
             'Start_Power' => $timestamp,
         ]);
+
         return redirect()->back()->with('success', 'Permission berhasil ditambahkan.');
     }
 
     public function updatePower(Request $request, Power $power)
     {
-        $timestamp = $request->date_part . ' ' . ($request->time_part ? $request->time_part . ':00' : '00:00:00');
+        $request->validate([
+            'Id_Member' => 'required|exists:list_members,Id_Member', // ✅ PERBAIKAN UTAMA
+            'Leave_Hour_Power' => 'required|numeric|min:0',
+            'Keterangan_Power' => 'required|string|max:255',
+            'date_part' => 'required|date',
+            'time_part' => 'nullable|date_format:H:i',
+        ]);
+
+        $timestamp = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $request->date_part . ' ' . ($request->time_part ?? '07:30')
+        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
 
         $power->update([
             'Id_Member' => $request->Id_Member,
@@ -145,27 +193,67 @@ class LeaderReportController extends Controller
         return redirect()->back()->with('success', 'Permission berhasil dihapus.');
     }
 
-    // PENANGANAN
+    // PENANGANAN — versi lengkap (dari versi 2)
     public function storePenanganan(Request $request)
     {
-        $timestamp = $request->date_part . ' ' . ($request->time_part ? $request->time_part . ':00' : '00:00:00');
+        $request->validate([
+            'Hour_Penanganan' => 'required|numeric|min:0',
+            'Keterangan_Penanganan' => 'required|string|max:255',
+            'kategori_penanganan' => 'required|string',
+            'date_part' => 'required|date',
+            'time_part' => 'nullable|date_format:H:i',
+            'catatan_internal' => 'nullable|string|max:255',
+        ]);
+
+        $timestamp = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $request->date_part . ' ' . ($request->time_part ?? '07:30')
+        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+
+        $hour = (float) $request->Hour_Penanganan;
+
+        // Jika perbantuan area lain → negatif
+        if ($request->kategori_penanganan === 'perbantuan_area_lain') {
+            $hour = -$hour;
+        }
 
         Penanganan::create([
-            'Hour_Penanganan' => $request->Hour_Penanganan,
+            'Hour_Penanganan' => $hour,
             'Keterangan_Penanganan' => $request->Keterangan_Penanganan,
             'Start_Penanganan' => $timestamp,
+            'catatan_internal' => $request->catatan_internal,
         ]);
+
         return redirect()->back()->with('success', 'Time handling berhasil ditambahkan.');
     }
 
     public function updatePenanganan(Request $request, Penanganan $penanganan)
     {
-        $timestamp = $request->date_part . ' ' . ($request->time_part ? $request->time_part . ':00' : '00:00:00');
+        $request->validate([
+            'Hour_Penanganan' => 'required|numeric|min:0',
+            'Keterangan_Penanganan' => 'required|string|max:255',
+            'kategori_penanganan' => 'required|string',
+            'date_part' => 'required|date',
+            'time_part' => 'nullable|date_format:H:i',
+            'catatan_internal' => 'nullable|string|max:255',
+        ]);
 
-        $power->update([
-            'Hour_Penanganan' => $request->Hour_Penanganan,
+        $timestamp = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $request->date_part . ' ' . ($request->time_part ?? '07:30')
+        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+
+        $hour = (float) $request->Hour_Penanganan;
+
+        if ($request->kategori_penanganan === 'perbantuan_area_lain') {
+            $hour = -$hour;
+        }
+
+        $penanganan->update([
+            'Hour_Penanganan' => $hour,
             'Keterangan_Penanganan' => $request->Keterangan_Penanganan,
             'Start_Penanganan' => $timestamp,
+            'catatan_internal' => $request->catatan_internal,
         ]);
 
         return redirect()->back()->with('success', 'Time handling berhasil diperbarui.');
