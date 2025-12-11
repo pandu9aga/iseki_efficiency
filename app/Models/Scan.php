@@ -11,10 +11,13 @@ class Scan extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'Area_Scan',
         'Id_Member',
         'Id_Tractor',
         'Time_Scan',
-        'Assigned_Hour_Scan'
+        'Assigned_Hour_Scan',
+        'Sequence_No_Plan',
+        'Production_Date_Plan'
     ];
 
     public function member()
@@ -25,5 +28,10 @@ class Scan extends Model
     public function tractor()
     {
         return $this->belongsTo(Tractor::class, 'Id_Tractor', 'Id_Tractor');
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class, 'Id_Tractor', 'Id_Tractor');
     }
 }

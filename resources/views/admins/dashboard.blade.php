@@ -61,7 +61,7 @@
                                     <div class="col-md-6">
                                         <div class="card text-white h-100" id="mainCard">
                                             <div class="card-body text-center py-4">
-                                                <h6 class="card-title mb-2">Efisiensi Hari Ini</h6>
+                                                <h6 class="card-title mb-2">Efisiensi Hari Ini - 今日の作業効率</h6>
                                                 <div class="display-6 fw-bold" id="selisihJam">0.00 jam</div>
                                                 <div class="mt-1 fs-4" id="nilaiRupiah">Rp0</div>
                                             </div>
@@ -77,7 +77,7 @@
                                                 <!-- % Operasional: Selisih / Total Aset -->
                                                 <div class="mb-3">
                                                     <div class="d-flex justify-content-between small mb-1">
-                                                        <span>Operational Ratio</span>
+                                                        <span>Operational Ratio - 工数低減率</span>
                                                         <span id="persenOperasional">0%</span>
                                                     </div>
                                                     <div class="progress" style="height: 8px;">
@@ -89,7 +89,7 @@
                                                 <!-- % Non-Operasional: Non-Op / Beban Operasional -->
                                                 <div>
                                                     <div class="d-flex justify-content-between small mb-1">
-                                                        <span>Non Operational Ratio</span>
+                                                        <span>Non Operational Ratio - 非稼働工数率</span>
                                                         <span id="persenNonOperasional">0%</span>
                                                     </div>
                                                     <div class="progress" style="height: 8px;">
@@ -130,7 +130,7 @@
 
         // 🔹 Ambil data dari PHP
         const rawScans = @json($scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray());
-        const rawCosts = @json($costs->map(fn($c) => ['label' => $c->Keterangan_Cost ?? 'Unknown', 'value' => (float) $c->Non_Operational_Cost])->toArray());
+        const rawCosts = @json($costImpactList);
         const rawPowers = @json($powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray());
         const rawPenanganans = @json($penanganans->map(fn($p) => ['label' => $p->Keterangan_Penanganan ?? 'Unknown', 'value' => (float) $p->Hour_Penanganan])->toArray());
 
@@ -217,12 +217,12 @@
                         formatter: (value, ctx) => {
                             const label = ctx.dataset.label;
                             if (label === 'Member Hours')
-                            return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
+                                return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
                             if (label === 'Handling')
-                            return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
+                                return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
                             if (label === 'Tractor') return `Tractor: ${decimalToHoursMinutes(scanTotal)}`;
                             if (label === 'Non Operational')
-                            return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
+                                return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
                             return value ? `${decimalToHoursMinutes(value)}` : "";
                         },
                         font: {

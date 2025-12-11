@@ -27,6 +27,7 @@
                                     <div class="col-auto">
                                         <button type="submit" class="btn btn-primary">Show</button>
                                     </div>
+                                    <!-- ❌ Tidak ada tombol Export untuk Leader -->
                                 </div>
                             </form>
                         </div>
@@ -46,6 +47,55 @@
                         </div>
                         <div class="card-body">
                             <canvas id="stackedChart"></canvas>
+
+                            {{-- 🔹 KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
+                            <div id="efficiencyCard" class="mt-4">
+                                <div class="row g-3">
+                                    <!-- Nilai Utama -->
+                                    <div class="col-md-6">
+                                        <div class="card text-white h-100" id="mainCard">
+                                            <div class="card-body text-center py-4">
+                                                <h6 class="card-title mb-2">Efisiensi Hari Ini - 今日の作業効率</h6>
+                                                <div class="display-6 fw-bold" id="selisihJam">0.00 jam</div>
+                                                <div class="mt-1 fs-4" id="nilaiRupiah">Rp0</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rasio Efisiensi -->
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h6 class="card-title mb-3">Efficency Ratio</h6>
+
+                                                <!-- % Operasional -->
+                                                <div class="mb-3">
+                                                    <div class="d-flex justify-content-between small mb-1">
+                                                        <span>Operational Ratio - 工数低減率</span>
+                                                        <span id="persenOperasional">0%</span>
+                                                    </div>
+                                                    <div class="progress" style="height: 8px;">
+                                                        <div class="progress-bar" id="persenOperasionalBar"
+                                                            role="progressbar" style="width: 0%"></div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- % Non-Operasional -->
+                                                <div>
+                                                    <div class="d-flex justify-content-between small mb-1">
+                                                        <span>Non Operational Ratio - 非稼働工数率</span>
+                                                        <span id="persenNonOperasional">0%</span>
+                                                    </div>
+                                                    <div class="progress" style="height: 8px;">
+                                                        <div class="progress-bar bg-info" id="persenNonOperasionalBar"
+                                                            role="progressbar" style="width: 0%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -59,22 +109,19 @@
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
     <script>
-        // 🔹 Fungsi: Konversi desimal jam ke format "X jam Y menit" (termasuk negatif)
         function decimalToHoursMinutes(decimal) {
             if (isNaN(decimal)) return '0 jam 0 menit';
-
             const sign = decimal < 0 ? '-' : '';
             const abs = Math.abs(decimal);
             const totalMinutes = Math.round(abs * 60);
             const jam = Math.floor(totalMinutes / 60);
             const menit = totalMinutes % 60;
-
             return `${sign}${jam} jam ${menit} menit`;
         }
 
-        // 🔹 Ambil data dari controller
+        // Ambil data — pastikan $costImpactList sudah dikalikan jumlah member (sudah dilakukan di controller)
         const rawScans = @json($scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray());
-        const rawCosts = @json($costs->map(fn($c) => ['label' => $c->Keterangan_Cost ?? 'Unknown', 'value' => (float) $c->Non_Operational_Cost])->toArray());
+        const rawCosts = @json($costImpactList);
         const rawPowers = @json($powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray());
         const rawPenanganans = @json($penanganans->map(fn($p) => ['label' => $p->Keterangan_Penanganan ?? 'Unknown', 'value' => (float) $p->Hour_Penanganan])->toArray());
 
@@ -94,7 +141,7 @@
 
         const reportNetHours = memberHours - powerTotalCalculated;
 
-        // 🔹 Inisialisasi Chart
+        // Inisialisasi Chart
         const ctx = document.getElementById('stackedChart').getContext('2d');
         Chart.register(ChartDataLabels);
         Chart.register('chartjs-plugin-annotation');
@@ -191,9 +238,8 @@
                                     const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
                                     const labels = scans.map(s =>
                                         `${s.label} (${decimalToHoursMinutes(s.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
+                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
+                                        .join(', '));
                                     return lines;
                                 }
                                 if (label === 'Non Operational') {
@@ -201,9 +247,8 @@
                                     const lines = [`Total Non Operational: ${decimalToHoursMinutes(total)}`];
                                     const labels = costs.map(c =>
                                         `${c.label} (${decimalToHoursMinutes(c.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
+                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
+                                        .join(', '));
                                     return lines;
                                 }
                                 if (label === 'Handling') {
@@ -211,9 +256,8 @@
                                     const lines = [`Total Handling: ${decimalToHoursMinutes(total)}`];
                                     const labels = penanganans.map(p =>
                                         `${p.label} (${decimalToHoursMinutes(p.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
+                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
+                                        .join(', '));
                                     return lines;
                                 }
                                 return null;
@@ -264,5 +308,42 @@
                 }
             }
         });
+
+        // === EFISIENSI LOGIC (SAMA DENGAN ADMIN) ===
+        const kategori1 = reportNetHours + penangananTotal;
+        const kategori2 = scanTotal + costTotal;
+        const selisihJam = kategori2 - kategori1;
+        const nilaiRupiah = selisihJam * 60000;
+
+        const persenOperasional = kategori2 !== 0 ? (selisihJam / kategori2) * 100 : 0;
+        const persenNonOperasional = kategori1 !== 0 ? (costTotal / kategori1) * 100 : 0;
+
+        function formatRupiahWithSign(angka) {
+            const sign = angka < 0 ? '-' : '';
+            return sign + new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(Math.abs(angka));
+        }
+
+        document.getElementById('selisihJam').textContent = decimalToHoursMinutes(selisihJam);
+        document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(nilaiRupiah);
+
+        const mainCard = document.getElementById('mainCard');
+        if (nilaiRupiah >= 0) {
+            mainCard.style.backgroundColor = '#28a745'; // Hijau
+        } else {
+            mainCard.style.backgroundColor = '#dc3545'; // Merah
+        }
+
+        document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
+        const absPersenOp = Math.abs(persenOperasional);
+        const persenOpBar = document.getElementById('persenOperasionalBar');
+        persenOpBar.style.width = Math.min(100, absPersenOp) + '%';
+        persenOpBar.className = 'progress-bar ' + (nilaiRupiah >= 0 ? 'bg-success' : 'bg-danger');
+
+        document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
+        document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
     </script>
 @endsection

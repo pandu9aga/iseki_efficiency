@@ -12,6 +12,7 @@ use App\Models\Power;
 use App\Models\Penanganan;
 use App\Models\Member;
 use App\Models\Scan;
+use App\Models\Plan;
 
 class LeaderReportController extends Controller
 {
@@ -30,19 +31,45 @@ class LeaderReportController extends Controller
         $currentTotalHours = round($currentTotalMembers * 8, 2);
 
         $costs = Cost::whereDate('Start_Cost', $dateString)->get();
+
+        // ✅ HITUNG TOTAL NON-OP YANG SUDAH DIKALIKAN
+        $totalNonOpHours = $costs->sum('Non_Operational_Cost') * $currentTotalMembers;
+
         $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
         $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
 
-        // ✅ Tambahkan ini: ambil daftar anggota aktif (dari list_members + relasi ke Member)
         $activeMembers = ListMember::with('member')
             ->get()
             ->filter(fn($lm) => $lm->member !== null)
             ->sortBy('member.nama');
 
         $scans = Scan::whereDate('Time_Scan', $dateString)
-            ->with('member', 'tractor')
+            ->with(['member', 'tractor']) // Ambil relasi biasa
+            ->whereHas('tractor') // Hanya scan dengan tractor valid
             ->orderBy('Time_Scan', 'desc')
             ->get();
+
+        // 🔥 Ambil data Plan terkait dalam satu query
+        $planMap = [];
+        $uniqueKeys = [];
+        foreach ($scans as $scan) {
+            $key = $scan->Sequence_No_Plan . '_' . $scan->Production_Date_Plan;
+            if (!isset($uniqueKeys[$key])) {
+                $uniqueKeys[$key] = true;
+                $plan = Plan::where('Sequence_No_Plan', $scan->Sequence_No_Plan)
+                    ->where('Production_Date_Plan', $scan->Production_Date_Plan)
+                    ->first();
+                if ($plan) {
+                    $planMap[$key] = $plan;
+                }
+            }
+        }
+
+        // Tambahkan data plan ke setiap scan
+        foreach ($scans as $scan) {
+            $key = $scan->Sequence_No_Plan . '_' . $scan->Production_Date_Plan;
+            $scan->plan = $planMap[$key] ?? null;
+        }
 
         return view('leaders.reports.index', compact(
             'dateString',
@@ -53,11 +80,12 @@ class LeaderReportController extends Controller
             'costs',
             'powers',
             'penanganans',
-            'activeMembers', // ✅ JANGAN LUPA TAMBAHKAN INI
-            'scans'
+            'activeMembers',
+            'scans',
+            'totalNonOpHours' // ✅ TAMBAHKAN INI
         ));
     }
-    
+
     public function storeReport(Request $request)
     {
         $request->validate(['date' => 'required|date']);
@@ -88,10 +116,23 @@ class LeaderReportController extends Controller
     {
         $request->validate([
             'Non_Operational_Cost' => 'required|numeric|min:0',
-            'Keterangan_Cost' => 'required|string|max:255',
+            'kategori_cost' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
         ]);
+
+        // Tentukan deskripsi berdasarkan kategori
+        if ($request->kategori_cost === 'lain_lain') {
+            $request->validate(['Keterangan_Cost' => 'required|string|max:255']);
+            $keterangan = $request->Keterangan_Cost;
+        } else {
+            $map = [
+                'senam' => 'Senam',
+                'briefing' => 'Briefing',
+                'checksheet' => 'Checksheet',
+            ];
+            $keterangan = $map[$request->kategori_cost] ?? 'Unknown';
+        }
 
         $timestamp = Carbon::createFromFormat(
             'Y-m-d H:i',
@@ -100,21 +141,34 @@ class LeaderReportController extends Controller
 
         Cost::create([
             'Non_Operational_Cost' => $request->Non_Operational_Cost,
-            'Keterangan_Cost' => $request->Keterangan_Cost,
+            'Keterangan_Cost' => $keterangan,
             'Start_Cost' => $timestamp,
         ]);
 
         return redirect()->back()->with('success', 'Cost berhasil ditambahkan.');
     }
 
+
     public function updateCost(Request $request, Cost $cost)
     {
         $request->validate([
             'Non_Operational_Cost' => 'required|numeric|min:0',
-            'Keterangan_Cost' => 'required|string|max:255',
+            'kategori_cost' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
         ]);
+
+        if ($request->kategori_cost === 'lain_lain') {
+            $request->validate(['Keterangan_Cost' => 'required|string|max:255']);
+            $keterangan = $request->Keterangan_Cost;
+        } else {
+            $map = [
+                'senam' => 'Senam',
+                'briefing' => 'Briefing',
+                'checksheet' => 'Checksheet',
+            ];
+            $keterangan = $map[$request->kategori_cost] ?? 'Unknown';
+        }
 
         $timestamp = Carbon::createFromFormat(
             'Y-m-d H:i',
@@ -123,13 +177,13 @@ class LeaderReportController extends Controller
 
         $cost->update([
             'Non_Operational_Cost' => $request->Non_Operational_Cost,
-            'Keterangan_Cost' => $request->Keterangan_Cost,
+            'Keterangan_Cost' => $keterangan,
             'Start_Cost' => $timestamp,
         ]);
 
         return redirect()->back()->with('success', 'Cost berhasil diperbarui.');
     }
-
+    
     public function destroyCost(Cost $cost)
     {
         $cost->delete();

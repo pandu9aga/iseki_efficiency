@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login | Iseki Efisiensi</title>
+    <title>Iseki - Efficiency</title>
     <link rel="shortcut icon" href="{{ asset('assets/images/icon.png') }}" type="image/x-icon">
     <script src="{{ asset('assets/js/html5-qrcode.min.js') }}"></script>
 
@@ -17,14 +17,51 @@
         }
 
         body {
-            min-height: 100vh;
+            /* min-height: 100vh; */
             display: flex;
+            flex-direction: column; /* 🔥 Ubah ke column agar navbar di atas */
             align-items: center;
-            justify-content: center;
+            /* justify-content: center; */
             padding: 20px;
             background-color: #fff5f9;
         }
 
+        /* ========== NAVBAR ========== */
+        .top-nav {
+            width: 100%;
+            max-width: 420px; /* Sesuaikan lebar navbar dengan kartu */
+            margin-bottom: 20px; /* Jarak antara navbar dan login card */
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: space-between;
+            background: white;
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(189, 2, 55, 0.1);
+            border: 1px solid #ffe6ee;
+        }
+
+        .nav-link {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            color: #f7b5ca;
+            border-radius: 10px;
+            transition: all 0.25s ease;
+        }
+
+        .nav-link.active,
+        .nav-link:hover {
+            background: #f7b5ca;
+            color: white;
+        }
+
+        /* ========== LOGIN CARD ========== */
         .login-card {
             background: white;
             border-radius: 20px;
@@ -183,8 +220,9 @@
         }
 
         @media (max-width: 480px) {
-            .login-card {
-                padding: 40px 20px;
+            .login-card,
+            .top-nav {
+                max-width: 100%;
             }
 
             .logo h2 {
@@ -195,6 +233,17 @@
 </head>
 
 <body>
+    <!-- ========== NAVBAR ATAS ========== -->
+    <nav class="top-nav">
+        <div class="nav-links">
+            <!-- Ganti href sesuai route Laravel Anda -->
+            <a href="{{ route('scan') }}" class="nav-link">Scan</a>
+            <a href="{{ route('report.scan.index') }}" class="nav-link">Report</a>
+            <a href="{{ route('login.form') }}" class="nav-link active">Login</a>
+        </div>
+    </nav>
+
+    <!-- ========== KARTU LOGIN ========== -->
     <div class="login-card">
         <div class="logo">
             <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Logo" style="width: 200px; height: auto;">
@@ -206,13 +255,13 @@
             </div>
         @endif
 
-        <div class="switch-tabs">
+        {{-- <div class="switch-tabs">
             <button class="tab-btn active" data-target="member">Member</button>
             <button class="tab-btn" data-target="admin">Admin</button>
-        </div>
+        </div> --}}
 
         <!-- Member Form -->
-        <div id="formMember" class="form-section active">
+        {{-- <div id="formMember" class="form-section active">
             <form id="memberLoginForm" method="POST" action="{{ route('login.member') }}">
                 @csrf
                 <div class="form-group">
@@ -224,10 +273,10 @@
                 <button type="submit" class="btn-login">Member Login</button>
                 <button type="button" class="btn-scan" id="btnScan">📷 Scan QR NIK</button>
             </form>
-        </div>
+        </div> --}}
 
         <!-- Admin Form -->
-        <div id="formAdmin" class="form-section">
+        <div id="formAdmin" class="form-section active">
             <form method="POST" action="{{ route('login') }}">
                 @csrf
                 <div class="form-group">
@@ -244,6 +293,7 @@
     </div>
 
     <script>
+        // ... (script untuk tab dan scan tetap sama) ...
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -267,7 +317,7 @@
                     html5QrCode = null;
                 }
                 reader.style.display = 'none';
-                btnScan.textContent = '📷 Scan Barcode NIK';
+                btnScan.textContent = '📷 Scan QR NIK';
                 return;
             }
 
@@ -283,24 +333,23 @@
                             qrbox: { width: 200, height: 200 }
                         },
                         (decodedText) => {
-                            // ✅ Ambil bagian pertama sebelum ';'
                             const nik = decodedText.split(';')[0].trim();
-
-                            // Isi input
                             nikInput.value = nik;
-
-                            // ✅ Auto-submit form
-                            memberForm.submit();
+                            memberForm.submit(); // Auto-submit setelah scan
                         },
                         (errorMessage) => {
-                            // Error scanning (opsional)
+                            // Silent error
                         }
-                    );
+                    ).catch(err => {
+                        alert("Kamera tidak tersedia atau izin ditolak.");
+                        reader.style.display = 'none';
+                        btnScan.textContent = '📷 Scan QR NIK';
+                    });
                 }
-            }).catch(() => {
-                alert("Kamera tidak tersedia atau izin ditolak.");
+            }).catch(err => {
+                alert("Gagal mengakses kamera.");
                 reader.style.display = 'none';
-                btnScan.textContent = '📷 Scan Barcode NIK';
+                btnScan.textContent = '📷 Scan QR NIK';
             });
         });
     </script>

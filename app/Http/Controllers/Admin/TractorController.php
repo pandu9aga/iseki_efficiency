@@ -123,11 +123,13 @@ class TractorController extends Controller
                         continue; // skip baris kosong
                     }
 
-                    Tractor::create([
-                        'Name_Tractor' => $name,
-                        'Group_Tractor' => $group,
-                        'Hour_Tractor' => $hour,
-                    ]);
+                    Tractor::updateOrCreate(
+                        ['Name_Tractor' => $name], // Kolom unik untuk pencarian
+                        [
+                            'Group_Tractor' => $group,
+                            'Hour_Tractor' => $hour,
+                        ]
+                    );
 
                     $dataInserted++;
                 }

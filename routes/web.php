@@ -2,11 +2,14 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MainController;
+use App\Http\Controllers\PublicScanController;
+use App\Http\Controllers\PublicReportController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminMemberController;
 use App\Http\Controllers\Admin\TractorController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\AdminReportController;
+use App\Http\Controllers\Admin\AdminMemberSelectionController;
 use App\Http\Controllers\Leader\LeaderController;
 use App\Http\Controllers\Leader\LeaderMemberController;
 use App\Http\Controllers\Leader\LeaderMemberSelectionController;
@@ -25,6 +28,12 @@ Route::middleware('guest')->group(function () {
     Route::get('/', [MainController::class, 'index'])->name('login.form');
     Route::post('/login', [MainController::class, 'login'])->name('login');
     Route::post('/login-member', [MainController::class, 'login_member'])->name('login.member');
+
+    Route::get('/scan', [PublicScanController::class, 'index'])->name('scan');
+    Route::post('/scan', [PublicScanController::class, 'store'])->name('scan.store');
+    Route::post('/scan/verify', [PublicScanController::class, 'verify'])->name('scan.verify');
+
+    Route::get('/scan-report', [PublicReportController::class, 'index'])->name('report.scan.index');
 });
 
 /*
@@ -70,6 +79,38 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
 
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [AdminReportController::class, 'index'])->name('index');
+    });
+
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [AdminReportController::class, 'index'])->name('index');
+
+        // Report save/update
+        Route::post('/report', [AdminReportController::class, 'storeReport'])->name('report.store');
+
+        // Cost
+        Route::post('/cost', [AdminReportController::class, 'storeCost'])->name('cost.store');
+        Route::put('/cost/{cost}', [AdminReportController::class, 'updateCost'])->name('cost.update');
+        Route::delete('/cost/{cost}', [AdminReportController::class, 'destroyCost'])->name('cost.destroy');
+
+        // Power
+        Route::post('/power', [AdminReportController::class, 'storePower'])->name('power.store');
+        Route::put('/power/{power}', [AdminReportController::class, 'updatePower'])->name('power.update');
+        Route::delete('/power/{power}', [AdminReportController::class, 'destroyPower'])->name('power.destroy');
+
+        // Penanganan
+        Route::post('/penanganan', [AdminReportController::class, 'storePenanganan'])->name('penanganan.store');
+        Route::put('/penanganan/{penanganan}', [AdminReportController::class, 'updatePenanganan'])->name('penanganan.update');
+        Route::delete('/penanganan/{penanganan}', [AdminReportController::class, 'destroyPenanganan'])->name('penanganan.destroy');
+    });
+    // ... di dalam Route::middleware(['web'])->prefix('admins')->name('admins.')...
+
+    Route::prefix('members')->name('members.')->group(function () {
+        // Route yang sudah ada
+        Route::get('/', [AdminMemberController::class, 'index'])->name('index');
+
+        // ✅ Tambahkan ini:
+        Route::get('/select', [AdminMemberSelectionController::class, 'create'])->name('select');
+        Route::post('/select', [AdminMemberSelectionController::class, 'store'])->name('select.store');
     });
 });
 

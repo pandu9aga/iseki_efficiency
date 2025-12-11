@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Report;
+use App\Models\ListMember; // ✅ tambahkan ini
 use App\Models\Cost;
 use App\Models\Power;
 use App\Models\Penanganan;
@@ -17,21 +18,15 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class AdminController extends Controller
 {
-    // 🔹 Helper untuk format jam
     private function formatHoursToText(float $totalHours): string
     {
-        if ($totalHours <= 0) {
-            return '0 jam 0 menit';
-        }
-
+        if ($totalHours <= 0) return '0 jam 0 menit';
         $hours = floor($totalHours);
         $minutes = round(($totalHours - $hours) * 60);
-
         if ($minutes >= 60) {
             $hours += floor($minutes / 60);
             $minutes = $minutes % 60;
         }
-
         return "{$hours} jam {$minutes} menit";
     }
 
@@ -44,10 +39,23 @@ class AdminController extends Controller
         $dateString = $date->format('Y-m-d');
         $isToday = $date->isToday();
 
+        // ✅ Ambil jumlah member aktif dari list_member
+        $currentTotalMembers = ListMember::count();
+
         $scans = Scan::whereDate('Time_Scan', $dateString)->with('tractor')->get();
         $costs = Cost::whereDate('Start_Cost', $dateString)->get();
+
+        // ✅ Hitung Non-Operational Impact (sudah dikalikan member)
+        $costImpactTotal = $costs->sum('Non_Operational_Cost') * $currentTotalMembers;
+        $costImpactList = $costs->map(function ($cost) use ($currentTotalMembers) {
+            return [
+                'label' => $cost->Keterangan_Cost ?? 'Unknown',
+                'value' => (float) $cost->Non_Operational_Cost * $currentTotalMembers,
+            ];
+        })->toArray();
+
         $report = Report::where('Day_Report', $dateString)->first();
-        $reportMembers = $report ? (int) $report->Total_Member_Report : 0;
+        $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
 
         $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
         $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
@@ -65,21 +73,15 @@ class AdminController extends Controller
             } else {
                 $totalHours = $start->diffInRealSeconds($now) / 3600.0;
 
-                if ($now->gt(Carbon::today()->setTime(10, 0))) {
-                    $totalHours -= 10 / 60;
-                }
-                if ($now->gt(Carbon::today()->setTime(12, 0))) {
-                    $totalHours -= 40 / 60;
-                }
-                if ($now->gt(Carbon::today()->setTime(15, 0))) {
-                    $totalHours -= 10 / 60;
-                }
+                if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
 
                 $totalHours = max(0, $totalHours);
                 $memberHours = $reportMembers * min($totalHours, 8.0);
             }
         } else {
-            $memberHours = $report ? (float) $report->Total_Hours_Report : 0.0;
+            $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
         }
 
         $memberHoursText = $this->formatHoursToText($memberHours);
@@ -94,7 +96,10 @@ class AdminController extends Controller
             'penanganans',
             'powerTotal',
             'dateString',
-            'isToday'
+            'isToday',
+            'currentTotalMembers', // ✅ kirim ke view
+            'costImpactList',      // ✅ untuk chart
+            'costImpactTotal'      // ✅ untuk total (opsional)
         ));
     }
 
@@ -148,8 +153,10 @@ class AdminController extends Controller
         // --- HITUNG KOMPONEN UTAMA ---
         $scanTotal = $scans->sum('Assigned_Hour_Scan');
         $nonOperationalTotal = $costs->sum('Non_Operational_Cost');
-        $kaizenTotal = $scanTotal * 0.078;
-        $bebanProduksiTotal = $scanTotal + $nonOperationalTotal - $kaizenTotal;
+
+        // ✅ Perbaikan utama sesuai permintaan:
+        $kaizenTotal = $scanTotal; // Kaizen = scan total
+        $bebanProduksiTotal = $scanTotal + ($scanTotal * 0.078); // Beban = scan + 7.8%
 
         $absensiTotal = $powers->sum('Leave_Hour_Power');
         $powerNetTotal = $memberHours - $absensiTotal;
@@ -165,11 +172,9 @@ class AdminController extends Controller
             'lembur_mente' => 'Lembur Mente / メンテ残業',
         ];
 
-        // Inisialisasi nilai tetap
         $handlingValues = array_fill_keys(array_keys($fixedLabels), 0.0);
-        $manualEntries = []; // untuk input manual
+        $manualEntries = [];
 
-        // Kelompokkan penanganan
         foreach ($penanganans as $p) {
             $desc = $p->Keterangan_Penanganan;
             $hours = (float) $p->Hour_Penanganan;
@@ -177,7 +182,6 @@ class AdminController extends Controller
 
             $matched = false;
 
-            // Cek kategori tetap
             if (str_contains($descLower, 'fix back up proses') || str_contains($desc, '工程の応援')) {
                 $handlingValues['fix_back_up'] += $hours;
                 $matched = true;
@@ -201,13 +205,11 @@ class AdminController extends Controller
                 $matched = true;
             }
 
-            // Jika tidak cocok → simpan sebagai manual
             if (!$matched) {
                 $manualEntries[] = ['label' => $desc, 'hours' => $hours];
             }
         }
 
-        // === Siapkan daftar penanganan ===
         $penangananCategories = [
             [$fixedLabels['fix_back_up'], $handlingValues['fix_back_up']],
             [$fixedLabels['back_up_absensi'], $handlingValues['back_up_absensi']],
@@ -218,30 +220,30 @@ class AdminController extends Controller
             [$fixedLabels['lembur_mente'], $handlingValues['lembur_mente']],
         ];
 
-        // Tambahkan input manual di akhir
         foreach ($manualEntries as $entry) {
             $penangananCategories[] = [$entry['label'], $entry['hours']];
         }
 
-        // Ekstrak nilai jam dan hitung total
         $penangananItems = array_column($penangananCategories, 1);
         $penangananTotal = array_sum($penangananItems);
 
-        // Penghematan (otomatis) — SEKARANG $penangananTotal SUDAH ADA!
-        $penghematanJam = ($scanTotal + $nonOperationalTotal) - ($powerNetTotal + $penangananTotal) ;
+        // Penghematan: sesuaikan dengan logika baru (NonOp tetap dihitung di sini untuk penghematan)
+        $penghematanJam = ($scanTotal + $nonOperationalTotal) - ($powerNetTotal + $penangananTotal);
 
-        // Tambahkan baris Penghematan di AWAL
         array_unshift($penangananCategories, ['Penghematan Jam Bulan ini / 今月の工数低減', $penghematanJam]);
         array_unshift($penangananItems, $penghematanJam);
-        
 
         // --- Konversi ke Man ---
         $hoursToMan = fn(float $h): float => $h / 8;
 
-        $manBebanProduksi = $hoursToMan($scanTotal);
+        // ✅ Perbaikan: manBebanProduksi dihitung dari bebanProduksiTotal, bukan scanTotal
+        $manBebanProduksi = $hoursToMan($bebanProduksiTotal);
         $manNonOperational = $hoursToMan($nonOperationalTotal);
         $manKaizen = $hoursToMan($kaizenTotal);
-        $manTotalBeban = $manBebanProduksi + $manNonOperational - $manKaizen;
+        // ✅ Total beban = bebanProduksiTotal + nonOperational (jika tetap ingin tampilkan total gabungan)
+        // Tapi sesuai permintaan: "beban produksi = scan + 7.8%", maka total beban = bebanProduksiTotal saja?
+        // Namun di Excel, kamu tetap tampilkan NonOp terpisah → total beban = bebanProduksiTotal + nonOperationalTotal
+        $manTotalBeban = $manBebanProduksi + $manNonOperational; // ✅ sesuaikan
 
         $manAbsensi = $hoursToMan($absensiTotal);
         $manPowerNet = $memberHours / 8 - $manAbsensi;
@@ -250,14 +252,15 @@ class AdminController extends Controller
         $manPenangananItems = array_map($hoursToMan, $penangananItems);
         $manPenangananTotal = array_sum($manPenangananItems);
 
-        // Selisih
+        // Selisih: gunakan bebanProduksiTotal yang benar
         $selisihA = $powerNetTotal - $bebanProduksiTotal;
-        $manSelisihA = $manPowerNet - $manTotalBeban;
+        $manSelisihA = $manPowerNet - $manBebanProduksi; // ✅ bandingkan dengan beban produksi saja
         $selisihB = $selisihA + $penangananTotal;
         $manSelisihB = $manSelisihA + $manPenangananTotal;
 
-        // Efisiensi
+        // Efisiensi: berdasarkan bebanProduksiTotal
         $efisiensiPersen = $bebanProduksiTotal > 0 ? (($bebanProduksiTotal - $powerNetTotal) / $bebanProduksiTotal) * 100 : 0;
+        // NonOp persen: opsional, bisa dihitung terhadap bebanProduksiTotal
         $nonOperationalPersen = $bebanProduksiTotal > 0 ? ($nonOperationalTotal / $bebanProduksiTotal) * 100 : 0;
 
         // --- EXCEL ---
@@ -289,11 +292,15 @@ class AdminController extends Controller
 
         // Beban
         $this->writeSectionHeader($sheet, $row++, 'Beban・負荷');
-        $this->writeRow($sheet, $row++, 'Beban Produksi・生産負荷', $scanTotal, $manBebanProduksi);
+        // ✅ Tampilkan bebanProduksiTotal, bukan scanTotal
+        $this->writeRow($sheet, $row++, 'Beban Produksi・生産負荷', $bebanProduksiTotal, $manBebanProduksi);
         $this->writeRow($sheet, $row++, 'Non operational・生産外負荷', $nonOperationalTotal, $manNonOperational);
+        // Kaizen tetap = scanTotal, tapi ditampilkan negatif (pengurang)
         $this->writeRowColored($sheet, $row++, 'Kaizen・過年度工数低減 (7.8%)', -$kaizenTotal, -$manKaizen, 'FF0000FF');
         $this->writeRow($sheet, $row++, 'Part Titipan・補修部品', 0, 0);
-        $this->writeTotalRow($sheet, $row++, 'Total・計', $bebanProduksiTotal, $manTotalBeban, 'FFF0E0C0');
+        // ✅ Total beban = bebanProduksiTotal + nonOperationalTotal (karena Kaizen hanya label, bukan pengurang)
+        $totalBebanAkhir = $bebanProduksiTotal + $nonOperationalTotal;
+        $this->writeTotalRow($sheet, $row++, 'Total・計', $totalBebanAkhir, $manBebanProduksi + $manNonOperational, 'FFF0E0C0');
 
         // Power
         $this->writeSectionHeader($sheet, $row++, 'Power・能力');
@@ -310,13 +317,12 @@ class AdminController extends Controller
             $hours = $penangananCategories[$i][1];
             $man = $manPenangananItems[$i];
 
-            // Index 5 = 'area_lain' → tampilkan dengan warna dan simbol ▲ jika negatif
             if ($i == 5) {
                 $hoursDisplay = $hours < 0 ? "▲" . abs($hours) : $hours;
                 $manDisplay = $man < 0 ? "▲" . abs($man) : $man;
                 $this->writeRowColored($sheet, $row++, $label, $hoursDisplay, $manDisplay, 'FFFF0000');
             } else {
-                $bg = $i == 0 ? 'FF00FF00' : null; // Penghematan: hijau
+                $bg = $i == 0 ? 'FF00FF00' : null;
                 $this->writeRowWithBackground($sheet, $row++, $label, $hours, $man, $bg);
             }
         }
@@ -340,7 +346,6 @@ class AdminController extends Controller
         $sheet->getStyle("B$row")->getFont()->setBold(true)->setSize(16);
         $row++;
 
-        // Format angka: 4 desimal, tanpa pembulatan
         $sheet->getStyle('B8:C' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0.0000');
 
         $sheet->getColumnDimension('A')->setWidth(40);
@@ -357,9 +362,7 @@ class AdminController extends Controller
         return Response::download($tempFile, $fileName, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend(true);
-
-
-    }    
+    }
     
     // --- HELPER EXCEL (SEMUA SUDAH DITAMBAHKAN) ---
 

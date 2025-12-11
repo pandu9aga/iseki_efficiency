@@ -10,7 +10,6 @@ use App\Models\ListMember;
 use App\Models\Cost;
 use App\Models\Power;
 use App\Models\Penanganan;
-use App\Models\Member;
 use App\Models\Scan;
 
 class LeaderController extends Controller
@@ -24,59 +23,83 @@ class LeaderController extends Controller
         $dateString = $date->format('Y-m-d');
         $isToday = $date->isToday();
 
-        // Ambil data umum
+        // ✅ Ambil jumlah member aktif dari list_member (sama seperti admin)
+        $currentTotalMembers = ListMember::count();
+
         $scans = Scan::whereDate('Time_Scan', $dateString)->with('tractor')->get();
         $costs = Cost::whereDate('Start_Cost', $dateString)->get();
+
+        // ✅ Hitung Non-Operational Impact (sama seperti admin)
+        $costImpactTotal = $costs->sum('Non_Operational_Cost') * $currentTotalMembers;
+        $costImpactList = $costs->map(function ($cost) use ($currentTotalMembers) {
+            return [
+                'label' => $cost->Keterangan_Cost ?? 'Unknown',
+                'value' => (float) $cost->Non_Operational_Cost * $currentTotalMembers,
+            ];
+        })->toArray();
+
+        // Ambil report historis (jika ada)
         $report = Report::where('Day_Report', $dateString)->first();
-        $reportMembers = $report ? (int) $report->Total_Member_Report : 0;
+        $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
 
         $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
         $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
         $powerTotal = $powers->sum('Leave_Hour_Power');
 
-        // 🔸 Hitung Member Hours (Real-time untuk hari ini, historis untuk tanggal lalu)
+        // Hitung member hours (realtime atau historis)
         if ($isToday) {
             $now = Carbon::now();
-            $start = Carbon::today()->setTime(7, 30); // 07.30
-            $endOfWork = Carbon::today()->setTime(16, 30); // 16.30
+            $start = Carbon::today()->setTime(7, 30);
+            $endOfWork = Carbon::today()->setTime(16, 30);
 
             if ($now->lt($start)) {
                 $memberHours = 0.0;
             } elseif ($now->gt($endOfWork)) {
                 $memberHours = $reportMembers * 8.0;
             } else {
-                // 🔸 Hitung total jam sejak 07.30
                 $totalHours = $start->diffInRealSeconds($now) / 3600.0;
 
-                // 🔸 Kurangi jeda istirahat (dalam jam)
-                if ($now->gt(Carbon::today()->setTime(10, 0))) {
-                    $totalHours -= (10 / 60); // 10 menit = 0.1667 jam
-                }
-                if ($now->gt(Carbon::today()->setTime(12, 0))) {
-                    $totalHours -= (40 / 60); // 40 menit = 0.6667 jam
-                }
-                if ($now->gt(Carbon::today()->setTime(15, 0))) {
-                    $totalHours -= (10 / 60); // 10 menit = 0.1667 jam
-                }
+                if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
 
-                // Pastikan tidak negatif
                 $totalHours = max(0, $totalHours);
-
-                $memberHours = $reportMembers * $totalHours;
+                $memberHours = $reportMembers * min($totalHours, 8.0);
             }
         } else {
-            $memberHours = $report ? (float) $report->Total_Hours_Report : 0.0;
+            $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
         }
+
+        // ✅ Format jam-menit (sama seperti admin)
+        $memberHoursText = $this->formatHoursToText($memberHours);
+
         return view('leaders.dashboard', compact(
             'scans',
             'costs',
-            'memberHours',       // ✅ bukan reportHours
+            'memberHours',
+            'memberHoursText',
             'reportMembers',
             'powers',
             'penanganans',
             'powerTotal',
             'dateString',
-            'isToday'            // ✅ penting untuk info real-time
+            'isToday',
+            'currentTotalMembers', // ✅ kirim ke view
+            'costImpactList',
+            'costImpactTotal'
         ));
+    }
+
+    // ✅ Tambahkan helper ini di dalam LeaderController
+    private function formatHoursToText(float $totalHours): string
+    {
+        if ($totalHours <= 0) return '0 jam 0 menit';
+        $hours = floor($totalHours);
+        $minutes = round(($totalHours - $hours) * 60);
+        if ($minutes >= 60) {
+            $hours += floor($minutes / 60);
+            $minutes = $minutes % 60;
+        }
+        return "{$hours} jam {$minutes} menit";
     }
 }

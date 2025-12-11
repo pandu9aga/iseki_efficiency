@@ -1,4 +1,5 @@
 @extends('layouts.leader')
+
 @section('content')
     <div class="page-heading">
         <div class="page-title">
@@ -8,6 +9,7 @@
                 </div>
             </div>
         </div>
+
         <!-- Date Filter -->
         <section class="section">
             <div class="card">
@@ -25,6 +27,7 @@
                 </div>
             </div>
         </section>
+
         <!-- Total Hour Member -->
         <section class="section">
             <div class="card">
@@ -69,11 +72,12 @@
                 </div>
             </div>
         </section>
+
         <!-- Non Operational Cost -->
         <section class="section">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Non Operational Cost</h5>
+                    <h5 class="card-title">Non Operational Cost (Impact: ×{{ $currentTotalMembers }} members)</h5>
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCostModal">
                         Add
                     </button>
@@ -86,7 +90,7 @@
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Hours</th>
+                                        <th>Hours (Impact)</th>
                                         <th>Start</th>
                                         <th>Description</th>
                                         <th>Action</th>
@@ -94,15 +98,21 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($costs as $cost)
+                                        @php
+                                            $original = $cost->Non_Operational_Cost;
+                                            $impact = $original * $currentTotalMembers;
+                                            $jamImpact = floor($impact);
+                                            $menitImpact = round(($impact - $jamImpact) * 60);
+                                        @endphp
                                         <tr>
                                             <td>
-                                                {{ $cost->Non_Operational_Cost }}
-                                                @php
-                                                    $jam = floor($cost->Non_Operational_Cost);
-                                                    $menit = round(($cost->Non_Operational_Cost - $jam) * 60);
-                                                @endphp
-                                                <small class="text-muted d-block">({{ $jam }} jam
-                                                    {{ $menit }} menit)</small>
+                                                {{ number_format($impact, 2) }}
+                                                <br>
+                                                <small class="text-muted">
+                                                    ({{ $jamImpact }} jam {{ $menitImpact }} menit)
+                                                    <br>
+                                                    ({{ number_format($original, 2) }} × {{ $currentTotalMembers }})
+                                                </small>
                                             </td>
                                             <td>{{ \Carbon\Carbon::parse($cost->Start_Cost)->format('Y-m-d H:i') }}</td>
                                             <td>{{ $cost->Keterangan_Cost ?? '-' }}</td>
@@ -125,6 +135,7 @@
                 </div>
             </div>
         </section>
+
         <!-- Permission (Power) -->
         <section class="section">
             <div class="card">
@@ -183,6 +194,7 @@
                 </div>
             </div>
         </section>
+
         <!-- Time Handling (Penanganan) -->
         <section class="section">
             <div class="card">
@@ -211,13 +223,17 @@
                                     @foreach ($penanganans as $p)
                                         <tr>
                                             <td>
-                                                {{ $p->Hour_Penanganan }}
+                                                {{ number_format($p->Hour_Penanganan, 2) }}
                                                 @php
-                                                    $jam = floor($p->Hour_Penanganan);
-                                                    $menit = round(($p->Hour_Penanganan - $jam) * 60);
+                                                    $sign = $p->Hour_Penanganan < 0 ? '-' : '';
+                                                    $abs = abs($p->Hour_Penanganan);
+                                                    $jam = floor($abs);
+                                                    $menit = round(($abs - $jam) * 60);
                                                 @endphp
-                                                <small class="text-muted d-block">({{ $jam }} jam
-                                                    {{ $menit }} menit)</small>
+                                                <small class="text-muted d-block">
+                                                    ({{ $sign }}{{ $jam }} jam {{ $menit }}
+                                                    menit)
+                                                </small>
                                             </td>
                                             <td>{{ \Carbon\Carbon::parse($p->Start_Penanganan)->format('Y-m-d H:i') }}</td>
                                             <td>{{ $p->Keterangan_Penanganan }}</td>
@@ -241,6 +257,7 @@
                 </div>
             </div>
         </section>
+
         <!-- Scan Data -->
         <section class="section">
             <div class="card">
@@ -256,16 +273,19 @@
                                 <thead>
                                     <tr>
                                         <th>Time</th>
-                                        <th>Member</th>
+                                        <th>Area</th>
                                         <th>Tractor</th>
                                         <th>Assigned Hour</th>
+                                        <th>Sequence No</th>
+                                        <th>Type Plan</th>
+                                        <th>Production Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($scans as $scan)
                                         <tr>
                                             <td>{{ $scan->Time_Scan }}</td>
-                                            <td>{{ $scan->member->nama ?? 'Unknown' }}</td>
+                                            <td>{{ $scan->Area_Scan ?? 'Unknown' }}</td>
                                             <td>{{ $scan->tractor->Name_Tractor ?? 'Unknown' }}</td>
                                             <td>
                                                 {{ $scan->Assigned_Hour_Scan }}
@@ -276,6 +296,9 @@
                                                 <small class="text-muted d-block">({{ $jam }} jam
                                                     {{ $menit }} menit)</small>
                                             </td>
+                                            <td>{{ $scan->Sequence_No_Plan }}</td>
+                                            <td>{{ optional($scan->plan)->Type_Plan ?? 'Unknown' }}</td>
+                                            <td>{{ $scan->Production_Date_Plan }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -309,8 +332,18 @@
                             <input type="hidden" name="Non_Operational_Cost">
                         </div>
                         <div class="mb-3">
-                            <label>Description</label>
-                            <textarea name="Keterangan_Cost" class="form-control" required></textarea>
+                            <label>Kategori Non Operational</label>
+                            <select name="kategori_cost" class="form-control" id="kategoriCost" required>
+                                <option value="">-- Pilih Kategori --</option>
+                                <option value="senam">Senam</option>
+                                <option value="briefing">Briefing</option>
+                                <option value="checksheet">Checksheet</option>
+                                <option value="lain_lain">Lain-lain (Manual)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="manualCostDescriptionContainer" style="display: none;">
+                            <label>Deskripsi Manual</label>
+                            <textarea name="Keterangan_Cost" class="form-control" placeholder="Masukkan deskripsi bebas..."></textarea>
                         </div>
                         <div class="mb-3">
                             <label>Start</label>
@@ -350,8 +383,19 @@
                                 <input type="hidden" name="Non_Operational_Cost">
                             </div>
                             <div class="mb-3">
-                                <label>Description</label>
-                                <textarea name="Keterangan_Cost" class="form-control" required>{{ $cost->Keterangan_Cost }}</textarea>
+                                <label>Kategori Non Operational</label>
+                                <select name="kategori_cost" class="form-control" id="kategoriCost{{ $cost->Id_Cost }}" required>
+                                    <option value="">-- Pilih Kategori --</option>
+                                    <option value="senam" {{ $cost->Keterangan_Cost == 'Senam' ? 'selected' : '' }}>Senam</option>
+                                    <option value="briefing" {{ $cost->Keterangan_Cost == 'Briefing' ? 'selected' : '' }}>Briefing</option>
+                                    <option value="checksheet" {{ $cost->Keterangan_Cost == 'Checksheet' ? 'selected' : '' }}>Checksheet</option>
+                                    <option value="lain_lain" {{ !in_array($cost->Keterangan_Cost, ['Senam', 'Briefing', 'Checksheet']) ? 'selected' : '' }}>Lain-lain (Manual)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="manualCostDescriptionContainer{{ $cost->Id_Cost }}"
+                                style="display: {{ !in_array($cost->Keterangan_Cost, ['Senam', 'Briefing', 'Checksheet']) ? 'block' : 'none' }};">
+                                <label>Deskripsi Manual</label>
+                                <textarea name="Keterangan_Cost" class="form-control" placeholder="Masukkan deskripsi bebas...">{{ $cost->Keterangan_Cost }}</textarea>
                             </div>
                             @php
                                 $costTime = \Carbon\Carbon::parse($cost->Start_Cost)->format('H:i');
@@ -438,7 +482,8 @@
                                 <select name="Id_Member" class="form-control tom-select" required>
                                     <option value="">-- Select --</option>
                                     @foreach ($activeMembers as $lm)
-                                        <option value="{{ $lm->Id_Member }}" {{ $lm->Id_Member == $power->Id_Member ? 'selected' : '' }}>
+                                        <option value="{{ $lm->Id_Member }}"
+                                            {{ $lm->Id_Member == $power->Id_Member ? 'selected' : '' }}>
                                             {{ $lm->member->nama }}
                                         </option>
                                     @endforeach
@@ -548,56 +593,83 @@
                                 <div class="input-group">
                                     <input type="number" name="jam_penanganan" class="form-control" placeholder="Jam" min="0" required>
                                     <span class="input-group-text">jam</span>
-                                    <input type="number" name="menit_penanganan" class="form-control" placeholder="Menit" min="0" max="59" required>
+                                    <input type="number" name="menit_penanganan" class="form-control"
+                                        placeholder="Menit" min="0" max="59" required>
                                     <span class="input-group-text">menit</span>
                                 </div>
                                 <input type="hidden" name="Hour_Penanganan">
                             </div>
                             <div class="mb-3">
                                 <label>Kategori Penanganan</label>
-                                <select name="kategori_penanganan" class="form-control" id="kategoriPenanganan{{ $p->Id_Penanganan }}" required>
+                                <select name="kategori_penanganan" class="form-control"
+                                    id="kategoriPenanganan{{ $p->Id_Penanganan }}" required>
                                     <option value="">-- Pilih Kategori --</option>
-                                    <option value="fix_back_up_proses" {{ $p->Keterangan_Penanganan == 'Fix Back Up Proses / 工程の応援' ? 'selected' : '' }}>Fix Back Up Proses / 工程の応援</option>
-                                    <option value="back_up_absensi" {{ $p->Keterangan_Penanganan == 'Back Up Absensi / 欠勤応援' ? 'selected' : '' }}>Back Up Absensi / 欠勤応援</option>
-                                    <option value="bantuan_pic_absensi" {{ $p->Keterangan_Penanganan == 'Bantuan ke PIC Absensi / 欠勤対応の応援' ? 'selected' : '' }}>Bantuan ke PIC Absensi / 欠勤対応の応援</option>
-                                    <option value="back_up_line_stop" {{ $p->Keterangan_Penanganan == 'Back Up Line Stop / Irregular / イレギュラー対応' ? 'selected' : '' }}>Back Up Line Stop / Irregular / イレギュラー対応</option>
-                                    <option value="perbantuan_area_lain" {{ $p->Keterangan_Penanganan == 'Perbantuan area lain / 他部署応援 【－】' ? 'selected' : '' }}>Perbantuan area lain / 他部署応援 【－】</option>
-                                    <option value="lembur_produksi" {{ $p->Keterangan_Penanganan == 'Lembur Produksi / 生産残業' ? 'selected' : '' }}>Lembur Produksi / 生産残業</option>
-                                    <option value="lembur_mante" {{ $p->Keterangan_Penanganan == 'Lembur Mente / メンテ残業' ? 'selected' : '' }}>Lembur Mente / メンテ残業</option>
-                                    <option value="lain_lain" {{ !in_array($p->Keterangan_Penanganan, [
-                                        'Fix Back Up Proses / 工程の応援',
-                                        'Back Up Absensi / 欠勤応援',
-                                        'Bantuan ke PIC Absensi / 欠勤対応の応援',
-                                        'Back Up Line Stop / Irregular / イレギュラー対応',
-                                        'Perbantuan area lain / 他部署応援 【－】',
-                                        'Lembur Produksi / 生産残業',
-                                        'Lembur Mente / メンテ残業',
-                                    ]) ? 'selected' : '' }}>Lain-lain (Manual)</option>
+                                    <option value="fix_back_up_proses"
+                                        {{ $p->Keterangan_Penanganan == 'Fix Back Up Proses / 工程の応援' ? 'selected' : '' }}>
+                                        Fix Back Up Proses / 工程の応援</option>
+                                    <option value="back_up_absensi"
+                                        {{ $p->Keterangan_Penanganan == 'Back Up Absensi / 欠勤応援' ? 'selected' : '' }}>Back
+                                        Up Absensi / 欠勤応援</option>
+                                    <option value="bantuan_pic_absensi"
+                                        {{ $p->Keterangan_Penanganan == 'Bantuan ke PIC Absensi / 欠勤対応の応援' ? 'selected' : '' }}>
+                                        Bantuan ke PIC Absensi / 欠勤対応の応援</option>
+                                    <option value="back_up_line_stop"
+                                        {{ $p->Keterangan_Penanganan == 'Back Up Line Stop / Irregular / イレギュラー対応' ? 'selected' : '' }}>
+                                        Back Up Line Stop / Irregular / イレギュラー対応</option>
+                                    <option value="perbantuan_area_lain"
+                                        {{ $p->Keterangan_Penanganan == 'Perbantuan area lain / 他部署応援 【－】' ? 'selected' : '' }}>
+                                        Perbantuan area lain / 他部署応援 【－】</option>
+                                    <option value="lembur_produksi"
+                                        {{ $p->Keterangan_Penanganan == 'Lembur Produksi / 生産残業' ? 'selected' : '' }}>
+                                        Lembur Produksi / 生産残業</option>
+                                    <option value="lembur_mante"
+                                        {{ $p->Keterangan_Penanganan == 'Lembur Mente / メンテ残業' ? 'selected' : '' }}>
+                                        Lembur Mente / メンテ残業</option>
+                                    <option value="lain_lain"
+                                        {{ !in_array($p->Keterangan_Penanganan, [
+                                            'Fix Back Up Proses / 工程の応援',
+                                            'Back Up Absensi / 欠勤応援',
+                                            'Bantuan ke PIC Absensi / 欠勤対応の応援',
+                                            'Back Up Line Stop / Irregular / イレギュラー対応',
+                                            'Perbantuan area lain / 他部署応援 【－】',
+                                            'Lembur Produksi / 生産残業',
+                                            'Lembur Mente / メンテ残業',
+                                        ])
+                                            ? 'selected'
+                                            : '' }}>
+                                        Lain-lain (Manual)</option>
                                 </select>
                             </div>
-                            <div class="mb-3" id="manualDescriptionContainer{{ $p->Id_Penanganan }}" style="display: {{ !in_array($p->Keterangan_Penanganan, [
-                                'Fix Back Up Proses / 工程の応援',
-                                'Back Up Absensi / 欠勤応援',
-                                'Bantuan ke PIC Absensi / 欠勤対応の応援',
-                                'Back Up Line Stop / Irregular / イレギュラー対応',
-                                'Perbantuan area lain / 他部署応援 【－】',
-                                'Lembur Produksi / 生産残業',
-                                'Lembur Mente / メンテ残業',
-                            ]) ? 'block' : 'none' }};">
+                            <div class="mb-3" id="manualDescriptionContainer{{ $p->Id_Penanganan }}"
+                                style="display: {{ !in_array($p->Keterangan_Penanganan, [
+                                    'Fix Back Up Proses / 工程の応援',
+                                    'Back Up Absensi / 欠勤応援',
+                                    'Bantuan ke PIC Absensi / 欠勤対応の応援',
+                                    'Back Up Line Stop / Irregular / イレギュラー対応',
+                                    'Perbantuan area lain / 他部署応援 【－】',
+                                    'Lembur Produksi / 生産残業',
+                                    'Lembur Mente / メンテ残業',
+                                ])
+                                    ? 'block'
+                                    : 'none' }};">
                                 <label>Deskripsi Manual</label>
                                 <textarea name="Keterangan_Penanganan" class="form-control" placeholder="Masukkan deskripsi bebas...">{{ $p->Keterangan_Penanganan }}</textarea>
                             </div>
                             <div class="mb-3">
                                 <label>Catatan Internal (Opsional)</label>
-                                <input type="text" name="catatan_internal" class="form-control" value="{{ $p->catatan_internal ?? '' }}" placeholder="Misal: untuk laporan internal...">
+                                <input type="text" name="catatan_internal" class="form-control"
+                                    value="{{ $p->catatan_internal ?? '' }}"
+                                    placeholder="Misal: untuk laporan internal...">
                             </div>
                             @php
                                 $penangananTime = \Carbon\Carbon::parse($p->Start_Penanganan)->format('H:i');
                             @endphp
                             <div class="mb-3">
                                 <label>Start</label>
-                                <input type="date" name="date_part" class="form-control" value="{{ $dateString }}" readonly>
-                                <input type="time" name="time_part" class="form-control" value="{{ $penangananTime }}" required>
+                                <input type="date" name="date_part" class="form-control" value="{{ $dateString }}"
+                                    readonly>
+                                <input type="time" name="time_part" class="form-control"
+                                    value="{{ $penangananTime }}" required>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -617,6 +689,8 @@
 
 @section('script')
     <script src="{{ asset('assets/js/tom-select.complete.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/dataTables.min.js') }}"></script>
     <script>
         function jamMenitToDecimal(jam, menit) {
             jam = parseFloat(jam) || 0;
@@ -659,14 +733,17 @@
             this.querySelector('[name="Hour_Penanganan"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
         });
         @foreach ($penanganans as $p)
-            document.querySelector('#editPenangananModal{{ $p->Id_Penanganan }} form')?.addEventListener('submit', function(e) {
-                const jam = this.querySelector('[name="jam_penanganan"]').value || 0;
-                const menit = this.querySelector('[name="menit_penanganan"]').value || 0;
-                this.querySelector('[name="Hour_Penanganan"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
-            });
+            document.querySelector('#editPenangananModal{{ $p->Id_Penanganan }} form')?.addEventListener('submit',
+                function(e) {
+                    const jam = this.querySelector('[name="jam_penanganan"]').value || 0;
+                    const menit = this.querySelector('[name="menit_penanganan"]').value || 0;
+                    this.querySelector('[name="Hour_Penanganan"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
+                });
         @endforeach
 
+        // TomSelect & Kategori
         document.addEventListener('DOMContentLoaded', function() {
+            // TomSelect
             document.querySelectorAll('.tom-select').forEach(select => {
                 new TomSelect(select, {
                     placeholder: '-- Select Member --',
@@ -674,8 +751,60 @@
                     plugins: ['dropdown_input']
                 });
             });
+
+            // ✅ COST: Handler untuk Add dan Edit
+            const setupCostHandler = (selectId, containerId) => {
+                const select = document.getElementById(selectId);
+                const container = document.getElementById(containerId);
+                if (!select || !container) return;
+
+                select.addEventListener('change', function() {
+                    if (this.value === 'lain_lain') {
+                        container.style.display = 'block';
+                        container.querySelector('textarea').required = true;
+                    } else {
+                        container.style.display = 'none';
+                        container.querySelector('textarea').required = false;
+                        // Isi otomatis
+                        const map = { senam: 'Senam', briefing: 'Briefing', checksheet: 'Checksheet' };
+                        container.querySelector('textarea').value = map[this.value] || '';
+                    }
+                });
+            };
+
+            // Add Cost
+            setupCostHandler('kategoriCost', 'manualCostDescriptionContainer');
+
+            // Edit Cost
+            @foreach ($costs as $cost)
+                setupCostHandler('kategoriCost{{ $cost->Id_Cost }}', 'manualCostDescriptionContainer{{ $cost->Id_Cost }}');
+            @endforeach
+
+            // ✅ PENANGANAN: Handler
+            const setupPenangananHandler = (selectId, containerId) => {
+                const select = document.getElementById(selectId);
+                const container = document.getElementById(containerId);
+                if (!select || !container) return;
+
+                select.addEventListener('change', function() {
+                    if (this.value === 'lain_lain') {
+                        container.style.display = 'block';
+                        container.querySelector('textarea').required = true;
+                    } else {
+                        container.style.display = 'none';
+                        container.querySelector('textarea').required = false;
+                        container.querySelector('textarea').value = this.options[this.selectedIndex].text;
+                    }
+                });
+            };
+
+            setupPenangananHandler('kategoriPenanganan', 'manualDescriptionContainer');
+            @foreach ($penanganans as $p)
+                setupPenangananHandler('kategoriPenanganan{{ $p->Id_Penanganan }}', 'manualDescriptionContainer{{ $p->Id_Penanganan }}');
+            @endforeach
         });
 
+        // DataTable
         $(document).ready(function() {
             if ($('#scansTable').length) {
                 $('#scansTable').DataTable({
@@ -685,46 +814,13 @@
                         search: "Cari:",
                         lengthMenu: "Tampilkan _MENU_ data",
                         info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
-                        paginate: { previous: "«", next: "»" }
-                    }
-                });
-            }
-        });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const kategoriSelect = document.getElementById('kategoriPenanganan');
-            const manualDesc = document.getElementById('manualDescriptionContainer');
-            if (kategoriSelect && manualDesc) {
-                kategoriSelect.addEventListener('change', function() {
-                    if (this.value === 'lain_lain') {
-                        manualDesc.style.display = 'block';
-                        manualDesc.querySelector('textarea').required = true;
-                    } else {
-                        manualDesc.style.display = 'none';
-                        manualDesc.querySelector('textarea').required = false;
-                        manualDesc.querySelector('textarea').value = this.options[this.selectedIndex].text;
-                    }
-                });
-            }
-
-            document.querySelectorAll('[id^="kategoriPenanganan"]').forEach(select => {
-                const id = select.id.replace('kategoriPenanganan', '');
-                const container = document.getElementById(`manualDescriptionContainer${id}`);
-                if (container) {
-                    select.addEventListener('change', function() {
-                        if (this.value === 'lain_lain') {
-                            container.style.display = 'block';
-                            container.querySelector('textarea').required = true;
-                        } else {
-                            container.style.display = 'none';
-                            container.querySelector('textarea').required = false;
-                            container.querySelector('textarea').value = this.options[this.selectedIndex].text;
+                        paginate: {
+                            previous: "«",
+                            next: "»"
                         }
-                    });
-                }
-            });
+                    }
+                });
+            }
         });
     </script>
 @endsection
