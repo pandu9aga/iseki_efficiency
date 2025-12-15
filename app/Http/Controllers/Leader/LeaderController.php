@@ -90,6 +90,85 @@ class LeaderController extends Controller
         ));
     }
 
+    public function fullscreen(Request $request)
+    {
+        // Sama seperti index(), tapi tampilan minimal (tanpa sidebar, header)
+        $date = $request->filled('date')
+            ? Carbon::parse($request->date)->startOfDay()
+            : Carbon::today();
+
+        $dateString = $date->format('Y-m-d');
+        $isToday = $date->isToday();
+
+        // Ambil data seperti biasa
+        $scans = Scan::whereDate('Time_Scan', $dateString)->with('tractor')->get();
+        $costs = Cost::whereDate('Start_Cost', $dateString)->get();
+
+        // Hitung impact
+        $currentTotalMembers = ListMember::count();
+        $costImpactTotal = $costs->sum('Non_Operational_Cost') * $currentTotalMembers;
+        $costImpactList = $costs->map(function ($cost) use ($currentTotalMembers) {
+            return [
+                'label' => $cost->Keterangan_Cost ?? 'Unknown',
+                'value' => (float) $cost->Non_Operational_Cost * $currentTotalMembers,
+            ];
+        })->toArray();
+
+        $report = Report::where('Day_Report', $dateString)->first();
+        $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
+
+        $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
+        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
+        $powerTotal = $powers->sum('Leave_Hour_Power');
+
+        // Hitung jam member
+        if ($isToday) {
+            $now = Carbon::now();
+            $start = Carbon::today()->setTime(7, 30);
+            $endOfWork = Carbon::today()->setTime(16, 30);
+
+            if ($now->lt($start)) {
+                $memberHours = 0.0;
+            } elseif ($now->gt($endOfWork)) {
+                $memberHours = $reportMembers * 8.0;
+            } else {
+                $totalHours = $start->diffInRealSeconds($now) / 3600.0;
+
+                if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+
+                $totalHours = max(0, $totalHours);
+                $memberHours = $reportMembers * min($totalHours, 8.0);
+            }
+        } else {
+            $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
+        }
+
+        $scanTotal = $scans->sum('Assigned_Hour_Scan');
+        $costTotal = $costs->sum('Non_Operational_Cost') * $currentTotalMembers; // Impact
+        $powerTotalCalculated = $powers->sum('Leave_Hour_Power');
+        $penangananTotal = $penanganans->sum('Hour_Penanganan');
+        $reportNetHours = $memberHours - $powerTotalCalculated;
+
+        return view('leaders.dashboard-fullscreen', compact(
+            'scans',
+            'costImpactList',
+            'memberHours',
+            'reportNetHours',
+            'reportMembers',
+            'powers',
+            'penanganans',
+            'powerTotal',
+            'dateString',
+            'isToday',
+            'currentTotalMembers',
+            'scanTotal',
+            'costTotal',
+            'penangananTotal'
+        ));
+    }
+
     // ✅ Tambahkan helper ini di dalam LeaderController
     private function formatHoursToText(float $totalHours): string
     {

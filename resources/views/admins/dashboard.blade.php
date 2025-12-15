@@ -33,6 +33,7 @@
                                             class="btn btn-success">
                                             <i class="fas fa-file-excel"></i> Export Excel
                                         </a>
+                                        <a href="{{ route('admins.dashboard.fullscreen', ['date' => $dateString]) }}" class="btn btn-info">Fullscreen View</a>
                                     </div>
                                 </div>
                             </form>
@@ -340,7 +341,7 @@
         }
 
         document.getElementById('selisihJam').textContent = decimalToHoursMinutes(selisihJam);
-        document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(nilaiRupiah);
+        document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(Math.round(nilaiRupiah));
 
         const mainCard = document.getElementById('mainCard');
         if (nilaiRupiah >= 0) {

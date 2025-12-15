@@ -55,6 +55,7 @@ Route::middleware('web')->group(function () {
 */
 Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard-fullscreen', [AdminController::class, 'fullscreen'])->name('dashboard.fullscreen');
     Route::get('/dashboard/export', [AdminController::class, 'export'])->name('dashboard.export'); // 🔻 Tambahkan ini
 
     // CRUD User (hanya admin yang boleh kelola user)
@@ -121,6 +122,7 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
 */
 Route::middleware(['web'])->prefix('leaders')->name('leaders.')->group(function () {
     Route::get('/dashboard', [LeaderController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard-fullscreen', [AdminController::class, 'fullscreen'])->name('dashboard.fullscreen');
 
     // Contoh: Leader hanya bisa lihat user, tidak bisa edit
     // Route::get('/users', [Leader\UserController::class, 'index'])->name('users.index');

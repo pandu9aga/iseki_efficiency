@@ -1,100 +1,150 @@
-@extends('layouts.leader')
+<!DOCTYPE html>
+<html lang="en">
 
-@section('content')
-    <div class="page-heading">
-        <div class="page-title">
-            <div class="row">
-                <div class="col-12 col-md-6 order-md-1 order-last">
-                    <h3>Dashboard</h3>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iseki - Efficiency</title>
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ asset('assets/images/icon.png') }}" type="image/x-icon">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ asset('assets/css/custom-fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/iconly/bold.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/dataTables.dataTables.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/fixedColumns.dataTables.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
+
+    <style>
+    html, body {
+        height: 100%;
+    }
+
+    body {
+        background-color: #fff5f9;
+        margin: 0;
+        overflow: hidden; /* ❗ hanya satu scroll */
+    }
+
+    .fullscreen-container {
+        height: 100vh;
+        display: flex;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .fullscreen-card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgba(189, 2, 55, 0.12);
+        border: 1px solid #ffe6ee;
+        overflow: hidden;
+    }
+
+    /* header + alert */
+    .card-top {
+        flex-shrink: 0;
+    }
+
+    /* area grafik */
+    .chart-section {
+        flex: 1;
+        position: relative;
+        min-height: 0; /* ❗ penting agar canvas bisa flex */
+    }
+
+    .chart-section canvas {
+        position: absolute;
+        inset: 0;
+    }
+
+    /* area bawah */
+    .bottom-section {
+        flex-shrink: 0;
+    }
+    </style>
+
+</head>
+
+<body data-pc-preset="preset-1" data-pc-theme="light">
+
+    <div class="fullscreen-container">
+        <div class="card fullscreen-card">
+
+            <!-- 🔹 BAGIAN ATAS -->
+            <div class="card-top p-3">
+
+                @if ($isToday)
+                    <div class="alert alert-info d-flex align-items-center mb-3">
+                        <i class="bi bi-clock me-2"></i>
+                        <strong>Jam Operasional Real-Time:</strong>
+                        Total {{ $reportMembers }} Member (Start From 07.30)
+                    </div>
+                @endif
+
+                <div class="header-actions mb-2">
+                    <h5>Diagram: <span class="text-primary">{{ $dateString }}</span></h5>
+                    <a href="{{ route('admins.dashboard') }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
                 </div>
-            </div>
-        </div>
 
-        <section class="section">
+            </div>
+
             <div class="row">
-                <div class="col-md-12">
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <form method="GET" id="dateForm">
-                                <div class="row g-3 align-items-center">
-                                    <div class="col-auto">
-                                        <label for="date" class="col-form-label">Date:</label>
-                                    </div>
-                                    <div class="col-auto">
-                                        <input type="date" id="date" name="date" class="form-control"
-                                            value="{{ $dateString }}">
-                                    </div>
-                                    <div class="col-auto">
-                                        <button type="submit" class="btn btn-primary">Show</button>
-                                    </div>
-                                    <div class="col-auto">
-                                        <a href="{{ route('leaders.dashboard.fullscreen', ['date' => $dateString]) }}" class="btn btn-info">Fullscreen View</a>
+                <div class="col-9">
+                    <!-- 🔹 CHART (FULL HEIGHT) -->
+                    <div class="chart-section px-3">
+                        <canvas id="stackedChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="col-3">
+                    <!-- 🔹 BAGIAN BAWAH -->
+                    <div class="bottom-section p-3" id="efficiencyCard">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card text-white" id="mainCard">
+                                    <div class="card-body text-center py-4">
+                                        <h6 class="card-title mb-2">
+                                            Efisiensi Hari Ini - 今日の作業効率
+                                        </h6>
+                                        <h2 class="fw-bold text-white" id="selisihJam">0.00 jam</h2>
+                                        <h3 class="mt-1 fs-4 text-white" id="nilaiRupiah">Rp0</h3>
                                     </div>
                                 </div>
-                            </form>
-                        </div>
-                    </div>
+                            </div>
 
-                    @if ($isToday)
-                        <div class="alert alert-info d-flex align-items-center">
-                            <i class="bi bi-clock me-2"></i>
-                            <strong>Jam Operasional Real-Time:</strong>
-                            Total {{ $reportMembers }} Member (Start From 07.30)
-                        </div>
-                    @endif
+                            <div class="col-12">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title mb-3">Efficency Ratio</h6>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>Diagram: <span class="text-primary">{{ $dateString }}</span></h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="stackedChart"></canvas>
-
-                            {{-- 🔹 KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
-                            <div id="efficiencyCard" class="mt-4">
-                                <div class="row g-3">
-                                    <!-- Nilai Utama -->
-                                    <div class="col-md-6">
-                                        <div class="card text-white h-100" id="mainCard">
-                                            <div class="card-body text-center py-4">
-                                                <h6 class="card-title mb-2">Efisiensi Hari Ini - 今日の作業効率</h6>
-                                                <div class="display-6 fw-bold" id="selisihJam">0.00 jam</div>
-                                                <div class="mt-1 fs-4" id="nilaiRupiah">Rp0</div>
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between small mb-1">
+                                                <span>Operational Ratio - 工数低減率</span>
+                                                <span id="persenOperasional">0%</span>
+                                            </div>
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar" id="persenOperasionalBar"></div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <!-- Rasio Efisiensi -->
-                                    <div class="col-md-6">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                <h6 class="card-title mb-3">Efficency Ratio</h6>
-
-                                                <!-- % Operasional -->
-                                                <div class="mb-3">
-                                                    <div class="d-flex justify-content-between small mb-1">
-                                                        <span>Operational Ratio - 工数低減率</span>
-                                                        <span id="persenOperasional">0%</span>
-                                                    </div>
-                                                    <div class="progress" style="height: 8px;">
-                                                        <div class="progress-bar" id="persenOperasionalBar"
-                                                            role="progressbar" style="width: 0%"></div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- % Non-Operasional -->
-                                                <div>
-                                                    <div class="d-flex justify-content-between small mb-1">
-                                                        <span>Non Operational Ratio - 非稼働工数率</span>
-                                                        <span id="persenNonOperasional">0%</span>
-                                                    </div>
-                                                    <div class="progress" style="height: 8px;">
-                                                        <div class="progress-bar bg-info" id="persenNonOperasionalBar"
-                                                            role="progressbar" style="width: 0%"></div>
-                                                    </div>
-                                                </div>
+                                        <div>
+                                            <div class="d-flex justify-content-between small mb-1">
+                                                <span>Non Operational Ratio - 非稼働工数率</span>
+                                                <span id="persenNonOperasional">0%</span>
+                                            </div>
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-info"
+                                                    id="persenNonOperasionalBar"></div>
                                             </div>
                                         </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -102,26 +152,55 @@
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
     </div>
-@endsection
 
-@section('script')
+    <!-- JS: Core -->
+    <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('assets/vendors/apexcharts/apexcharts.js') }}"></script>
+
+    <!-- JS: DataTables -->
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/dataTables.min.js') }}"></script>
+    <script src="{{ asset('assets/js/fixedColumns.dataTables.min.js') }}"></script>
+    <script src="{{ asset('assets/js/html5-qrcode.min.js') }}"></script>
+
+    <!-- JS: Custom -->
+    <script>
+        document.querySelector('.year').textContent = new Date().getFullYear();
+        // Init DataTable if exists
+        const table1 = document.querySelector('#table1');
+        if (table1) {
+            new DataTable(table1);
+        }
+    </script>
+    <script src="{{ asset('assets/js/main.js') }}"></script>
+
+    <!-- Yield: Modal harus sebelum script agar bisa diakses -->
     <script src="{{ asset('assets/js/chart.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
     <script>
+        setTimeout(() => {
+            location.reload();
+        }, 10000); // 60 detik = 1 menit
+    </script>
+    <script>
+        // 🔹 Fungsi: Konversi desimal jam ke format "X jam Y menit" (termasuk nilai negatif)
         function decimalToHoursMinutes(decimal) {
             if (isNaN(decimal)) return '0 jam 0 menit';
+
             const sign = decimal < 0 ? '-' : '';
             const abs = Math.abs(decimal);
             const totalMinutes = Math.round(abs * 60);
             const jam = Math.floor(totalMinutes / 60);
             const menit = totalMinutes % 60;
+
             return `${sign}${jam} jam ${menit} menit`;
         }
 
-        // Ambil data — pastikan $costImpactList sudah dikalikan jumlah member (sudah dilakukan di controller)
+        // 🔹 Ambil data dari PHP
         const rawScans = @json($scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray());
         const rawCosts = @json($costImpactList);
         const rawPowers = @json($powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray());
@@ -143,7 +222,7 @@
 
         const reportNetHours = memberHours - powerTotalCalculated;
 
-        // Inisialisasi Chart
+        // 🔹 Inisialisasi Chart
         const ctx = document.getElementById('stackedChart').getContext('2d');
         Chart.register(ChartDataLabels);
         Chart.register('chartjs-plugin-annotation');
@@ -210,12 +289,12 @@
                         formatter: (value, ctx) => {
                             const label = ctx.dataset.label;
                             if (label === 'Member Hours')
-                            return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
+                                return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
                             if (label === 'Handling')
-                            return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
+                                return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
                             if (label === 'Tractor') return `Tractor: ${decimalToHoursMinutes(scanTotal)}`;
                             if (label === 'Non Operational')
-                            return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
+                                return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
                             return value ? `${decimalToHoursMinutes(value)}` : "";
                         },
                         font: {
@@ -240,8 +319,9 @@
                                     const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
                                     const labels = scans.map(s =>
                                         `${s.label} (${decimalToHoursMinutes(s.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
-                                        .join(', '));
+                                    for (let i = 0; i < labels.length; i += 5) {
+                                        lines.push(labels.slice(i, i + 5).join(', '));
+                                    }
                                     return lines;
                                 }
                                 if (label === 'Non Operational') {
@@ -249,8 +329,9 @@
                                     const lines = [`Total Non Operational: ${decimalToHoursMinutes(total)}`];
                                     const labels = costs.map(c =>
                                         `${c.label} (${decimalToHoursMinutes(c.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
-                                        .join(', '));
+                                    for (let i = 0; i < labels.length; i += 5) {
+                                        lines.push(labels.slice(i, i + 5).join(', '));
+                                    }
                                     return lines;
                                 }
                                 if (label === 'Handling') {
@@ -258,8 +339,9 @@
                                     const lines = [`Total Handling: ${decimalToHoursMinutes(total)}`];
                                     const labels = penanganans.map(p =>
                                         `${p.label} (${decimalToHoursMinutes(p.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
-                                        .join(', '));
+                                    for (let i = 0; i < labels.length; i += 5) {
+                                        lines.push(labels.slice(i, i + 5).join(', '));
+                                    }
                                     return lines;
                                 }
                                 return null;
@@ -311,7 +393,7 @@
             }
         });
 
-        // === EFISIENSI LOGIC (SAMA DENGAN ADMIN) ===
+        // === 🔥 EFISIENSI ===
         const kategori1 = reportNetHours + penangananTotal;
         const kategori2 = scanTotal + costTotal;
         const selisihJam = kategori2 - kategori1;
@@ -334,9 +416,9 @@
 
         const mainCard = document.getElementById('mainCard');
         if (nilaiRupiah >= 0) {
-            mainCard.style.backgroundColor = '#28a745'; // Hijau
+            mainCard.style.backgroundColor = '#28a745';
         } else {
-            mainCard.style.backgroundColor = '#dc3545'; // Merah
+            mainCard.style.backgroundColor = '#dc3545';
         }
 
         document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
@@ -348,4 +430,6 @@
         document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
         document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
     </script>
-@endsection
+</body>
+
+</html>

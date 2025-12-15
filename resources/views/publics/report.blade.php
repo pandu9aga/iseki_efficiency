@@ -183,7 +183,7 @@
 
             if (hasDataRows) {
                 $('#scansTable').DataTable({
-                    pageLength: 25,
+                    pageLength: 50,
                     responsive: true,
                     order: [[0, 'desc']], // Urutkan kolom pertama (Waktu) descending secara default
                     language: {
