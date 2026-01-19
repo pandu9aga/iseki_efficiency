@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iseki - Efficiency</title>
+    <title>Laporan Scan - {{ $areaName ?? 'Area' }}</title>
     <link rel="shortcut icon" href="{{ asset('assets/images/icon.png') }}" type="image/x-icon">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -23,11 +23,9 @@
         }
 
         body {
-            /* min-height: 100vh; */
             display: flex;
-            flex-direction: column; /* 🔥 Ubah ke column agar navbar di atas */
+            flex-direction: column;
             align-items: center;
-            /* justify-content: center; */
             padding: 20px;
             background-color: #fff5f9;
         }
@@ -35,8 +33,8 @@
         /* ========== NAVBAR ========== */
         .top-nav {
             width: 100%;
-            max-width: 420px; /* Sesuaikan lebar navbar dengan kartu */
-            margin-bottom: 20px; /* Jarak antara navbar dan login card */
+            max-width: 420px;
+            margin-bottom: 20px;
         }
 
         .nav-links {
@@ -99,10 +97,9 @@
     <!-- ========== NAVBAR ATAS ========== -->
     <nav class="top-nav">
         <div class="nav-links">
-            <!-- Ganti href sesuai route Laravel Anda -->
-            <a href="{{ route('scan') }}" class="nav-link">Scan</a>
-            <a href="{{ route('report.scan.index') }}" class="nav-link active">Report</a>
-            <a href="{{ route('login.form') }}" class="nav-link">Login</a>
+            <a href="{{ route('area.scan') }}" class="nav-link">Scan</a>
+            <a href="{{ route('area.report') }}" class="nav-link active">Report</a>
+            <a href="{{ route('logout.area') }}" class="nav-link" onclick="return confirm('Yakin ingin keluar dari sesi Area?')">Logout</a>
         </div>
     </nav>
 
@@ -111,7 +108,7 @@
             <div class="col-12">
                 <div class="card report-card">
                     <div class="card-header bg-transparent border-0 pb-0">
-                        <h3 class="card-title text-primary">Scan Report</h3>
+                        <h3 class="card-title text-primary text-center">Laporan Scan - {{ $areaName ?? 'Area' }}</h3>
                     </div>
                     <div class="card-body pt-0">
                         <!-- Filter Tanggal -->
@@ -122,7 +119,8 @@
                                         <label for="date" class="col-form-label">Tanggal:</label>
                                     </div>
                                     <div class="col-auto">
-                                        <input type="date" id="date" name="date" class="form-control" value="{{ $dateString }}" required>
+                                        <input type="date" id="date" name="date" class="form-control"
+                                            value="{{ $dateString }}" required>
                                     </div>
                                     <div class="col-auto">
                                         <button type="submit" class="btn btn-primary">Tampilkan</button>
@@ -137,24 +135,35 @@
                                 <thead>
                                     <tr>
                                         <th>Time Scan</th>
-                                        <th>Area Scan</th>
                                         <th>Tractor Name</th>
                                         <th>Hour Weight</th>
                                         <th>Sequence No</th>
                                         <th>Type Plan</th>
                                         <th>Production Date</th>
+                                        <th>Member Pengganti</th> <!-- 🔥 TAMBAHAN -->
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @forelse($scans as $scan)
                                     <tr>
                                         <td>{{ \Carbon\Carbon::parse($scan->Time_Scan)->format('d-m-Y H:i:s') }}</td>
-                                        <td>{{ $scan->Area_Scan ?? 'Unknown' }}</td>
-                                        <td>{{ optional($scan->tractor)->Name_Tractor ?? 'Unknown' }}</td>
-                                        <td>{{ $scan->Assigned_Hour_Scan }}</td>
+                                        <td>{{ optional($scan->tractor)->Name_Tractor ?? '—' }}</td>
+                                        <td>{{ $scan->Assigned_Hour_Scan ?? '—' }}</td>
                                         <td>{{ $scan->Sequence_No_Plan }}</td>
-                                        <td>{{ optional($scan->plan)->Type_Plan ?? 'Unknown' }}</td>
+                                        <td>{{ optional($scan->plan)->Type_Plan ?? '—' }}</td>
                                         <td>{{ $scan->Production_Date_Plan }}</td>
+                                        <!-- 🔥 Kolom Member Pengganti -->
+                                        <td>
+                                            @if($scan->Nik_Replace)
+                                            @if(isset($memberMap[$scan->Nik_Replace]))
+                                            {{ $memberMap[$scan->Nik_Replace] }}
+                                            @else
+                                            {{ $scan->Nik_Replace }} <small class="text-muted">(nama tidak ditemukan)</small>
+                                            @endif
+                                            @else
+                                            —
+                                            @endif
+                                        </td>
                                     </tr>
                                     @empty
                                     <tr>
@@ -177,15 +186,16 @@
 
     <script>
         $(document).ready(function() {
-            // 🔥 Cek apakah ada baris data (bukan baris "Tidak ada data")
             const hasDataRows = $('#scansTable tbody tr').length > 0 &&
-                            $('#scansTable tbody tr:first td[colspan]').length === 0;
+                $('#scansTable tbody tr:first td[colspan]').length === 0;
 
             if (hasDataRows) {
                 $('#scansTable').DataTable({
                     pageLength: 50,
                     responsive: true,
-                    order: [[0, 'desc']], // Urutkan kolom pertama (Waktu) descending secara default
+                    order: [
+                        [0, 'desc']
+                    ],
                     language: {
                         search: "Cari:",
                         lengthMenu: "Tampilkan _MENU_ data",
@@ -197,7 +207,6 @@
                     }
                 });
             }
-            // Jika tidak ada data, jangan inisialisasi DataTables
         });
     </script>
 </body>

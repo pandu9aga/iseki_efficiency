@@ -14,6 +14,7 @@ class Tractor extends Model
     protected $fillable = [
         'Name_Tractor',
         'Group_Tractor',
-        'Hour_Tractor'
+        'Hour_Tractor',
+        'Id_Area'
     ];
 }

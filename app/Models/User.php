@@ -2,44 +2,27 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Model;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'Username_User',
         'Name_User',
         'Password_User',
         'Id_Type_User',
+        'Id_Area',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -48,8 +31,13 @@ class User extends Authenticatable
         ];
     }
 
-    protected $table = 'users'; // Nama tabel
-    protected $primaryKey = 'Id_User'; // Nama primary key
+    // Relasi ke Area
+    public function area()
+    {
+        return $this->belongsTo(Area::class, 'Id_Area', 'Id_Area');
+    }
 
-    public $timestamps = false; // Jika tabel tidak memiliki created_at dan updated_at
+    protected $table = 'users';
+    protected $primaryKey = 'Id_User';
+    public $timestamps = false; // ✅ Titik koma wajib!
 }

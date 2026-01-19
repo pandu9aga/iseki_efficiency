@@ -40,7 +40,8 @@
                     <div class="d-flex justify-content-between">
                         <div class="logo">
                             <a href="{{ route('admins.dashboard') }}">
-                                <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Logo" style="width: 200px; height: auto;">
+                                <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Logo"
+                                    style="width: 200px; height: auto;">
                             </a>
                         </div>
                         <div class="toggler">
@@ -65,6 +66,12 @@
                                 <span>Report</span>
                             </a>
                         </li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('admins.planning.create') }}" class='sidebar-link'> <i
+                                    class="bi bi-person-badge-fill"></i>
+                                <span>Daily Planning</span>
+                            </a>
+                        </li>
 
                         <li class="sidebar-title">Navigation</li>
                         <li class="sidebar-item">
@@ -79,6 +86,14 @@
                                 <span>User</span>
                             </a>
                         </li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('admins.jobs.manage') }}" class='sidebar-link'> <i
+                                    class="bi bi-person-badge-fill"></i>
+                                <span>List Job</span>
+                            </a>
+                        </li>
+
+
                         <li class="sidebar-item">
                             <a href="{{ route('admins.tractors.index') }}" class='sidebar-link'>
                                 <i class="bi bi-truck"></i>

@@ -1,154 +1,218 @@
 @extends('layouts.leader')
-
 @section('content')
-    <div class="page-heading">
-        <div class="page-title">
-            <div class="row">
-                <div class="col-12 col-md-6 order-md-1 order-last">
-                    <h3>Daily Production Report</h3>
-                </div>
+<div class="page-heading">
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-6 order-md-1 order-last">
+                <h3>Daily Production Report</h3>
             </div>
         </div>
+    </div>
 
-        <!-- Date Filter -->
-        <section class="section">
-            <div class="card">
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="date">Date</label>
-                            <input type="date" name="date" id="date" class="form-control"
-                                value="{{ $dateString }}" required>
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary">Apply</button>
-                        </div>
-                    </form>
-                </div>
+    <!-- Date Filter -->
+    <section class="section">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="date">Date</label>
+                        <input type="date" name="date" id="date" class="form-control"
+                            value="{{ $dateString }}" required>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                    </div>
+                </form>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- Total Hour Member -->
-        <section class="section">
-            <div class="card">
-                <div class="card-header">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5 class="card-title">Reported Data</h5>
+    @php
+    function decimalToJamMenit($decimal)
+    {
+    $isNegative = $decimal < 0;
+        $decimal=abs((float) $decimal);
+        $hours=floor($decimal);
+        $minutes=round(($decimal - $hours) * 60);
+        if ($minutes>= 60) {
+        $hours += floor($minutes / 60);
+        $minutes = $minutes % 60;
+        }
+        $text = '';
+        if ($hours > 0) {
+        $text .= "$hours jam ";
+        }
+        if ($minutes > 0 || $hours === 0) {
+        $text .= "$minutes menit";
+        }
+        if ($isNegative) {
+        $text = "−" . $text; // Gunakan tanda minus Unicode (lebih rapi)
+        }
+        return compact('hours', 'minutes', 'text', 'isNegative');
+        }
+        @endphp
+
+        <div class="tab-content" id="reportAreaTabContent">
+            @foreach ($areas as $index => $area)
+            <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" id="tab-{{ $area->Id_Area }}"
+                role="tabpanel">
+
+                {{-- ✅ REPORT PER AREA --}}
+                @php
+                $areaReport = $areaReports->firstWhere('Id_Area', $area->Id_Area);
+                $reportExists = $areaReport !== null;
+                @endphp
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-0">Report for {{ $area->Name_Area }}</h5>
                             <span class="badge bg-{{ $reportExists ? 'success' : 'secondary' }}">
                                 {{ $reportExists ? 'Recorded' : 'Not Recorded' }}
                             </span>
                         </div>
-                        <div class="col-md-6">
-                            <h5 class="card-title">Current Member Status</h5>
+                        <div>
+                            <h5 class="card-title mb-0">Current Member Status</h5>
                             <span class="badge bg-info">Live</span>
                         </div>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            @if ($reportExists)
-                                <p><strong>Member:</strong> {{ $recordedReport->Total_Member_Report }}</p>
-                                <p><strong>Hour:</strong> {{ number_format($recordedReport->Total_Hours_Report, 2) }}</p>
-                            @else
-                                <p class="text-muted">No report recorded yet.</p>
-                            @endif
-                            <form action="{{ route('leaders.reports.report.store') }}" method="POST" class="d-inline">
-                                @csrf
-                                <input type="hidden" name="date" value="{{ $dateString }}">
-                                <button type="submit" class="btn btn-{{ $reportExists ? 'warning' : 'success' }}">
-                                    {{ $reportExists ? 'Update Report' : 'Set Report' }}
-                                </button>
-                            </form>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Active Members:</strong> {{ $currentTotalMembers }}</p>
-                            <p><strong>Calculated Hours:</strong> {{ number_format($currentTotalHours, 2) }}
-                                ({{ $currentTotalMembers }} × 8 hours)</p>
-                            <a href="{{ route('leaders.members.select') }}" class="btn btn-outline-primary">Edit Member</a>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                @if ($reportExists)
+                                <p><strong>Member:</strong> {{ $areaReport->Total_Member_Report }}</p>
+                                <p><strong>Hour:</strong> {{ number_format($areaReport->Total_Hours_Report, 2) }}</p>
+                                @else
+                                <p class="text-muted">No report recorded for this area.</p>
+                                @endif
+                                <form action="{{ route('leaders.reports.report.store') }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <input type="hidden" name="date" value="{{ $dateString }}">
+                                    <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
+                                    <button type="submit" class="btn btn-{{ $reportExists ? 'warning' : 'success' }}">
+                                        {{ $reportExists ? 'Update Report' : 'Set Report' }}
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                @php
+                                $areaMembers = $currentMembersPerArea[$area->Id_Area] ?? 0;
+                                $areaHours = round($areaMembers * 8, 2);
+                                @endphp
+                                <p><strong>Active Members:</strong> {{ $areaMembers }}</p>
+                                <p><strong>Calculated Hours:</strong> {{ number_format($areaHours, 2) }}
+                                    ({{ $areaMembers }} × 8 hours)
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Non Operational Cost -->
-        <section class="section">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Non Operational Cost (Impact: ×{{ $currentTotalMembers }} members)</h5>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCostModal">
-                        Add
-                    </button>
-                </div>
-                <div class="card-body">
-                    @if ($costs->isEmpty())
-                        <p class="text-muted">No cost data for this day.</p>
-                    @else
+                {{-- COST --}}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Non Operational Cost</h5>
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#addCostModal{{ $area->Id_Area }}">
+                            Add Cost
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @php $areaCosts = $costs->where('Id_Area', $area->Id_Area); @endphp
+                        @if ($areaCosts->isEmpty())
+                        <p class="text-muted">No cost data.</p>
+                        @else
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Hours (Impact)</th>
+                                        <th>Hours</th>
                                         <th>Start</th>
                                         <th>Description</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($costs as $cost)
-                                        @php
-                                            $original = $cost->Non_Operational_Cost;
-                                            $impact = $original * $currentTotalMembers;
-                                            $jamImpact = floor($impact);
-                                            $menitImpact = round(($impact - $jamImpact) * 60);
-                                        @endphp
-                                        <tr>
-                                            <td>
-                                                {{ number_format($impact, 2) }}
-                                                <br>
-                                                <small class="text-muted">
-                                                    ({{ $jamImpact }} jam {{ $menitImpact }} menit)
-                                                    <br>
-                                                    ({{ number_format($original, 2) }} × {{ $currentTotalMembers }})
-                                                </small>
-                                            </td>
-                                            <td>{{ \Carbon\Carbon::parse($cost->Start_Cost)->format('Y-m-d H:i') }}</td>
-                                            <td>{{ $cost->Keterangan_Cost ?? '-' }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                                                    data-bs-target="#editCostModal{{ $cost->Id_Cost }}">Edit</button>
-                                                <form action="{{ route('leaders.reports.cost.destroy', $cost) }}"
-                                                    method="POST" class="d-inline">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-danger"
-                                                        onclick="return confirm('Delete this cost?')">Delete</button>
-                                                </form>
-                                            </td>
-                                        </tr>
+                                    @foreach ($areaCosts as $cost)
+                                    <tr>
+                                        <td>
+                                            <div class="text-muted small">
+                                                {{ number_format($cost->Non_Operational_Cost, 2) }} hours
+                                            </div>
+                                            @php $jamMenit = decimalToJamMenit($cost->Non_Operational_Cost); @endphp
+                                            <div style="color: #bd0237; font-weight: 600;">
+                                                {{ $jamMenit['text'] }}
+                                            </div>
+                                            {{-- Rincian member --}}
+                                            @php
+                                            $applied = $cost->applied_members;
+                                            $memberCount = 0;
+                                            $infoText = 'Unknown';
+                                            if ($applied === null || $applied === 'all') {
+                                            $memberCount = \App\Models\DailyJob::where(
+                                            'Production_Date_Plan',
+                                            \Carbon\Carbon::parse($cost->Start_Cost)->format('Ymd'),
+                                            )
+                                            ->where('Id_Area', $cost->Id_Area)
+                                            ->distinct('Nik_Daily_Job')
+                                            ->count();
+                                            $infoText = "Applied to all active members ($memberCount)";
+                                            } elseif (is_array($applied)) {
+                                            $memberCount = count($applied);
+                                            $names = array_map(
+                                            fn($nik) => $allNiks[$nik] ?? $nik,
+                                            $applied,
+                                            );
+                                            $infoText = 'Applied to:<br>' . implode('<br>', $names);
+                                            }
+                                            $costPerPerson = $memberCount > 0 ? $cost->Non_Operational_Cost / $memberCount : 0;
+                                            $jamMenitPerPerson = decimalToJamMenit($costPerPerson);
+                                            @endphp
+                                            <div class="small text-muted mt-1">
+                                                ({{ $jamMenitPerPerson['text'] }} × {{ $memberCount }} members)
+                                            </div>
+                                            <button type="button" class="btn btn-link p-0 text-decoration-none"
+                                                data-bs-toggle="popover" data-bs-trigger="hover focus"
+                                                data-bs-html="true" data-bs-content="{{ $infoText }}"
+                                                title="Details">
+                                                <i class="bi bi-info-circle text-muted"></i>
+                                            </button>
+                                        </td>
+                                        <td>{{ \Carbon\Carbon::parse($cost->Start_Cost)->format('Y-m-d H:i') }}</td>
+                                        <td>{{ $cost->Keterangan_Cost }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-warning"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editCostModal{{ $cost->Id_Cost }}">Edit</button>
+                                            <form action="{{ route('leaders.reports.cost.destroy', $cost) }}"
+                                                method="POST" class="d-inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger"
+                                                    onclick="return confirm('Delete?')">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                    @endif
+                        @endif
+                    </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Permission (Power) -->
-        <section class="section">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Permission</h5>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPowerModal">
-                        Add
-                    </button>
-                </div>
-                <div class="card-body">
-                    @if ($powers->isEmpty())
-                        <p class="text-muted">No permission data for this day.</p>
-                    @else
+                {{-- PERMISSION --}}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Permission</h5>
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#addPowerModal{{ $area->Id_Area }}">
+                            Add Permission
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @php $areaPowers = $powers->where('Id_Area', $area->Id_Area); @endphp
+                        @if ($areaPowers->isEmpty())
+                        <p class="text-muted">No permission data.</p>
+                        @else
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
@@ -161,54 +225,54 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($powers as $power)
-                                        <tr>
-                                            <td>
-                                                {{ $power->Leave_Hour_Power }}
-                                                @php
-                                                    $jam = floor($power->Leave_Hour_Power);
-                                                    $menit = round(($power->Leave_Hour_Power - $jam) * 60);
-                                                @endphp
-                                                <small class="text-muted d-block">({{ $jam }} jam
-                                                    {{ $menit }} menit)</small>
-                                            </td>
-                                            <td>{{ \Carbon\Carbon::parse($power->Start_Power)->format('Y-m-d H:i') }}</td>
-                                            <td>{{ $power->member->nama ?? 'Unknown' }}</td>
-                                            <td>{{ $power->Keterangan_Power ?? '-' }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                                                    data-bs-target="#editPowerModal{{ $power->Id_Power }}">Edit</button>
-                                                <form action="{{ route('leaders.reports.power.destroy', $power) }}"
-                                                    method="POST" class="d-inline">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-danger"
-                                                        onclick="return confirm('Delete this permission?')">Delete</button>
-                                                </form>
-                                            </td>
-                                        </tr>
+                                    @foreach ($areaPowers as $power)
+                                    <tr>
+                                        <td>
+                                            <div class="text-muted small">
+                                                {{ number_format($power->Leave_Hour_Power, 2) }} hours
+                                            </div>
+                                            @php $jamMenitPower = decimalToJamMenit($power->Leave_Hour_Power); @endphp
+                                            <div style="color: #bd0237; font-weight: 600;">
+                                                {{ $jamMenitPower['text'] }}
+                                            </div>
+                                        </td>
+                                        <td>{{ \Carbon\Carbon::parse($power->Start_Power)->format('Y-m-d H:i') }}</td>
+                                        <td>{{ $power->member->nama ?? '–' }}</td>
+                                        <td>{{ $power->Keterangan_Power }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-warning"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editPowerModal{{ $power->Id_Power }}">Edit</button>
+                                            <form action="{{ route('leaders.reports.power.destroy', $power) }}"
+                                                method="POST" class="d-inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger"
+                                                    onclick="return confirm('Delete?')">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                    @endif
+                        @endif
+                    </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Time Handling (Penanganan) -->
-        <section class="section">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Time Handling</h5>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                        data-bs-target="#addPenangananModal">
-                        Add
-                    </button>
-                </div>
-                <div class="card-body">
-                    @if ($penanganans->isEmpty())
-                        <p class="text-muted">No handling data for this day.</p>
-                    @else
+                {{-- TIME HANDLING --}}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Time Handling</h5>
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#addPenangananModal{{ $area->Id_Area }}">
+                            Add Handling
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @php $areaPenanganans = $penanganans->where('Id_Area', $area->Id_Area); @endphp
+                        @if ($areaPenanganans->isEmpty())
+                        <p class="text-muted">No handling data.</p>
+                        @else
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
@@ -220,607 +284,652 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($penanganans as $p)
-                                        <tr>
-                                            <td>
-                                                {{ number_format($p->Hour_Penanganan, 2) }}
-                                                @php
-                                                    $sign = $p->Hour_Penanganan < 0 ? '-' : '';
-                                                    $abs = abs($p->Hour_Penanganan);
-                                                    $jam = floor($abs);
-                                                    $menit = round(($abs - $jam) * 60);
-                                                @endphp
-                                                <small class="text-muted d-block">
-                                                    ({{ $sign }}{{ $jam }} jam {{ $menit }}
-                                                    menit)
-                                                </small>
-                                            </td>
-                                            <td>{{ \Carbon\Carbon::parse($p->Start_Penanganan)->format('Y-m-d H:i') }}</td>
-                                            <td>{{ $p->Keterangan_Penanganan }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-warning"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#editPenangananModal{{ $p->Id_Penanganan }}">Edit</button>
-                                                <form action="{{ route('leaders.reports.penanganan.destroy', $p) }}"
-                                                    method="POST" class="d-inline">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-danger"
-                                                        onclick="return confirm('Delete this handling?')">Delete</button>
-                                                </form>
-                                            </td>
-                                        </tr>
+                                    @foreach ($areaPenanganans as $p)
+                                    <tr>
+                                        <td>
+                                            <div class="text-muted small">
+                                                {{ number_format($p->Hour_Penanganan, 2) }} hours
+                                            </div>
+                                            @php $jamMenitPenanganan = decimalToJamMenit($p->Hour_Penanganan); @endphp
+                                            <div style="color: #bd0237; font-weight: 600;">
+                                                {{ $jamMenitPenanganan['text'] }}
+                                            </div>
+                                        </td>
+                                        <td>{{ \Carbon\Carbon::parse($p->Start_Penanganan)->format('Y-m-d H:i') }}</td>
+                                        <td>{{ $p->Keterangan_Penanganan }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-warning"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editPenangananModal{{ $p->Id_Penanganan }}">Edit</button>
+                                            <form action="{{ route('leaders.reports.penanganan.destroy', $p) }}"
+                                                method="POST" class="d-inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger"
+                                                    onclick="return confirm('Delete?')">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                    @endif
+                        @endif
+                    </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Scan Data -->
-        <section class="section">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Scan Data</h5>
-                </div>
-                <div class="card-body">
-                    @if ($scans->isEmpty())
-                        <p class="text-muted">No scan data for this day.</p>
-                    @else
+                <!-- Scan Data -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Scan Data</h5>
+                    </div>
+                    <div class="card-body">
+                        @php $areaScans = $scans->where('Id_Area', $area->Id_Area); @endphp
+                        @if ($areaScans->isEmpty())
+                        <p class="text-muted">No scan data.</p>
+                        @else
                         <div class="table-responsive">
-                            <table class="table table-sm" id="scansTable">
+                            <table class="table table-sm">
                                 <thead>
                                     <tr>
                                         <th>Time</th>
-                                        <th>Area</th>
                                         <th>Tractor</th>
                                         <th>Assigned Hour</th>
                                         <th>Sequence No</th>
-                                        <th>Type Plan</th>
-                                        <th>Production Date</th>
+                                        <th>Member Pengganti</th>
+                                        <th style="width: 80px;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($scans as $scan)
-                                        <tr>
-                                            <td>{{ $scan->Time_Scan }}</td>
-                                            <td>{{ $scan->Area_Scan ?? 'Unknown' }}</td>
-                                            <td>{{ $scan->tractor->Name_Tractor ?? 'Unknown' }}</td>
-                                            <td>
-                                                {{ $scan->Assigned_Hour_Scan }}
-                                                @php
-                                                    $jam = floor($scan->Assigned_Hour_Scan);
-                                                    $menit = round(($scan->Assigned_Hour_Scan - $jam) * 60);
-                                                @endphp
-                                                <small class="text-muted d-block">({{ $jam }} jam
-                                                    {{ $menit }} menit)</small>
-                                            </td>
-                                            <td>{{ $scan->Sequence_No_Plan }}</td>
-                                            <td>{{ optional($scan->plan)->Type_Plan ?? 'Unknown' }}</td>
-                                            <td>{{ $scan->Production_Date_Plan }}</td>
-                                        </tr>
+                                    @foreach ($areaScans as $scan)
+                                    <tr>
+                                        <td>{{ \Carbon\Carbon::parse($scan->Time_Scan)->format('Y-m-d H:i:s') }}</td>
+                                        <td>{{ $scan->tractor?->Name_Tractor ?? '–' }}</td>
+                                        <td>{{ $scan->Assigned_Hour_Scan }}</td>
+                                        <td>{{ $scan->Sequence_No_Plan ?? '–' }}</td>
+                                        <td>
+                                            @if($scan->Nik_Replace && isset($memberMap[$scan->Nik_Replace]))
+                                            {{ $memberMap[$scan->Nik_Replace] }}
+                                            @elseif($scan->Nik_Replace)
+                                            {{ $scan->Nik_Replace }} <small class="text-muted">(nama tidak ditemukan)</small>
+                                            @else
+                                            –
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <form action="{{ route('leaders.scan.destroy', $scan->Id_Scan) }}" method="POST" style="display:inline;"> @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger"
+                                                    onclick="return confirm('Hapus scan ini?')">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                    @endif
+                        @endif
+                    </div>
                 </div>
             </div>
-        </section>
-    </div>
+            @endforeach
+        </div>
+</div>
 
-    {{-- MODAL: Add Cost --}}
-    <div class="modal fade" id="addCostModal" tabindex="-1">
-        <div class="modal-dialog">
-            <form action="{{ route('leaders.reports.cost.store') }}" method="POST">
-                @csrf
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add Non Operational Cost</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+{{-- MODAL ADD COST PER AREA --}}
+@foreach ($areas as $area)
+<div class="modal fade" id="addCostModal{{ $area->Id_Area }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ route('leaders.reports.cost.store') }}" method="POST">
+            @csrf
+            <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
+            <input type="hidden" name="date_part" value="{{ $dateString }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Cost - {{ $area->Name_Area }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Duration (per person)</label>
+                        <div class="input-group">
+                            <input type="number" name="jam_cost" class="form-control" placeholder="Jam" min="0" required>
+                            <span class="input-group-text">jam</span>
+                            <input type="number" name="menit_cost" class="form-control" placeholder="Menit" min="0" max="59" required>
+                            <span class="input-group-text">menit</span>
+                        </div>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label>Duration</label>
-                            <div class="input-group">
-                                <input type="number" name="jam_cost" class="form-control" placeholder="Jam" min="0" required>
-                                <span class="input-group-text">jam</span>
-                                <input type="number" name="menit_cost" class="form-control" placeholder="Menit" min="0" max="59" required>
-                                <span class="input-group-text">menit</span>
+                    <div class="mb-3">
+                        <label>Apply to Members</label>
+                        <div class="form-check mb-1">
+                            <input class="form-check-input select-all-members" type="checkbox" id="selectAll-{{ $area->Id_Area }}">
+                            <label class="form-check-label" for="selectAll-{{ $area->Id_Area }}">Select All</label>
+                        </div>
+                        <div style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem;">
+                            @php $membersHere = $activeMembersByArea[$area->Id_Area] ?? collect(); @endphp
+                            @if ($membersHere->isEmpty())
+                            <p class="text-muted small mb-0">No active members</p>
+                            @else
+                            @foreach ($membersHere as $m)
+                            <div class="form-check">
+                                <input class="form-check-input member-checkbox-{{ $area->Id_Area }}" type="checkbox" name="selected_members[]" value="{{ $m->nik }}" id="member-{{ $m->nik }}">
+                                <label class="form-check-label" for="member-{{ $m->nik }}">{{ $m->nama }} ({{ $m->nik }})</label>
                             </div>
-                            <input type="hidden" name="Non_Operational_Cost">
+                            @endforeach
+                            @endif
                         </div>
-                        <div class="mb-3">
-                            <label>Kategori Non Operational</label>
-                            <select name="kategori_cost" class="form-control" id="kategoriCost" required>
-                                <option value="">-- Pilih Kategori --</option>
-                                <option value="senam">Senam</option>
-                                <option value="briefing">Briefing</option>
-                                <option value="checksheet">Checksheet</option>
-                                <option value="lain_lain">Lain-lain (Manual)</option>
-                            </select>
-                        </div>
-                        <div class="mb-3" id="manualCostDescriptionContainer" style="display: none;">
-                            <label>Deskripsi Manual</label>
-                            <textarea name="Keterangan_Cost" class="form-control" placeholder="Masukkan deskripsi bebas..."></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label>Start</label>
-                            <input type="date" name="date_part" class="form-control" value="{{ $dateString }}" readonly>
-                            <input type="time" name="time_part" class="form-control" value="07:30" required>
-                        </div>
+                        <small class="text-muted">Leave unchecked to apply to all active members.</small>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                    <div class="mb-3">
+                        <label>Kategori</label>
+                        <select name="kategori_cost" class="form-control" required>
+                            <option value="senam">Senam</option>
+                            <option value="meeting_maneger">課長朝礼 (meeting maneger)</option>
+                            <option value="meeting_maneger_dept">部長朝礼 (meeting maneger Dept)</option>
+                            <option value="meeting_pres_dir">社長朝礼 (meeting Pres.Dir)</option>
+                            <option value="meeting_team_awal">組内最初ミーティング (meeting team dijam awal)</option>
+                            <option value="meeting_team_akhir">組内最後ミーティング (meeting team dijam akhir)</option>
+                            <option value="kebersihan_team">組内清掃 (kebersihan team)</option>
+                            <option value="check_sheet">チェックシートの点検 (pengecekan check sheet)</option>
+                            <option value="pelatihan_pekerja">作業者教育 (pelatihan pekerja)</option>
+                            <option value="pengecekkan_type_jarang_nagalir">あまり流れてない機械確認 (Pengecekkan Type Jarang Ngalir)</option>
+                            <option value="line_stop_divisi_lain">他部署責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab Divsi lain)</option>
+                            <option value="line_stop_team_lain">他チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team lain)</option>
+                            <option value="line_stop_team_sendiri">自チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team sendiri)</option>
+                            <option value="lain_lain">Lain-lain (Manual)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="manualCostDesc{{ $area->Id_Area }}" style="display:none;">
+                        <label>Deskripsi Manual</label>
+                        <textarea name="Keterangan_Cost" class="form-control"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Start</label>
+                        <input type="time" name="time_part" class="form-control" value="07:30" required>
                     </div>
                 </div>
-            </form>
-        </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </form>
     </div>
+</div>
+@endforeach
 
-    {{-- MODAL: Edit Cost --}}
-    @foreach ($costs as $cost)
-        <div class="modal fade" id="editCostModal{{ $cost->Id_Cost }}" tabindex="-1">
-            <div class="modal-dialog">
-                <form action="{{ route('leaders.reports.cost.update', $cost) }}" method="POST">
-                    @csrf @method('PUT')
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Edit Cost</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label>Duration</label>
-                                <div class="input-group">
-                                    <input type="number" name="jam_cost" class="form-control" placeholder="Jam" min="0" required>
-                                    <span class="input-group-text">jam</span>
-                                    <input type="number" name="menit_cost" class="form-control" placeholder="Menit" min="0" max="59" required>
-                                    <span class="input-group-text">menit</span>
-                                </div>
-                                <input type="hidden" name="Non_Operational_Cost">
-                            </div>
-                            <div class="mb-3">
-                                <label>Kategori Non Operational</label>
-                                <select name="kategori_cost" class="form-control" id="kategoriCost{{ $cost->Id_Cost }}" required>
-                                    <option value="">-- Pilih Kategori --</option>
-                                    <option value="senam" {{ $cost->Keterangan_Cost == 'Senam' ? 'selected' : '' }}>Senam</option>
-                                    <option value="briefing" {{ $cost->Keterangan_Cost == 'Briefing' ? 'selected' : '' }}>Briefing</option>
-                                    <option value="checksheet" {{ $cost->Keterangan_Cost == 'Checksheet' ? 'selected' : '' }}>Checksheet</option>
-                                    <option value="lain_lain" {{ !in_array($cost->Keterangan_Cost, ['Senam', 'Briefing', 'Checksheet']) ? 'selected' : '' }}>Lain-lain (Manual)</option>
-                                </select>
-                            </div>
-                            <div class="mb-3" id="manualCostDescriptionContainer{{ $cost->Id_Cost }}"
-                                style="display: {{ !in_array($cost->Keterangan_Cost, ['Senam', 'Briefing', 'Checksheet']) ? 'block' : 'none' }};">
-                                <label>Deskripsi Manual</label>
-                                <textarea name="Keterangan_Cost" class="form-control" placeholder="Masukkan deskripsi bebas...">{{ $cost->Keterangan_Cost }}</textarea>
-                            </div>
+{{-- MODAL ADD POWER PER AREA --}}
+@foreach ($areas as $area)
+<div class="modal fade" id="addPowerModal{{ $area->Id_Area }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ route('leaders.reports.power.store') }}" method="POST">
+            @csrf
+            <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
+            <input type="hidden" name="date_part" value="{{ $dateString }}">
+            <input type="hidden" name="Leave_Hour_Power">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Permission - {{ $area->Name_Area }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Member</label>
+                        <select name="Id_Member" class="form-control" required>
+                            <option value="">-- Pilih Member --</option>
                             @php
-                                $costTime = \Carbon\Carbon::parse($cost->Start_Cost)->format('H:i');
+                            $productionDateYmd = \Carbon\Carbon::parse($dateString)->format('Ymd');
+                            $nksToday = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                            ->where('Id_Area', $area->Id_Area)
+                            ->pluck('Nik_Daily_Job')
+                            ->unique();
+                            $eligibleMembersToday = \App\Models\Member::whereIn('nik', $nksToday)->get();
                             @endphp
-                            <div class="mb-3">
-                                <label>Start</label>
-                                <input type="date" name="date_part" class="form-control" value="{{ $dateString }}" readonly>
-                                <input type="time" name="time_part" class="form-control" value="{{ $costTime }}" required>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-warning">Update</button>
+                            @if ($eligibleMembersToday->isEmpty())
+                            <option disabled>Tidak ada member di-assign di area ini hari ini.</option>
+                            @else
+                            @foreach ($eligibleMembersToday as $m)
+                            <option value="{{ $m->id }}">{{ $m->nama }} ({{ $m->nik }})</option>
+                            @endforeach
+                            @endif
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Leave Hour</label>
+                        <div class="input-group">
+                            <input type="number" name="jam_power" class="form-control" placeholder="Jam" min="0" required>
+                            <span class="input-group-text">jam</span>
+                            <input type="number" name="menit_power" class="form-control" placeholder="Menit" min="0" max="59" required>
+                            <span class="input-group-text">menit</span>
                         </div>
                     </div>
-                </form>
-            </div>
-        </div>
-    @endforeach
-
-    {{-- MODAL: Add Power --}}
-    <div class="modal fade" id="addPowerModal" tabindex="-1">
-        <div class="modal-dialog">
-            <form action="{{ route('leaders.reports.power.store') }}" method="POST">
-                @csrf
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add Permission</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="mb-3">
+                        <label>Description</label>
+                        <textarea name="Keterangan_Power" class="form-control" required></textarea>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label>Member</label>
-                            <select name="Id_Member" class="form-control tom-select" required>
-                                <option value="">-- Select --</option>
-                                @foreach ($activeMembers as $lm)
-                                    <option value="{{ $lm->Id_Member }}">{{ $lm->member->nama }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label>Leave Hour</label>
-                            <div class="input-group">
-                                <input type="number" name="jam_power" class="form-control" placeholder="Jam" min="0" required>
-                                <span class="input-group-text">jam</span>
-                                <input type="number" name="menit_power" class="form-control" placeholder="Menit" min="0" max="59" required>
-                                <span class="input-group-text">menit</span>
-                            </div>
-                            <input type="hidden" name="Leave_Hour_Power">
-                        </div>
-                        <div class="mb-3">
-                            <label>Description</label>
-                            <textarea name="Keterangan_Power" class="form-control" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label>Start</label>
-                            <input type="date" name="date_part" class="form-control" value="{{ $dateString }}" readonly>
-                            <input type="time" name="time_part" class="form-control" value="07:30" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                    <div class="mb-3">
+                        <label>Start</label>
+                        <input type="time" name="time_part" class="form-control" value="07:30" required>
                     </div>
                 </div>
-            </form>
-        </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </form>
     </div>
+</div>
+@endforeach
 
-    {{-- MODAL: Edit Power --}}
-    @foreach ($powers as $power)
-        <div class="modal fade" id="editPowerModal{{ $power->Id_Power }}" tabindex="-1">
-            <div class="modal-dialog">
-                <form action="{{ route('leaders.reports.power.update', $power) }}" method="POST">
-                    @csrf @method('PUT')
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Edit Permission</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label>Member</label>
-                                <select name="Id_Member" class="form-control tom-select" required>
-                                    <option value="">-- Select --</option>
-                                    @foreach ($activeMembers as $lm)
-                                        <option value="{{ $lm->Id_Member }}"
-                                            {{ $lm->Id_Member == $power->Id_Member ? 'selected' : '' }}>
-                                            {{ $lm->member->nama }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label>Leave Hour</label>
-                                <div class="input-group">
-                                    <input type="number" name="jam_power" class="form-control" placeholder="Jam" min="0" required>
-                                    <span class="input-group-text">jam</span>
-                                    <input type="number" name="menit_power" class="form-control" placeholder="Menit" min="0" max="59" required>
-                                    <span class="input-group-text">menit</span>
-                                </div>
-                                <input type="hidden" name="Leave_Hour_Power">
-                            </div>
-                            <div class="mb-3">
-                                <label>Description</label>
-                                <textarea name="Keterangan_Power" class="form-control" required>{{ $power->Keterangan_Power }}</textarea>
-                            </div>
-                            @php
-                                $powerTime = \Carbon\Carbon::parse($power->Start_Power)->format('H:i');
-                            @endphp
-                            <div class="mb-3">
-                                <label>Start</label>
-                                <input type="date" name="date_part" class="form-control" value="{{ $dateString }}" readonly>
-                                <input type="time" name="time_part" class="form-control" value="{{ $powerTime }}" required>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-warning">Update</button>
+{{-- MODAL ADD PENANGANAN PER AREA --}}
+@foreach ($areas as $area)
+<div class="modal fade" id="addPenangananModal{{ $area->Id_Area }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ route('leaders.reports.penanganan.store') }}" method="POST">
+            @csrf
+            <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
+            <input type="hidden" name="date_part" value="{{ $dateString }}">
+            <input type="hidden" name="Hour_Penanganan">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Handling - {{ $area->Name_Area }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Hour</label>
+                        <div class="input-group">
+                            <input type="number" name="jam_penanganan" class="form-control" placeholder="Jam" min="0" required>
+                            <span class="input-group-text">jam</span>
+                            <input type="number" name="menit_penanganan" class="form-control" placeholder="Menit" min="0" max="59" required>
+                            <span class="input-group-text">menit</span>
                         </div>
                     </div>
-                </form>
+                    <div class="mb-3">
+                        <label>Kategori</label>
+                        <select name="kategori_penanganan" class="form-control" required>
+                            <option value="fix_back_up_proses">Fix Back Up Proses / 工程の応援</option>
+                            <option value="back_up_absensi">Back Up Absensi / 欠勤応援</option>
+                            <option value="bantuan_pic_absensi">Bantuan ke PIC Absensi / 欠勤対応の応援</option>
+                            <option value="back_up_line_stop_irregular">Back Up Line Stop / Irregular / イレギュラー対応</option>
+                            <option value="perbantuan_area_lain">Perbantuan area lain / 他部署応援 【－】</option>
+                            <option value="lembur_produksi">Lembur Produksi / 生産残業</option>
+                            <option value="lembur_mente">Lembur Mente / メンテ残業</option>
+                            <option value="lain_lain">Lain-lain (Manual)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="manualPenangananDesc{{ $area->Id_Area }}" style="display:none;">
+                        <label>Deskripsi Manual</label>
+                        <textarea name="Keterangan_Penanganan" class="form-control"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Start</label>
+                        <input type="time" name="time_part" class="form-control" value="07:30" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
             </div>
-        </div>
-    @endforeach
+        </form>
+    </div>
+</div>
+@endforeach
 
-    {{-- MODAL: Add Penanganan --}}
-    <div class="modal fade" id="addPenangananModal" tabindex="-1">
+{{-- MODAL EDIT COST --}}
+@foreach ($costs as $cost)
+@php
+$costArea = $areas->firstWhere('Id_Area', $cost->Id_Area);
+if (!$costArea) continue;
+$start = \Carbon\Carbon::parse($cost->Start_Cost);
+$datePart = $start->format('Y-m-d');
+$productionDateYmd = $start->format('Ymd');
+$timePart = $start->format('H:i');
+$allActiveNiksAtCostDate = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
+->where('Id_Area', $cost->Id_Area)
+->pluck('Nik_Daily_Job')
+->unique()
+->toArray();
+$eligibleMembersAtCostDate = \App\Models\Member::whereIn('nik', $allActiveNiksAtCostDate)->get();
+$applied = $cost->applied_members;
+$preselectedNiks = [];
+if ($applied === 'all' || $applied === null) {
+$preselectedNiks = $allActiveNiksAtCostDate;
+} elseif (is_array($applied)) {
+$preselectedNiks = $applied;
+}
+$memberCount = count($preselectedNiks);
+$durationPerPerson = $memberCount > 0 ? $cost->Non_Operational_Cost / $memberCount : 0;
+$jamPerPerson = floor($durationPerPerson);
+$menitPerPerson = round(($durationPerPerson - $jamPerPerson) * 60);
+@endphp
+<div class="modal fade" id="editCostModal{{ $cost->Id_Cost }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ route('leaders.reports.cost.update', $cost) }}" method="POST">
+            @csrf @method('PUT')
+            <input type="hidden" name="Id_Area" value="{{ $cost->Id_Area }}">
+            <input type="hidden" name="date_part" value="{{ $datePart }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Cost - {{ $costArea->Name_Area }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Duration (per person)</label>
+                        <div class="input-group">
+                            <input type="number" name="jam_cost" class="form-control" value="{{ $jamPerPerson }}" min="0" required>
+                            <span class="input-group-text">jam</span>
+                            <input type="number" name="menit_cost" class="form-control" value="{{ $menitPerPerson }}" min="0" max="59" required>
+                            <span class="input-group-text">menit</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>Apply to Members</label>
+                        <div class="form-check mb-1">
+                            <input class="form-check-input select-all-edit-members" type="checkbox" id="selectAllEdit-{{ $cost->Id_Cost }}">
+                            <label class="form-check-label" for="selectAllEdit-{{ $cost->Id_Cost }}">Select All</label>
+                        </div>
+                        <div style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem;">
+                            @if ($eligibleMembersAtCostDate->isEmpty())
+                            <p class="text-muted small mb-0">No active members on {{ $datePart }}</p>
+                            @else
+                            @foreach ($eligibleMembersAtCostDate as $m)
+                            <div class="form-check">
+                                <input class="form-check-input member-edit-checkbox-{{ $cost->Id_Cost }}" type="checkbox" name="selected_members[]" value="{{ $m->nik }}" id="edit-member-{{ $cost->Id_Cost }}-{{ $m->nik }}" {{ in_array($m->nik, $preselectedNiks) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="edit-member-{{ $cost->Id_Cost }}-{{ $m->nik }}">{{ $m->nama }} ({{ $m->nik }})</label>
+                            </div>
+                            @endforeach
+                            @endif
+                        </div>
+                        <small class="text-muted">Leave unchecked to apply to all active members.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label>Kategori</label>
+                        <select name="kategori_cost" class="form-control" required>
+                            <option value="senam">Senam</option>
+                            <option value="meeting_maneger">課長朝礼 (meeting maneger)</option>
+                            <option value="meeting_maneger_dept">部長朝礼 (meeting maneger Dept)</option>
+                            <option value="meeting_pres_dir">社長朝礼 (meeting Pres.Dir)</option>
+                            <option value="meeting_team_awal">組内最初ミーティング (meeting team dijam awal)</option>
+                            <option value="meeting_team_akhir">組内最後ミーティング (meeting team dijam akhir)</option>
+                            <option value="kebersihan_team">組内清掃 (kebersihan team)</option>
+                            <option value="check_sheet">チェックシートの点検 (pengecekan check sheet)</option>
+                            <option value="pelatihan_pekerja">作業者教育 (pelatihan pekerja)</option>
+                            <option value="pengecekkan_type_jarang_nagalir">あまり流れてない機械確認 (Pengecekkan Type Jarang Ngalir)</option>
+                            <option value="line_stop_divisi_lain">他部署責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab Divsi lain)</option>
+                            <option value="line_stop_team_lain">他チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team lain)</option>
+                            <option value="line_stop_team_sendiri">自チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team sendiri)</option>
+                            <option value="lain_lain">Lain-lain (Manual)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="editManualCostDesc{{ $cost->Id_Cost }}" style="display:{{ !in_array($cost->Keterangan_Cost, ['Senam', 'Briefing', 'Checksheet']) ? 'block' : 'none' }};">
+                        <label>Deskripsi Manual</label>
+                        <textarea name="Keterangan_Cost" class="form-control">{{ $cost->Keterangan_Cost }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Start</label>
+                        <input type="time" name="time_part" class="form-control" value="{{ $timePart }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endforeach
+
+{{-- MODAL EDIT POWER --}}
+@foreach ($powers as $power)
+@php
+$powerArea = $areas->firstWhere('Id_Area', $power->Id_Area);
+if (!$powerArea) continue;
+$start = \Carbon\Carbon::parse($power->Start_Power);
+$datePart = $start->format('Y-m-d');
+$productionDateYmd = $start->format('Ymd');
+$timePart = $start->format('H:i');
+$eligibleMembersAtPowerDate = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
+->where('Id_Area', $power->Id_Area)
+->pluck('Nik_Daily_Job')
+->unique()
+->map(fn($nik) => \App\Models\Member::where('nik', $nik)->first())
+->filter();
+$jamPower = floor($power->Leave_Hour_Power);
+$menitPower = round(($power->Leave_Hour_Power - $jamPower) * 60);
+@endphp
+<div class="modal fade" id="editPowerModal{{ $power->Id_Power }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ route('leaders.reports.power.update', $power) }}" method="POST">
+            @csrf @method('PUT')
+            <input type="hidden" name="Id_Area" value="{{ $power->Id_Area }}">
+            <input type="hidden" name="date_part" value="{{ $datePart }}">
+            <input type="hidden" name="Leave_Hour_Power">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Permission - {{ $powerArea->Name_Area }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Member</label>
+                        <select name="Id_Member" class="form-control" required>
+                            <option value="">-- Pilih --</option>
+                            @if ($eligibleMembersAtPowerDate->isEmpty())
+                            <option disabled>No assigned members on {{ $datePart }}</option>
+                            @else
+                            @foreach ($eligibleMembersAtPowerDate as $m)
+                            @if ($m)
+                            <option value="{{ $m->id }}" {{ $power->Id_Member == $m->id ? 'selected' : '' }}>{{ $m->nama }} ({{ $m->nik }})</option>
+                            @endif
+                            @endforeach
+                            @endif
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Leave Hour</label>
+                        <div class="input-group">
+                            <input type="number" name="jam_power" class="form-control" value="{{ $jamPower }}" min="0" required>
+                            <span class="input-group-text">jam</span>
+                            <input type="number" name="menit_power" class="form-control" value="{{ $menitPower }}" min="0" max="59" required>
+                            <span class="input-group-text">menit</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>Description</label>
+                        <textarea name="Keterangan_Power" class="form-control" required>{{ $power->Keterangan_Power }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Start</label>
+                        <input type="time" name="time_part" class="form-control" value="{{ $timePart }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endforeach
+
+{{-- MODAL EDIT PENANGANAN --}}
+@foreach ($penanganans as $p)
+@php
+$penangananArea = $areas->firstWhere('Id_Area', $p->Id_Area);
+if (!$penangananArea) continue;
+$start = \Carbon\Carbon::parse($p->Start_Penanganan);
+$datePart = $start->format('Y-m-d');
+$timePart = $start->format('H:i');
+$duration = abs($p->Hour_Penanganan);
+$isNegative = $p->Hour_Penanganan < 0;
+    $jamDur=floor($duration);
+    $menitDur=round(($duration - $jamDur) * 60);
+    $kategori=$isNegative
+    ? 'perbantuan_area_lain'
+    : ($p->Keterangan_Penanganan === 'Fix Back Up Proses'
+    ? 'fix_back_up_proses'
+    : ($p->Keterangan_Penanganan === 'Back Up Absensi'
+    ? 'back_up_absensi'
+    : 'lain_lain'));
+    @endphp
+    <div class="modal fade" id="editPenangananModal{{ $p->Id_Penanganan }}" tabindex="-1">
         <div class="modal-dialog">
-            <form action="{{ route('leaders.reports.penanganan.store') }}" method="POST">
-                @csrf
+            <form action="{{ route('leaders.reports.penanganan.update', $p) }}" method="POST">
+                @csrf @method('PUT')
+                <input type="hidden" name="Id_Area" value="{{ $p->Id_Area }}">
+                <input type="hidden" name="date_part" value="{{ $datePart }}">
+                <input type="hidden" name="Hour_Penanganan">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Add Time Handling</h5>
+                        <h5 class="modal-title">Edit Handling - {{ $penangananArea->Name_Area }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
                             <label>Hour</label>
                             <div class="input-group">
-                                <input type="number" name="jam_penanganan" class="form-control" placeholder="Jam" min="0" required>
+                                <input type="number" name="jam_penanganan" class="form-control" value="{{ $jamDur }}" min="0" required>
                                 <span class="input-group-text">jam</span>
-                                <input type="number" name="menit_penanganan" class="form-control" placeholder="Menit" min="0" max="59" required>
+                                <input type="number" name="menit_penanganan" class="form-control" value="{{ $menitDur }}" min="0" max="59" required>
                                 <span class="input-group-text">menit</span>
                             </div>
-                            <input type="hidden" name="Hour_Penanganan">
                         </div>
                         <div class="mb-3">
-                            <label>Kategori Penanganan</label>
-                            <select name="kategori_penanganan" class="form-control" id="kategoriPenanganan" required>
-                                <option value="">-- Pilih Kategori --</option>
+                            <label>Kategori</label>
+                            <select name="kategori_penanganan" class="form-control" required>
                                 <option value="fix_back_up_proses">Fix Back Up Proses / 工程の応援</option>
                                 <option value="back_up_absensi">Back Up Absensi / 欠勤応援</option>
                                 <option value="bantuan_pic_absensi">Bantuan ke PIC Absensi / 欠勤対応の応援</option>
-                                <option value="back_up_line_stop">Back Up Line Stop / Irregular / イレギュラー対応</option>
+                                <option value="back_up_line_stop_irregular">Back Up Line Stop / Irregular / イレギュラー対応</option>
                                 <option value="perbantuan_area_lain">Perbantuan area lain / 他部署応援 【－】</option>
                                 <option value="lembur_produksi">Lembur Produksi / 生産残業</option>
-                                <option value="lembur_mante">Lembur Mente / メンテ残業</option>
+                                <option value="lembur_mente">Lembur Mente / メンテ残業</option>
                                 <option value="lain_lain">Lain-lain (Manual)</option>
                             </select>
                         </div>
-                        <div class="mb-3" id="manualDescriptionContainer" style="display: none;">
+                        <div class="mb-3" id="editManualPenangananDesc{{ $p->Id_Penanganan }}" style="display:{{ $kategori === 'lain_lain' ? 'block' : 'none' }};">
                             <label>Deskripsi Manual</label>
-                            <textarea name="Keterangan_Penanganan" class="form-control" placeholder="Masukkan deskripsi bebas..."></textarea>
+                            <textarea name="Keterangan_Penanganan" class="form-control">{{ $p->Keterangan_Penanganan }}</textarea>
                         </div>
                         <div class="mb-3">
                             <label>Start</label>
-                            <input type="date" name="date_part" class="form-control" value="{{ $dateString }}" readonly>
-                            <input type="time" name="time_part" class="form-control" value="07:30" required>
+                            <input type="time" name="time_part" class="form-control" value="{{ $timePart }}" required>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-warning">Update</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-
-    {{-- MODAL: Edit Penanganan --}}
-    @foreach ($penanganans as $p)
-        <div class="modal fade" id="editPenangananModal{{ $p->Id_Penanganan }}" tabindex="-1">
-            <div class="modal-dialog">
-                <form action="{{ route('leaders.reports.penanganan.update', $p) }}" method="POST">
-                    @csrf @method('PUT')
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Edit Time Handling</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label>Hour</label>
-                                <div class="input-group">
-                                    <input type="number" name="jam_penanganan" class="form-control" placeholder="Jam" min="0" required>
-                                    <span class="input-group-text">jam</span>
-                                    <input type="number" name="menit_penanganan" class="form-control"
-                                        placeholder="Menit" min="0" max="59" required>
-                                    <span class="input-group-text">menit</span>
-                                </div>
-                                <input type="hidden" name="Hour_Penanganan">
-                            </div>
-                            <div class="mb-3">
-                                <label>Kategori Penanganan</label>
-                                <select name="kategori_penanganan" class="form-control"
-                                    id="kategoriPenanganan{{ $p->Id_Penanganan }}" required>
-                                    <option value="">-- Pilih Kategori --</option>
-                                    <option value="fix_back_up_proses"
-                                        {{ $p->Keterangan_Penanganan == 'Fix Back Up Proses / 工程の応援' ? 'selected' : '' }}>
-                                        Fix Back Up Proses / 工程の応援</option>
-                                    <option value="back_up_absensi"
-                                        {{ $p->Keterangan_Penanganan == 'Back Up Absensi / 欠勤応援' ? 'selected' : '' }}>Back
-                                        Up Absensi / 欠勤応援</option>
-                                    <option value="bantuan_pic_absensi"
-                                        {{ $p->Keterangan_Penanganan == 'Bantuan ke PIC Absensi / 欠勤対応の応援' ? 'selected' : '' }}>
-                                        Bantuan ke PIC Absensi / 欠勤対応の応援</option>
-                                    <option value="back_up_line_stop"
-                                        {{ $p->Keterangan_Penanganan == 'Back Up Line Stop / Irregular / イレギュラー対応' ? 'selected' : '' }}>
-                                        Back Up Line Stop / Irregular / イレギュラー対応</option>
-                                    <option value="perbantuan_area_lain"
-                                        {{ $p->Keterangan_Penanganan == 'Perbantuan area lain / 他部署応援 【－】' ? 'selected' : '' }}>
-                                        Perbantuan area lain / 他部署応援 【－】</option>
-                                    <option value="lembur_produksi"
-                                        {{ $p->Keterangan_Penanganan == 'Lembur Produksi / 生産残業' ? 'selected' : '' }}>
-                                        Lembur Produksi / 生産残業</option>
-                                    <option value="lembur_mante"
-                                        {{ $p->Keterangan_Penanganan == 'Lembur Mente / メンテ残業' ? 'selected' : '' }}>
-                                        Lembur Mente / メンテ残業</option>
-                                    <option value="lain_lain"
-                                        {{ !in_array($p->Keterangan_Penanganan, [
-                                            'Fix Back Up Proses / 工程の応援',
-                                            'Back Up Absensi / 欠勤応援',
-                                            'Bantuan ke PIC Absensi / 欠勤対応の応援',
-                                            'Back Up Line Stop / Irregular / イレギュラー対応',
-                                            'Perbantuan area lain / 他部署応援 【－】',
-                                            'Lembur Produksi / 生産残業',
-                                            'Lembur Mente / メンテ残業',
-                                        ])
-                                            ? 'selected'
-                                            : '' }}>
-                                        Lain-lain (Manual)</option>
-                                </select>
-                            </div>
-                            <div class="mb-3" id="manualDescriptionContainer{{ $p->Id_Penanganan }}"
-                                style="display: {{ !in_array($p->Keterangan_Penanganan, [
-                                    'Fix Back Up Proses / 工程の応援',
-                                    'Back Up Absensi / 欠勤応援',
-                                    'Bantuan ke PIC Absensi / 欠勤対応の応援',
-                                    'Back Up Line Stop / Irregular / イレギュラー対応',
-                                    'Perbantuan area lain / 他部署応援 【－】',
-                                    'Lembur Produksi / 生産残業',
-                                    'Lembur Mente / メンテ残業',
-                                ])
-                                    ? 'block'
-                                    : 'none' }};">
-                                <label>Deskripsi Manual</label>
-                                <textarea name="Keterangan_Penanganan" class="form-control" placeholder="Masukkan deskripsi bebas...">{{ $p->Keterangan_Penanganan }}</textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label>Catatan Internal (Opsional)</label>
-                                <input type="text" name="catatan_internal" class="form-control"
-                                    value="{{ $p->catatan_internal ?? '' }}"
-                                    placeholder="Misal: untuk laporan internal...">
-                            </div>
-                            @php
-                                $penangananTime = \Carbon\Carbon::parse($p->Start_Penanganan)->format('H:i');
-                            @endphp
-                            <div class="mb-3">
-                                <label>Start</label>
-                                <input type="date" name="date_part" class="form-control" value="{{ $dateString }}"
-                                    readonly>
-                                <input type="time" name="time_part" class="form-control"
-                                    value="{{ $penangananTime }}" required>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-warning">Update</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
     @endforeach
-@endsection
 
-@section('style')
+    @endsection
+
+    @section('style')
     <link href="{{ asset('assets/css/tom-select.bootstrap5.css') }}" rel="stylesheet">
-@endsection
+    @endsection
 
-@section('script')
+    @section('script')
     <script src="{{ asset('assets/js/tom-select.complete.min.js') }}"></script>
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('assets/js/dataTables.min.js') }}"></script>
     <script>
-        function jamMenitToDecimal(jam, menit) {
-            jam = parseFloat(jam) || 0;
-            menit = parseFloat(menit) || 0;
-            return jam + menit / 60;
-        }
-
-        // COST
-        document.querySelector('#addCostModal form')?.addEventListener('submit', function(e) {
-            const jam = this.querySelector('[name="jam_cost"]').value || 0;
-            const menit = this.querySelector('[name="menit_cost"]').value || 0;
-            this.querySelector('[name="Non_Operational_Cost"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
-        });
-        @foreach ($costs as $cost)
-            document.querySelector('#editCostModal{{ $cost->Id_Cost }} form')?.addEventListener('submit', function(e) {
-                const jam = this.querySelector('[name="jam_cost"]').value || 0;
-                const menit = this.querySelector('[name="menit_cost"]').value || 0;
-                this.querySelector('[name="Non_Operational_Cost"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
+        // Select All
+        document.querySelectorAll('.select-all-edit-members').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const costId = this.id.split('-')[1];
+                const cbs = document.querySelectorAll(`.member-edit-checkbox-${costId}`);
+                cbs.forEach(cb => cb.checked = this.checked);
             });
-        @endforeach
-
-        // POWER
-        document.querySelector('#addPowerModal form')?.addEventListener('submit', function(e) {
-            const jam = this.querySelector('[name="jam_power"]').value || 0;
-            const menit = this.querySelector('[name="menit_power"]').value || 0;
-            this.querySelector('[name="Leave_Hour_Power"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
         });
-        @foreach ($powers as $power)
-            document.querySelector('#editPowerModal{{ $power->Id_Power }} form')?.addEventListener('submit', function(e) {
-                const jam = this.querySelector('[name="jam_power"]').value || 0;
-                const menit = this.querySelector('[name="menit_power"]').value || 0;
-                this.querySelector('[name="Leave_Hour_Power"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
+
+        // Kategori lain_lain - Add
+        document.querySelectorAll('[name="kategori_cost"]').forEach(sel => {
+            sel.addEventListener('change', function() {
+                const container = this.closest('.modal-body').querySelector('div[id^="manualCostDesc"]');
+                container.style.display = this.value === 'lain_lain' ? 'block' : 'none';
+                if (container.querySelector('textarea')) {
+                    container.querySelector('textarea').required = this.value === 'lain_lain';
+                }
             });
-        @endforeach
-
-        // PENANGANAN
-        document.querySelector('#addPenangananModal form')?.addEventListener('submit', function(e) {
-            const jam = this.querySelector('[name="jam_penanganan"]').value || 0;
-            const menit = this.querySelector('[name="menit_penanganan"]').value || 0;
-            this.querySelector('[name="Hour_Penanganan"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
         });
-        @foreach ($penanganans as $p)
-            document.querySelector('#editPenangananModal{{ $p->Id_Penanganan }} form')?.addEventListener('submit',
-                function(e) {
-                    const jam = this.querySelector('[name="jam_penanganan"]').value || 0;
-                    const menit = this.querySelector('[name="menit_penanganan"]').value || 0;
-                    this.querySelector('[name="Hour_Penanganan"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
-                });
-        @endforeach
-
-        // TomSelect & Kategori
-        document.addEventListener('DOMContentLoaded', function() {
-            // TomSelect
-            document.querySelectorAll('.tom-select').forEach(select => {
-                new TomSelect(select, {
-                    placeholder: '-- Select Member --',
-                    allowEmptyOption: true,
-                    plugins: ['dropdown_input']
-                });
+        document.querySelectorAll('[name="kategori_penanganan"]').forEach(sel => {
+            sel.addEventListener('change', function() {
+                const container = this.closest('.modal-body').querySelector('div[id^="manualPenangananDesc"]');
+                container.style.display = this.value === 'lain_lain' ? 'block' : 'none';
+                if (container.querySelector('textarea')) {
+                    container.querySelector('textarea').required = this.value === 'lain_lain';
+                }
             });
-
-            // ✅ COST: Handler untuk Add dan Edit
-            const setupCostHandler = (selectId, containerId) => {
-                const select = document.getElementById(selectId);
-                const container = document.getElementById(containerId);
-                if (!select || !container) return;
-
-                select.addEventListener('change', function() {
-                    if (this.value === 'lain_lain') {
-                        container.style.display = 'block';
-                        container.querySelector('textarea').required = true;
-                    } else {
-                        container.style.display = 'none';
-                        container.querySelector('textarea').required = false;
-                        // Isi otomatis
-                        const map = { senam: 'Senam', briefing: 'Briefing', checksheet: 'Checksheet' };
-                        container.querySelector('textarea').value = map[this.value] || '';
-                    }
-                });
-            };
-
-            // Add Cost
-            setupCostHandler('kategoriCost', 'manualCostDescriptionContainer');
-
-            // Edit Cost
-            @foreach ($costs as $cost)
-                setupCostHandler('kategoriCost{{ $cost->Id_Cost }}', 'manualCostDescriptionContainer{{ $cost->Id_Cost }}');
-            @endforeach
-
-            // ✅ PENANGANAN: Handler
-            const setupPenangananHandler = (selectId, containerId) => {
-                const select = document.getElementById(selectId);
-                const container = document.getElementById(containerId);
-                if (!select || !container) return;
-
-                select.addEventListener('change', function() {
-                    if (this.value === 'lain_lain') {
-                        container.style.display = 'block';
-                        container.querySelector('textarea').required = true;
-                    } else {
-                        container.style.display = 'none';
-                        container.querySelector('textarea').required = false;
-                        container.querySelector('textarea').value = this.options[this.selectedIndex].text;
-                    }
-                });
-            };
-
-            setupPenangananHandler('kategoriPenanganan', 'manualDescriptionContainer');
-            @foreach ($penanganans as $p)
-                setupPenangananHandler('kategoriPenanganan{{ $p->Id_Penanganan }}', 'manualDescriptionContainer{{ $p->Id_Penanganan }}');
-            @endforeach
         });
 
-        // DataTable
-        $(document).ready(function() {
-            if ($('#scansTable').length) {
-                $('#scansTable').DataTable({
-                    pageLength: 50,
-                    responsive: true,
-                    language: {
-                        search: "Cari:",
-                        lengthMenu: "Tampilkan _MENU_ data",
-                        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
-                        paginate: {
-                            previous: "«",
-                            next: "»"
-                        }
-                    }
+        // Kategori lain_lain - Edit
+        document.querySelectorAll('[id^="editManualCostDesc"]').forEach(container => {
+            const sel = container.closest('.modal-body').querySelector('[name="kategori_cost"]');
+            if (sel) {
+                sel.addEventListener('change', function() {
+                    container.style.display = this.value === 'lain_lain' ? 'block' : 'none';
+                    container.querySelector('textarea').required = this.value === 'lain_lain';
                 });
             }
         });
+        document.querySelectorAll('[id^="editManualPenangananDesc"]').forEach(container => {
+            const sel = container.closest('.modal-body').querySelector('[name="kategori_penanganan"]');
+            if (sel) {
+                sel.addEventListener('change', function() {
+                    container.style.display = this.value === 'lain_lain' ? 'block' : 'none';
+                    container.querySelector('textarea').required = this.value === 'lain_lain';
+                });
+            }
+        });
+
+        // Konversi jam-menit untuk Power & Penanganan
+        function jamMenitToDecimal(jam, menit) {
+            return (parseFloat(jam) || 0) + (parseFloat(menit) || 0) / 60;
+        }
+        document.querySelectorAll('form[method="POST"]').forEach(form => {
+            if (form.querySelector('[name="jam_power"]')) {
+                form.addEventListener('submit', function(e) {
+                    const jam = form.querySelector('[name="jam_power"]').value;
+                    const menit = form.querySelector('[name="menit_power"]').value;
+                    form.querySelector('[name="Leave_Hour_Power"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
+                });
+            }
+            if (form.querySelector('[name="jam_penanganan"]')) {
+                form.addEventListener('submit', function(e) {
+                    const jam = form.querySelector('[name="jam_penanganan"]').value;
+                    const menit = form.querySelector('[name="menit_penanganan"]').value;
+                    form.querySelector('[name="Hour_Penanganan"]').value = jamMenitToDecimal(jam, menit).toFixed(2);
+                });
+            }
+        });
+
+        // Popover
+        $(function() {
+            $('[data-bs-toggle="popover"]').popover();
+        });
+
+        // Tab persistence
+        document.addEventListener('DOMContentLoaded', function() {
+            const activeTab = sessionStorage.getItem('activeReportTab');
+            if (activeTab) {
+                const btn = document.querySelector(`button[data-bs-target="${activeTab}"]`);
+                if (btn) new bootstrap.Tab(btn).show();
+            }
+            document.querySelectorAll('#reportAreaTabs button[data-bs-toggle="tab"]').forEach(btn => {
+                btn.addEventListener('shown.bs.tab', e => {
+                    sessionStorage.setItem('activeReportTab', e.target.getAttribute('data-bs-target'));
+                });
+            });
+        });
     </script>
-@endsection
+    @endsection

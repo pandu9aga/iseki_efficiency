@@ -7,25 +7,37 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Scan;
 use App\Models\Plan;
+use App\Models\Member;
 
 class PublicReportController extends Controller
 {
     public function index(Request $request)
     {
+        // 🔒 Cek sesi area (keamanan wajib)
+        if (!session()->has('area_authenticated') || !session('area_authenticated')) {
+            return redirect()->route('login.form')
+                ->withErrors(['loginError' => 'Silakan login sebagai Area terlebih dahulu.']);
+        }
+
+        // Ambil ID area dari sesi
+        $areaId = session('area_id');
+        $areaName = session('area_name');
+
         $date = $request->filled('date')
             ? Carbon::parse($request->date)
             : Carbon::today();
 
         $dateString = $date->format('Y-m-d');
 
-        // Ambil scan dengan relasi
+        // 🔥 Tambahkan filter berdasarkan Id_Area
         $scans = Scan::whereDate('Time_Scan', $dateString)
-            ->with(['member', 'tractor']) // Ambil relasi biasa
-            ->whereHas('tractor') // Hanya scan dengan tractor valid
+            ->where('Id_Area', $areaId) // ← INI YANG KURANG
+            ->with(['member', 'tractor'])
+            ->whereHas('tractor')
             ->orderBy('Time_Scan', 'desc')
             ->get();
 
-        // 🔥 Ambil data Plan terkait dalam satu query
+        // Ambil Plan
         $planMap = [];
         $uniqueKeys = [];
         foreach ($scans as $scan) {
@@ -41,12 +53,25 @@ class PublicReportController extends Controller
             }
         }
 
-        // Tambahkan data plan ke setiap scan
         foreach ($scans as $scan) {
             $key = $scan->Sequence_No_Plan . '_' . $scan->Production_Date_Plan;
             $scan->plan = $planMap[$key] ?? null;
         }
 
-        return view('publics.report', compact('scans', 'dateString'));
+        // Ambil nama member pengganti
+        $nikReplaces = $scans->pluck('Nik_Replace')->filter()->unique();
+        $memberMap = [];
+        if ($nikReplaces->isNotEmpty()) {
+            $memberMap = Member::whereIn('nik', $nikReplaces)
+                ->pluck('nama', 'nik')
+                ->toArray();
+        }
+
+        return view('publics.report', compact(
+            'scans',
+            'dateString',
+            'memberMap',
+            'areaName' // pastikan dikirim ke view
+        ));
     }
 }

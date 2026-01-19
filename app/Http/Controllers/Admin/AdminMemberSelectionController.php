@@ -50,12 +50,14 @@ class AdminMemberSelectionController extends Controller
         }
 
         if ($toInsert) {
-            $dataToInsert = array_map(fn($id) => ['Id_Member' => $id], $toInsert);
+            $dataToInsert = array_map(function ($id) {
+                return ['Id_Member' => $id];
+            }, $toInsert);
+
             ListMember::insert($dataToInsert);
         }
 
-        // ✅ Redirect ke halaman report, bukan kembali ke select
-        return redirect()->route('admins.reports.index')
+        return redirect()->route('admins.members.select')
             ->with('success', 'Berhasil memperbarui daftar member.');
     }
 }

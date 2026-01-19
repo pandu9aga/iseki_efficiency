@@ -15,7 +15,29 @@
                 <div class="col-md-12">
                     <div class="card mb-4">
                         <div class="card-body">
-                            <form method="GET" id="dateForm">
+                            <!-- ✅ TAB DINAMIS: ALL + NAMA AREA -->
+                            <ul class="nav nav-tabs mb-3" id="dashboardTab" role="tablist">
+                                <!-- Tab All -->
+                                <li class="nav-item" role="presentation">
+                                    <a class="nav-link {{ !request()->filled('area') ? 'active' : '' }}"
+                                        href="{{ url()->current() }}?date={{ $dateString }}">
+                                        All Areas
+                                    </a>
+                                </li>
+
+                                <!-- Tab per Area (dari database) -->
+                                @foreach ($areas as $area)
+                                    <li class="nav-item" role="presentation">
+                                        <a class="nav-link {{ request('area') == $area->Id_Area ? 'active' : '' }}"
+                                            href="{{ url()->current() }}?date={{ $dateString }}&area={{ $area->Id_Area }}">
+                                            {{ $area->Name_Area }}
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+
+                            <!-- Form Tanggal (selalu muncul di bawah tab) -->
+                            <form method="GET" class="mb-3">
                                 <div class="row g-3 align-items-center">
                                     <div class="col-auto">
                                         <label for="date" class="col-form-label">Date:</label>
@@ -33,7 +55,8 @@
                                             class="btn btn-success">
                                             <i class="fas fa-file-excel"></i> Export Excel
                                         </a>
-                                        <a href="{{ route('admins.dashboard.fullscreen', ['date' => $dateString]) }}" class="btn btn-info">Fullscreen View</a>
+                                        <a href="{{ route('admins.dashboard.fullscreen', ['date' => $dateString]) }}"
+                                            class="btn btn-info">Fullscreen View</a>
                                     </div>
                                 </div>
                             </form>
@@ -50,12 +73,19 @@
 
                     <div class="card">
                         <div class="card-header">
-                            <h5>Diagram: <span class="text-primary">{{ $dateString }}</span></h5>
+                            <h5>Diagram: <span class="text-primary">{{ $dateString }}</span>
+                                @if (request()->filled('area'))
+                                    <small class="text-muted">
+                                        | Area:
+                                        {{ optional($areas->firstWhere('Id_Area', request('area')))->Name_Area ?? 'ID ' . request('area') }}
+                                    </small>
+                                @endif
+                            </h5>
                         </div>
                         <div class="card-body">
                             <canvas id="stackedChart"></canvas>
 
-                            {{-- 🔹 KARTU EFISIENSI (LOGIKA BISNIS TERBARU) --}}
+                            {{-- 🔹 KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
                             <div id="efficiencyCard" class="mt-4">
                                 <div class="row g-3">
                                     <!-- Nilai Utama -->
@@ -75,7 +105,7 @@
                                             <div class="card-body">
                                                 <h6 class="card-title mb-3">Efficency Ratio</h6>
 
-                                                <!-- % Operasional: Selisih / Total Aset -->
+                                                <!-- % Operasional -->
                                                 <div class="mb-3">
                                                     <div class="d-flex justify-content-between small mb-1">
                                                         <span>Operational Ratio - 工数低減率</span>
@@ -87,7 +117,7 @@
                                                     </div>
                                                 </div>
 
-                                                <!-- % Non-Operasional: Non-Op / Beban Operasional -->
+                                                <!-- % Non-Operasional -->
                                                 <div>
                                                     <div class="d-flex justify-content-between small mb-1">
                                                         <span>Non Operational Ratio - 非稼働工数率</span>
@@ -116,20 +146,16 @@
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
     <script>
-        // 🔹 Fungsi: Konversi desimal jam ke format "X jam Y menit" (termasuk nilai negatif)
         function decimalToHoursMinutes(decimal) {
             if (isNaN(decimal)) return '0 jam 0 menit';
-
             const sign = decimal < 0 ? '-' : '';
             const abs = Math.abs(decimal);
             const totalMinutes = Math.round(abs * 60);
             const jam = Math.floor(totalMinutes / 60);
             const menit = totalMinutes % 60;
-
             return `${sign}${jam} jam ${menit} menit`;
         }
 
-        // 🔹 Ambil data dari PHP
         const rawScans = @json($scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray());
         const rawCosts = @json($costImpactList);
         const rawPowers = @json($powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray());
@@ -148,10 +174,8 @@
         const costTotal = costs.reduce((sum, c) => sum + c.value, 0);
         const powerTotalCalculated = powers.reduce((sum, p) => sum + p.value, 0);
         const penangananTotal = penanganans.reduce((sum, p) => sum + p.value, 0);
-
         const reportNetHours = memberHours - powerTotalCalculated;
 
-        // 🔹 Inisialisasi Chart
         const ctx = document.getElementById('stackedChart').getContext('2d');
         Chart.register(ChartDataLabels);
         Chart.register('chartjs-plugin-annotation');
@@ -248,9 +272,8 @@
                                     const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
                                     const labels = scans.map(s =>
                                         `${s.label} (${decimalToHoursMinutes(s.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
+                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
+                                        .join(', '));
                                     return lines;
                                 }
                                 if (label === 'Non Operational') {
@@ -258,9 +281,8 @@
                                     const lines = [`Total Non Operational: ${decimalToHoursMinutes(total)}`];
                                     const labels = costs.map(c =>
                                         `${c.label} (${decimalToHoursMinutes(c.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
+                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
+                                        .join(', '));
                                     return lines;
                                 }
                                 if (label === 'Handling') {
@@ -268,9 +290,8 @@
                                     const lines = [`Total Handling: ${decimalToHoursMinutes(total)}`];
                                     const labels = penanganans.map(p =>
                                         `${p.label} (${decimalToHoursMinutes(p.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
+                                    for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
+                                        .join(', '));
                                     return lines;
                                 }
                                 return null;
@@ -322,12 +343,10 @@
             }
         });
 
-        // === 🔥 EFISIENSI ===
         const kategori1 = reportNetHours + penangananTotal;
         const kategori2 = scanTotal + costTotal;
         const selisihJam = kategori2 - kategori1;
         const nilaiRupiah = selisihJam * 60000;
-
         const persenOperasional = kategori2 !== 0 ? (selisihJam / kategori2) * 100 : 0;
         const persenNonOperasional = kategori1 !== 0 ? (costTotal / kategori1) * 100 : 0;
 
@@ -344,11 +363,7 @@
         document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(Math.round(nilaiRupiah));
 
         const mainCard = document.getElementById('mainCard');
-        if (nilaiRupiah >= 0) {
-            mainCard.style.backgroundColor = '#28a745';
-        } else {
-            mainCard.style.backgroundColor = '#dc3545';
-        }
+        mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#28a745' : '#dc3545';
 
         document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
         const absPersenOp = Math.abs(persenOperasional);

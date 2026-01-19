@@ -6,98 +6,135 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Report;
-use App\Models\ListMember;
 use App\Models\Cost;
 use App\Models\Power;
 use App\Models\Penanganan;
 use App\Models\Member;
 use App\Models\Scan;
-use App\Models\Plan;
+use App\Models\DailyJob;
+use App\Models\Area;
+use Illuminate\Support\Facades\DB;
 
 class LeaderReportController extends Controller
 {
     public function index(Request $request)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
+        // ✅ Ambil Id_Area dari user yang login
+        $user = \App\Models\User::find(session('Id_User'));
+        if (!$user || !$user->Id_Area) {
+            return redirect()->back()->withErrors(['error' => 'Your account is not assigned to any area.']);
+        }
+
+        $areaId = $user->Id_Area;
+        $area = Area::findOrFail($areaId);
+
         $date = $request->filled('date')
             ? Carbon::parse($request->date)->startOfDay()
             : Carbon::today();
 
         $dateString = $date->format('Y-m-d');
+        $productionDateYmd = $date->format('Ymd');
 
-        $recordedReport = Report::where('Day_Report', $dateString)->first();
-        $reportExists = $recordedReport !== null;
+        // Hanya ambil data untuk area leader ini
+        $areaReports = Report::where('Day_Report', $dateString)
+            ->where('Id_Area', $areaId)
+            ->get();
 
-        $currentTotalMembers = ListMember::count();
-        $currentTotalHours = round($currentTotalMembers * 8, 2);
+        $currentMembersPerArea = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+            ->where('Id_Area', $areaId)
+            ->count();
 
-        $costs = Cost::whereDate('Start_Cost', $dateString)->get();
+        $costs = Cost::whereDate('Start_Cost', $dateString)
+            ->where('Id_Area', $areaId)
+            ->with('area')
+            ->get();
 
-        // ✅ HITUNG TOTAL NON-OP YANG SUDAH DIKALIKAN
-        $totalNonOpHours = $costs->sum('Non_Operational_Cost') * $currentTotalMembers;
+        $powers = Power::whereDate('Start_Power', $dateString)
+            ->where('Id_Area', $areaId)
+            ->with('member', 'area')
+            ->get();
 
-        $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
+        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)
+            ->where('Id_Area', $areaId)
+            ->with('area')
+            ->get();
 
-        $activeMembers = ListMember::with('member')
-            ->get()
-            ->filter(fn($lm) => $lm->member !== null)
-            ->sortBy('member.nama');
+        // Active members di area ini hari ini
+        $dailyJobNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+            ->where('Id_Area', $areaId)
+            ->pluck('Nik_Daily_Job')
+            ->unique();
+        $activeMembers = Member::whereIn('nik', $dailyJobNiks)->get();
+        $activeMembersByArea = [$areaId => $activeMembers];
 
+        // 🔥 Ambil semua NIK pengganti unik dari scan hari ini
         $scans = Scan::whereDate('Time_Scan', $dateString)
-            ->with(['member', 'tractor']) // Ambil relasi biasa
-            ->whereHas('tractor') // Hanya scan dengan tractor valid
+            ->where('Id_Area', $areaId)
+            ->with(['tractor', 'dailyJob']) // JANGAN muat replacedMember (tidak bekerja)
             ->orderBy('Time_Scan', 'desc')
             ->get();
 
-        // 🔥 Ambil data Plan terkait dalam satu query
-        $planMap = [];
-        $uniqueKeys = [];
-        foreach ($scans as $scan) {
-            $key = $scan->Sequence_No_Plan . '_' . $scan->Production_Date_Plan;
-            if (!isset($uniqueKeys[$key])) {
-                $uniqueKeys[$key] = true;
-                $plan = Plan::where('Sequence_No_Plan', $scan->Sequence_No_Plan)
-                    ->where('Production_Date_Plan', $scan->Production_Date_Plan)
-                    ->first();
-                if ($plan) {
-                    $planMap[$key] = $plan;
-                }
-            }
+        $nikReplaces = $scans->pluck('Nik_Replace')->filter()->unique()->values();
+        $memberMap = [];
+        if ($nikReplaces->isNotEmpty()) {
+            // 🔥 Ambil data member dari database 'rifa' hanya untuk NIK yang dibutuhkan
+            $memberMap = Member::whereIn('nik', $nikReplaces)
+                ->pluck('nama', 'nik')
+                ->toArray();
         }
 
-        // Tambahkan data plan ke setiap scan
-        foreach ($scans as $scan) {
-            $key = $scan->Sequence_No_Plan . '_' . $scan->Production_Date_Plan;
-            $scan->plan = $planMap[$key] ?? null;
-        }
+        // Kirim hanya 1 area
+        $areas = collect([$area]);
 
         return view('leaders.reports.index', compact(
             'dateString',
-            'reportExists',
-            'recordedReport',
-            'currentTotalMembers',
-            'currentTotalHours',
+            'areaReports',
+            'currentMembersPerArea',
             'costs',
             'powers',
             'penanganans',
             'activeMembers',
+            'activeMembersByArea',
             'scans',
-            'totalNonOpHours' // ✅ TAMBAHKAN INI
+            'areas',
+            'area',
+            'memberMap' // ← TAMBAHKAN INI
         ));
     }
-
     public function storeReport(Request $request)
     {
-        $request->validate(['date' => 'required|date']);
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
+        $request->validate([
+            'date' => 'required|date',
+            'Id_Area' => 'required|exists:areas,Id_Area',
+        ]);
 
         $date = Carbon::parse($request->date)->format('Y-m-d');
-        $totalMembers = ListMember::count();
+        $productionDateYmd = Carbon::parse($request->date)->format('Ymd');
+        $areaId = $request->Id_Area;
+
+        $totalMembers = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+            ->where('Id_Area', $areaId)
+            ->distinct('Nik_Daily_Job')
+            ->count();
         $totalHours = round($totalMembers * 8, 2);
 
-        $existing = Report::where('Day_Report', $date)->exists();
+        $existing = Report::where('Day_Report', $date)
+            ->where('Id_Area', $areaId)
+            ->exists();
 
         Report::updateOrCreate(
-            ['Day_Report' => $date],
+            [
+                'Day_Report' => $date,
+                'Id_Area' => $areaId
+            ],
             [
                 'Total_Hours_Report' => $totalHours,
                 'Total_Member_Report' => $totalMembers,
@@ -105,112 +142,224 @@ class LeaderReportController extends Controller
         );
 
         $message = $existing
-            ? 'Report berhasil diperbarui.'
-            : 'Report berhasil disimpan.';
+            ? 'Report untuk area berhasil diperbarui.'
+            : 'Report untuk area berhasil disimpan.';
 
         return redirect()->back()->with('success', $message);
     }
 
-    // COST — versi lengkap dengan validasi
+    // COST — ✅ DIPERBAIKI
     public function storeCost(Request $request)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $request->validate([
-            'Non_Operational_Cost' => 'required|numeric|min:0',
             'kategori_cost' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
+            'Id_Area' => 'required|exists:areas,Id_Area',
+            'jam_cost' => 'required|integer|min:0',
+            'menit_cost' => 'required|integer|min:0|max:59',
+            'selected_members' => 'nullable|array',
+            'selected_members.*' => 'string',
         ]);
 
-        // Tentukan deskripsi berdasarkan kategori
+        // 🔥 KATEGORI BARU — SESUAI YANG DIMINTA
+        $mapKategoriCost = [
+            'senam' => 'Senam',
+            'meeting_maneger' => '課長朝礼 (meeting maneger)',
+            'meeting_maneger_dept' => '部長朝礼 (meeting maneger Dept)',
+            'meeting_pres_dir' => '社長朝礼 (meeting Pres.Dir)',
+            'meeting_team_awal' => '組内最初ミーティング (meeting team dijam awal)',
+            'meeting_team_akhir' => '組内最後ミーティング (meeting team dijam akhir)',
+            'kebersihan_team' => '組内清掃 (kebersihan team)',
+            'check_sheet' => 'チェックシートの点検 (pengecekan check sheet)',
+            'pelatihan_pekerja' => '作業者教育 (pelatihan pekerja)',
+            'pengecekkan_type_jarang_nagalir' => 'あまり流れてない機械確認 (Pengecekkan Type Jarang Ngalir)',
+            'line_stop_divisi_lain' => '他部署責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab Divsi lain)',
+            'line_stop_team_lain' => '他チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team lain)',
+            'line_stop_team_sendiri' => '自チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team sendiri)',
+            'lain_lain' => 'Lain-lain',
+        ];
+
         if ($request->kategori_cost === 'lain_lain') {
             $request->validate(['Keterangan_Cost' => 'required|string|max:255']);
             $keterangan = $request->Keterangan_Cost;
         } else {
-            $map = [
-                'senam' => 'Senam',
-                'briefing' => 'Briefing',
-                'checksheet' => 'Checksheet',
-            ];
-            $keterangan = $map[$request->kategori_cost] ?? 'Unknown';
+            // Jika tidak ada di map, tetap simpan value asli (aman)
+            $keterangan = $mapKategoriCost[$request->kategori_cost] ?? $request->kategori_cost;
         }
 
-        $timestamp = Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $request->date_part . ' ' . ($request->time_part ?? '07:30')
-        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+        $dateYm = Carbon::parse($request->date_part)->format('Y-m-d');
+        $productionDateYmd = Carbon::parse($request->date_part)->format('Ymd');
+        $areaId = $request->Id_Area;
+
+        $allActiveNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+            ->where('Id_Area', $areaId)
+            ->pluck('Nik_Daily_Job')
+            ->unique()
+            ->toArray();
+
+        if (empty($allActiveNiks)) {
+            return back()->withErrors(['selected_members' => 'No active members found in this area on ' . $dateYm]);
+        }
+
+        $selectedNiks = $request->input('selected_members', []);
+
+        if (empty($selectedNiks)) {
+            $appliedNiks = 'all';
+            $memberCount = count($allActiveNiks);
+        } else {
+            $appliedNiks = array_values(array_intersect($selectedNiks, $allActiveNiks));
+            $memberCount = count($appliedNiks);
+            if ($memberCount === 0) {
+                return back()->withErrors(['selected_members' => 'Selected members are not active in this area.']);
+            }
+        }
+
+        $durationPerPerson = (float) $request->jam_cost + ((float) $request->menit_cost / 60);
+        $finalCost = $durationPerPerson * $memberCount;
+
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+            ->tz('Asia/Jakarta')
+            ->format('Y-m-d H:i:s');
 
         Cost::create([
-            'Non_Operational_Cost' => $request->Non_Operational_Cost,
+            'Non_Operational_Cost' => round($finalCost, 2),
             'Keterangan_Cost' => $keterangan,
             'Start_Cost' => $timestamp,
+            'Id_Area' => $areaId,
+            'applied_members' => $appliedNiks,
         ]);
 
-        return redirect()->back()->with('success', 'Cost berhasil ditambahkan.');
+        $msg = $memberCount . ' member' . ($memberCount > 1 ? 's' : '');
+        return redirect()->back()->with('success', "Cost berhasil ditambahkan (applied to $msg).");
     }
-
 
     public function updateCost(Request $request, Cost $cost)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $request->validate([
-            'Non_Operational_Cost' => 'required|numeric|min:0',
             'kategori_cost' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
+            'Id_Area' => 'required|exists:areas,Id_Area',
+            'jam_cost' => 'required|integer|min:0',
+            'menit_cost' => 'required|integer|min:0|max:59',
+            'selected_members' => 'nullable|array',
+            'selected_members.*' => 'string',
         ]);
+
+        $mapKategoriCost = [
+            'senam' => 'Senam',
+            'meeting_maneger' => '課長朝礼 (meeting maneger)',
+            'meeting_maneger_dept' => '部長朝礼 (meeting maneger Dept)',
+            'meeting_pres_dir' => '社長朝礼 (meeting Pres.Dir)',
+            'meeting_team_awal' => '組内最初ミーティング (meeting team dijam awal)',
+            'meeting_team_akhir' => '組内最後ミーティング (meeting team dijam akhir)',
+            'kebersihan_team' => '組内清掃 (kebersihan team)',
+            'check_sheet' => 'チェックシートの点検 (pengecekan check sheet)',
+            'pelatihan_pekerja' => '作業者教育 (pelatihan pekerja)',
+            'pengecekkan_type_jarang_nagalir' => 'あまり流れてない機械確認 (Pengecekkan Type Jarang Ngalir)',
+            'line_stop_divisi_lain' => '他部署責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab Divsi lain)',
+            'line_stop_team_lain' => '他チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team lain)',
+            'line_stop_team_sendiri' => '自チーム責任によるﾗｲﾝｽﾄｯﾌﾟ (line stop sebab team sendiri)',
+            'lain_lain' => 'Lain-lain',
+        ];
 
         if ($request->kategori_cost === 'lain_lain') {
             $request->validate(['Keterangan_Cost' => 'required|string|max:255']);
             $keterangan = $request->Keterangan_Cost;
         } else {
-            $map = [
-                'senam' => 'Senam',
-                'briefing' => 'Briefing',
-                'checksheet' => 'Checksheet',
-            ];
-            $keterangan = $map[$request->kategori_cost] ?? 'Unknown';
+            $keterangan = $mapKategoriCost[$request->kategori_cost] ?? $request->kategori_cost;
         }
 
-        $timestamp = Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $request->date_part . ' ' . ($request->time_part ?? '07:30')
-        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+        $dateYm = Carbon::parse($request->date_part)->format('Y-m-d');
+        $productionDateYmd = Carbon::parse($request->date_part)->format('Ymd');
+        $areaId = $request->Id_Area;
+
+        $allActiveNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+            ->where('Id_Area', $areaId)
+            ->pluck('Nik_Daily_Job')
+            ->unique()
+            ->toArray();
+
+        if (empty($allActiveNiks)) {
+            return back()->withErrors(['selected_members' => 'No active members found in this area on ' . $dateYm]);
+        }
+
+        $selectedNiks = $request->input('selected_members', []);
+
+        if (empty($selectedNiks)) {
+            $appliedNiks = 'all';
+            $memberCount = count($allActiveNiks);
+        } else {
+            $appliedNiks = array_values(array_intersect($selectedNiks, $allActiveNiks));
+            $memberCount = count($appliedNiks);
+            if ($memberCount === 0) {
+                return back()->withErrors(['selected_members' => 'Selected members are not active in this area.']);
+            }
+        }
+
+        $durationPerPerson = (float) $request->jam_cost + ((float) $request->menit_cost / 60);
+        $finalCost = $durationPerPerson * $memberCount;
+
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+            ->tz('Asia/Jakarta')
+            ->format('Y-m-d H:i:s');
 
         $cost->update([
-            'Non_Operational_Cost' => $request->Non_Operational_Cost,
+            'Non_Operational_Cost' => round($finalCost, 2),
             'Keterangan_Cost' => $keterangan,
             'Start_Cost' => $timestamp,
+            'Id_Area' => $areaId,
+            'applied_members' => $appliedNiks,
         ]);
 
-        return redirect()->back()->with('success', 'Cost berhasil diperbarui.');
+        $msg = $memberCount . ' member' . ($memberCount > 1 ? 's' : '');
+        return redirect()->back()->with('success', "Cost berhasil diperbarui (applied to $msg).");
     }
-    
+
     public function destroyCost(Cost $cost)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
         $cost->delete();
         return redirect()->back()->with('success', 'Cost berhasil dihapus.');
     }
 
-    // POWER — DIPERBAIKI: validasi pakai list_members, bukan members
+    // POWER
     public function storePower(Request $request)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $request->validate([
-            'Id_Member' => 'required|exists:list_members,Id_Member', // ✅ PERBAIKAN UTAMA
+            'Id_Member' => 'required|exists:rifa.employees,id',
             'Leave_Hour_Power' => 'required|numeric|min:0',
             'Keterangan_Power' => 'required|string|max:255',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
+            'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $timestamp = Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $request->date_part . ' ' . ($request->time_part ?? '07:30')
-        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+            ->tz('Asia/Jakarta')
+            ->format('Y-m-d H:i:s');
 
         Power::create([
             'Id_Member' => $request->Id_Member,
             'Leave_Hour_Power' => $request->Leave_Hour_Power,
             'Keterangan_Power' => $request->Keterangan_Power,
             'Start_Power' => $timestamp,
+            'Id_Area' => $request->Id_Area,
         ]);
 
         return redirect()->back()->with('success', 'Permission berhasil ditambahkan.');
@@ -218,24 +367,29 @@ class LeaderReportController extends Controller
 
     public function updatePower(Request $request, Power $power)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $request->validate([
-            'Id_Member' => 'required|exists:list_members,Id_Member', // ✅ PERBAIKAN UTAMA
+            'Id_Member' => 'required|exists:rifa.employees,id',
             'Leave_Hour_Power' => 'required|numeric|min:0',
             'Keterangan_Power' => 'required|string|max:255',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
+            'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $timestamp = Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $request->date_part . ' ' . ($request->time_part ?? '07:30')
-        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+            ->tz('Asia/Jakarta')
+            ->format('Y-m-d H:i:s');
 
         $power->update([
             'Id_Member' => $request->Id_Member,
             'Leave_Hour_Power' => $request->Leave_Hour_Power,
             'Keterangan_Power' => $request->Keterangan_Power,
             'Start_Power' => $timestamp,
+            'Id_Area' => $request->Id_Area,
         ]);
 
         return redirect()->back()->with('success', 'Permission berhasil diperbarui.');
@@ -243,39 +397,63 @@ class LeaderReportController extends Controller
 
     public function destroyPower(Power $power)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
         $power->delete();
         return redirect()->back()->with('success', 'Permission berhasil dihapus.');
     }
 
-    // PENANGANAN — versi lengkap (dari versi 2)
+    // PENANGANAN — ✅ DIPERBAIKI
     public function storePenanganan(Request $request)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $request->validate([
             'Hour_Penanganan' => 'required|numeric|min:0',
-            'Keterangan_Penanganan' => 'required|string|max:255',
             'kategori_penanganan' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
             'catatan_internal' => 'nullable|string|max:255',
+            'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $timestamp = Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $request->date_part . ' ' . ($request->time_part ?? '07:30')
-        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+        // 🔥 KATEGORI PENANGANAN BARU
+        $mapKategoriPenanganan = [
+            'fix_back_up_proses' => 'Fix Back Up Proses',
+            'back_up_absensi' => 'Back Up Absensi',
+            'bantuan_pic_absensi' => 'Bantuan ke PIC Absensi',
+            'back_up_line_stop_irregular' => 'Back Up Line Stop / Irregular',
+            'perbantuan_area_lain' => 'Perbantuan area lain 【－】',
+            'lembur_produksi' => 'Lembur Produksi',
+            'lembur_mente' => 'Lembur Mente',
+            'lain_lain' => 'Lain-lain',
+        ];
+
+        if ($request->kategori_penanganan === 'lain_lain') {
+            $request->validate(['Keterangan_Penanganan' => 'required|string|max:255']);
+            $keterangan = $request->Keterangan_Penanganan;
+        } else {
+            $keterangan = $mapKategoriPenanganan[$request->kategori_penanganan] ?? $request->kategori_penanganan;
+        }
+
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+            ->tz('Asia/Jakarta')
+            ->format('Y-m-d H:i:s');
 
         $hour = (float) $request->Hour_Penanganan;
-
-        // Jika perbantuan area lain → negatif
         if ($request->kategori_penanganan === 'perbantuan_area_lain') {
-            $hour = -$hour;
+            $hour = -$hour; // negatif hanya untuk "perbantuan area lain"
         }
 
         Penanganan::create([
             'Hour_Penanganan' => $hour,
-            'Keterangan_Penanganan' => $request->Keterangan_Penanganan,
+            'Keterangan_Penanganan' => $keterangan,
             'Start_Penanganan' => $timestamp,
             'catatan_internal' => $request->catatan_internal,
+            'Id_Area' => $request->Id_Area,
         ]);
 
         return redirect()->back()->with('success', 'Time handling berhasil ditambahkan.');
@@ -283,31 +461,52 @@ class LeaderReportController extends Controller
 
     public function updatePenanganan(Request $request, Penanganan $penanganan)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $request->validate([
             'Hour_Penanganan' => 'required|numeric|min:0',
-            'Keterangan_Penanganan' => 'required|string|max:255',
             'kategori_penanganan' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
             'catatan_internal' => 'nullable|string|max:255',
+            'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $timestamp = Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $request->date_part . ' ' . ($request->time_part ?? '07:30')
-        )->tz('Asia/Jakarta')->format('Y-m-d H:i:s');
+        $mapKategoriPenanganan = [
+            'fix_back_up_proses' => 'Fix Back Up Proses',
+            'back_up_absensi' => 'Back Up Absensi',
+            'bantuan_pic_absensi' => 'Bantuan ke PIC Absensi',
+            'back_up_line_stop_irregular' => 'Back Up Line Stop / Irregular',
+            'perbantuan_area_lain' => 'Perbantuan area lain 【－】',
+            'lembur_produksi' => 'Lembur Produksi',
+            'lembur_mente' => 'Lembur Mente',
+            'lain_lain' => 'Lain-lain',
+        ];
+
+        if ($request->kategori_penanganan === 'lain_lain') {
+            $request->validate(['Keterangan_Penanganan' => 'required|string|max:255']);
+            $keterangan = $request->Keterangan_Penanganan;
+        } else {
+            $keterangan = $mapKategoriPenanganan[$request->kategori_penanganan] ?? $request->kategori_penanganan;
+        }
+
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+            ->tz('Asia/Jakarta')
+            ->format('Y-m-d H:i:s');
 
         $hour = (float) $request->Hour_Penanganan;
-
         if ($request->kategori_penanganan === 'perbantuan_area_lain') {
             $hour = -$hour;
         }
 
         $penanganan->update([
             'Hour_Penanganan' => $hour,
-            'Keterangan_Penanganan' => $request->Keterangan_Penanganan,
+            'Keterangan_Penanganan' => $keterangan,
             'Start_Penanganan' => $timestamp,
             'catatan_internal' => $request->catatan_internal,
+            'Id_Area' => $request->Id_Area,
         ]);
 
         return redirect()->back()->with('success', 'Time handling berhasil diperbarui.');
@@ -315,7 +514,28 @@ class LeaderReportController extends Controller
 
     public function destroyPenanganan(Penanganan $penanganan)
     {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
         $penanganan->delete();
         return redirect()->back()->with('success', 'Time handling berhasil dihapus.');
+    }
+
+    // 🔥 METHOD BARU: HAPUS SCAN
+    public function destroyScan(Request $request, Scan $scan)
+    {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
+            abort(403);
+        }
+
+        // ✅ Pastikan scan milik area leader yang sedang login
+        $user = \App\Models\User::find(session('Id_User'));
+        if (!$user || $scan->Id_Area !== $user->Id_Area) {
+            abort(403, 'You can only delete scans from your area.');
+        }
+
+        $scan->delete();
+        return redirect()->back()->with('success', 'Scan berhasil dihapus.');
     }
 }

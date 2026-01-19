@@ -10,6 +10,11 @@ class MainController extends Controller
 {
     public function index()
     {
+        // Cek login area
+        if (session()->has('area_authenticated') && session('area_authenticated')) {
+            return redirect()->route('area.scan');
+        }
+
         // Cek login user (admin / leader)
         if (session()->has('Id_User')) {
             $type = session('Id_Type_User');
@@ -89,5 +94,34 @@ class MainController extends Controller
     {
         session()->flush();
         return redirect()->route('login.form');
+    }
+
+    // 🔴 TAMBAHKAN INI: ganti closure dengan method controller
+    public function logout_area()
+    {
+        session()->forget(['area_authenticated', 'area_id', 'area_name']);
+        return redirect()->route('login.form');
+    }
+
+    public function login_area(Request $request)
+    {
+        $request->validate([
+            'Id_Area' => 'required|exists:areas,Id_Area',
+            'Password_Area' => 'required'
+        ]);
+
+        $area = \App\Models\Area::findOrFail($request->Id_Area);
+
+        if ($request->Password_Area !== $area->Password_Area) {
+            return back()->withErrors(['loginError' => 'Password area salah.']);
+        }
+
+        session([
+            'area_authenticated' => true,
+            'area_id' => $area->Id_Area,
+            'area_name' => $area->Name_Area
+        ]);
+
+        return redirect()->route('area.scan');
     }
 }

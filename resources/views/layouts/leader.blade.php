@@ -41,7 +41,8 @@
                     <div class="d-flex justify-content-between">
                         <div class="logo">
                             <a href="{{ route('leaders.dashboard') }}">
-                                <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Logo" style="width: 200px; height: auto;">
+                                <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Logo"
+                                    style="width: 200px; height: auto;">
                             </a>
                         </div>
                         <div class="toggler">
@@ -67,6 +68,14 @@
                                 <span>Report</span>
                             </a>
                         </li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('leaders.planning.create') }}" class='sidebar-link'> <i
+                                    class="bi bi-person-badge-fill"></i>
+                                <span>Daily Planning</span>
+                            </a>
+                        </li>
+
+
                         <li class="sidebar-title">Navigation</li>
                         <li class="sidebar-item">
                             <a href="{{ route('leaders.members.index') }}" class='sidebar-link'> <i
@@ -74,12 +83,19 @@
                                 <span>Member</span>
                             </a>
                         </li>
-                        <li class="sidebar-item">
-                            <a href="{{ route('leaders.members.select') }}" class='sidebar-link'> <i <i
+                        {{-- <li class="sidebar-item">
+                            <a href="{{ route('leaders.members.select') }}" class='sidebar-link'> <i
                                     class="bi bi-person-badge-fill"></i>
                                 <span>Select Member</span>
                             </a>
-                        </li>                        
+                        </li> --}}
+                        <li class="sidebar-item">
+                            <a href="{{ route('leaders.jobs.manage') }}" class='sidebar-link'> <i
+                                    class="bi bi-person-badge-fill"></i>
+                                <span>List Job</span>
+                            </a>
+                        </li>
+
                         <li class="sidebar-title">Account</li>
                         <li class="sidebar-item">
                             <a href="{{ route('logout') }}" class='sidebar-link'>

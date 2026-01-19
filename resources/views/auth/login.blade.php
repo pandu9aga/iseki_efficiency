@@ -17,20 +17,17 @@
         }
 
         body {
-            /* min-height: 100vh; */
             display: flex;
-            flex-direction: column; /* 🔥 Ubah ke column agar navbar di atas */
+            flex-direction: column;
             align-items: center;
-            /* justify-content: center; */
             padding: 20px;
             background-color: #fff5f9;
         }
 
-        /* ========== NAVBAR ========== */
         .top-nav {
             width: 100%;
-            max-width: 420px; /* Sesuaikan lebar navbar dengan kartu */
-            margin-bottom: 20px; /* Jarak antara navbar dan login card */
+            max-width: 420px;
+            margin-bottom: 20px;
         }
 
         .nav-links {
@@ -61,7 +58,6 @@
             color: white;
         }
 
-        /* ========== LOGIN CARD ========== */
         .login-card {
             background: white;
             border-radius: 20px;
@@ -156,127 +152,62 @@
             box-shadow: 0 6px 18px rgba(189, 2, 55, 0.3);
         }
 
-        .btn-scan {
-            width: 100%;
-            padding: 12px;
-            background: #fff8fb;
-            color: #f7b5ca;
-            border: 1px solid #ffd8e6;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            margin-top: 20px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-scan:hover {
-            background: #ffeff7;
-            color: #e296ae;
-            border-color: #ffb8d1;
-        }
-
-        #reader {
-            width: 100%;
-            height: 220px;
-            margin-top: 20px;
-            border-radius: 12px;
-            overflow: hidden;
-            display: none;
-            border: 1px solid #f5e8ef;
-            background: #fdf9fc;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            background: #fff2f6;
-            color: #f7b5ca;
-            border-radius: 12px;
-            margin-bottom: 28px;
-            font-size: 14px;
-            font-weight: 500;
-            border-left: 3px solid #f7b5ca;
-        }
-
+        /* Sembunyikan form yang tidak aktif */
         .form-section {
             display: none;
-            animation: fadeIn 0.35s ease;
         }
 
         .form-section.active {
             display: block;
         }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @media (max-width: 480px) {
-            .login-card,
-            .top-nav {
-                max-width: 100%;
-            }
-
-            .logo h2 {
-                font-size: 26px;
-            }
-        }
     </style>
 </head>
 
 <body>
-    <!-- ========== NAVBAR ATAS ========== -->
-    <nav class="top-nav">
-        <div class="nav-links">
-            <!-- Ganti href sesuai route Laravel Anda -->
-            <a href="{{ route('scan') }}" class="nav-link">Scan</a>
-            <a href="{{ route('report.scan.index') }}" class="nav-link">Report</a>
-            <a href="{{ route('login.form') }}" class="nav-link active">Login</a>
-        </div>
-    </nav>
 
-    <!-- ========== KARTU LOGIN ========== -->
+    <div class="text-center mb-4">
+    </div>
+
     <div class="login-card">
         <div class="logo">
             <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Logo" style="width: 200px; height: auto;">
         </div>
 
         @if (session('loginError'))
-            <div class="alert">
-                {{ session('loginError') }}
-            </div>
+        <div class="alert alert-danger p-2 mb-3 rounded" style="background:#ffebee;color:#c62828;border-radius:8px;text-align:center;">
+            {{ session('loginError') }}
+        </div>
         @endif
 
-        {{-- <div class="switch-tabs">
-            <button class="tab-btn active" data-target="member">Member</button>
-            <button class="tab-btn" data-target="admin">Admin</button>
-        </div> --}}
+        <!-- 🔴 Ubah urutan tab: Scan (kiri), Admin/Leader (kanan) -->
+        <div class="switch-tabs">
+            <button class="tab-btn active" data-target="area">Scan</button>
+            <button class="tab-btn" data-target="admin">Admin/Leader</button>
+        </div>
 
-        <!-- Member Form -->
-        {{-- <div id="formMember" class="form-section active">
-            <form id="memberLoginForm" method="POST" action="{{ route('login.member') }}">
+        <!-- Area Form (Scan) - Sekarang di atas -->
+        <div id="formArea" class="form-section active">
+            <form method="POST" action="{{ route('login.area') }}">
                 @csrf
                 <div class="form-group">
-                    <label for="nikInput">NIK</label>
-                    <input type="text" id="nikInput" name="NIK_Member" class="form-control" placeholder="Masukkan atau scan NIK" required>
+                    <label>Pilih Area</label>
+                    <select name="Id_Area" class="form-control" required>
+                        <option value="">-- Pilih Area --</option>
+                        @foreach (\App\Models\Area::all() as $area)
+                        <option value="{{ $area->Id_Area }}">{{ $area->Name_Area }}</option>
+                        @endforeach
+                    </select>
                 </div>
-                <div id="reader"></div>
-
-                <button type="submit" class="btn-login">Member Login</button>
-                <button type="button" class="btn-scan" id="btnScan">📷 Scan QR NIK</button>
+                <div class="form-group">
+                    <label>Password Area</label>
+                    <input type="password" name="Password_Area" class="form-control" placeholder="Password Area" required>
+                </div>
+                <button type="submit" class="btn-login">Login Scan</button>
             </form>
-        </div> --}}
+        </div>
 
-        <!-- Admin Form -->
-        <div id="formAdmin" class="form-section active">
+        <!-- Admin/Leader Form -->
+        <div id="formAdmin" class="form-section">
             <form method="POST" action="{{ route('login') }}">
                 @csrf
                 <div class="form-group">
@@ -287,69 +218,26 @@
                     <label>Password</label>
                     <input type="password" name="Password_User" class="form-control" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn-login">Admin Login</button>
+                <button type="submit" class="btn-login">Login Admin/Leader</button>
             </form>
         </div>
     </div>
 
     <script>
-        // ... (script untuk tab dan scan tetap sama) ...
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                // Hapus active dari semua tombol
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+                // Tambahkan active ke tombol yang diklik
                 btn.classList.add('active');
+
+                // Sembunyikan semua form
+                document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+
+                // Tampilkan form yang sesuai
                 const target = btn.dataset.target;
-                document.getElementById('form' + target.charAt(0).toUpperCase() + target.slice(1)).classList.add('active');
-            });
-        });
-
-        let html5QrCode = null;
-        const reader = document.getElementById('reader');
-        const btnScan = document.getElementById('btnScan');
-        const nikInput = document.getElementById('nikInput');
-        const memberForm = document.getElementById('memberLoginForm');
-
-        btnScan.addEventListener('click', () => {
-            if (reader.style.display === 'block') {
-                if (html5QrCode) {
-                    html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
-                    html5QrCode = null;
-                }
-                reader.style.display = 'none';
-                btnScan.textContent = '📷 Scan QR NIK';
-                return;
-            }
-
-            reader.style.display = 'block';
-            btnScan.textContent = '❌ Tutup Kamera';
-            html5QrCode = new Html5Qrcode("reader");
-
-            Html5Qrcode.getCameras().then(devices => {
-                if (devices?.length) {
-                    html5QrCode.start(
-                        devices[0].id, {
-                            fps: 10,
-                            qrbox: { width: 200, height: 200 }
-                        },
-                        (decodedText) => {
-                            const nik = decodedText.split(';')[0].trim();
-                            nikInput.value = nik;
-                            memberForm.submit(); // Auto-submit setelah scan
-                        },
-                        (errorMessage) => {
-                            // Silent error
-                        }
-                    ).catch(err => {
-                        alert("Kamera tidak tersedia atau izin ditolak.");
-                        reader.style.display = 'none';
-                        btnScan.textContent = '📷 Scan QR NIK';
-                    });
-                }
-            }).catch(err => {
-                alert("Gagal mengakses kamera.");
-                reader.style.display = 'none';
-                btnScan.textContent = '📷 Scan QR NIK';
+                const formId = 'form' + target.charAt(0).toUpperCase() + target.slice(1);
+                document.getElementById(formId).classList.add('active');
             });
         });
     </script>

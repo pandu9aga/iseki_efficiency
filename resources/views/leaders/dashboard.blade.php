@@ -13,28 +13,35 @@
         <section class="section">
             <div class="row">
                 <div class="col-md-12">
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <form method="GET" id="dateForm">
-                                <div class="row g-3 align-items-center">
-                                    <div class="col-auto">
-                                        <label for="date" class="col-form-label">Date:</label>
-                                    </div>
-                                    <div class="col-auto">
-                                        <input type="date" id="date" name="date" class="form-control"
-                                            value="{{ $dateString }}">
-                                    </div>
-                                    <div class="col-auto">
-                                        <button type="submit" class="btn btn-primary">Show</button>
-                                    </div>
-                                    <div class="col-auto">
-                                        <a href="{{ route('leaders.dashboard.fullscreen', ['date' => $dateString]) }}" class="btn btn-info">Fullscreen View</a>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+<div class="card mb-4">
+    <div class="card-body">
+        <!-- Judul Area Otomatis -->
+        <h5 class="mb-3">Area: {{ $area->Name_Area }}</h5>
 
+        <!-- Form Tanggal -->
+        <form method="GET" class="mb-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="date" class="col-form-label">Date:</label>
+                </div>
+                <div class="col-auto">
+                    <input type="date" id="date" name="date" class="form-control" value="{{ $dateString }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Show</button>
+                </div>
+                <div class="col-auto">
+                    <a href="{{ route('leaders.dashboard.export', ['date' => $dateString]) }}" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
+                    <a href="{{ route('leaders.dashboard.fullscreen', ['date' => $dateString]) }}" class="btn btn-info">
+                        Fullscreen View
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
                     @if ($isToday)
                         <div class="alert alert-info d-flex align-items-center">
                             <i class="bi bi-clock me-2"></i>
@@ -45,7 +52,14 @@
 
                     <div class="card">
                         <div class="card-header">
-                            <h5>Diagram: <span class="text-primary">{{ $dateString }}</span></h5>
+                            <h5>Diagram: <span class="text-primary">{{ $dateString }}</span>
+                                @if (request()->filled('area'))
+                                    <small class="text-muted">
+                                        | Area:
+                                        {{ optional($areas->firstWhere('Id_Area', request('area')))->Name_Area ?? 'ID ' . request('area') }}
+                                    </small>
+                                @endif
+                            </h5>
                         </div>
                         <div class="card-body">
                             <canvas id="stackedChart"></canvas>
@@ -121,7 +135,6 @@
             return `${sign}${jam} jam ${menit} menit`;
         }
 
-        // Ambil data — pastikan $costImpactList sudah dikalikan jumlah member (sudah dilakukan di controller)
         const rawScans = @json($scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray());
         const rawCosts = @json($costImpactList);
         const rawPowers = @json($powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray());
@@ -140,10 +153,8 @@
         const costTotal = costs.reduce((sum, c) => sum + c.value, 0);
         const powerTotalCalculated = powers.reduce((sum, p) => sum + p.value, 0);
         const penangananTotal = penanganans.reduce((sum, p) => sum + p.value, 0);
-
         const reportNetHours = memberHours - powerTotalCalculated;
 
-        // Inisialisasi Chart
         const ctx = document.getElementById('stackedChart').getContext('2d');
         Chart.register(ChartDataLabels);
         Chart.register('chartjs-plugin-annotation');
@@ -210,12 +221,12 @@
                         formatter: (value, ctx) => {
                             const label = ctx.dataset.label;
                             if (label === 'Member Hours')
-                            return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
+                                return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
                             if (label === 'Handling')
-                            return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
+                                return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
                             if (label === 'Tractor') return `Tractor: ${decimalToHoursMinutes(scanTotal)}`;
                             if (label === 'Non Operational')
-                            return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
+                                return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
                             return value ? `${decimalToHoursMinutes(value)}` : "";
                         },
                         font: {
@@ -311,12 +322,10 @@
             }
         });
 
-        // === EFISIENSI LOGIC (SAMA DENGAN ADMIN) ===
         const kategori1 = reportNetHours + penangananTotal;
         const kategori2 = scanTotal + costTotal;
         const selisihJam = kategori2 - kategori1;
         const nilaiRupiah = selisihJam * 60000;
-
         const persenOperasional = kategori2 !== 0 ? (selisihJam / kategori2) * 100 : 0;
         const persenNonOperasional = kategori1 !== 0 ? (costTotal / kategori1) * 100 : 0;
 
@@ -333,11 +342,7 @@
         document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(Math.round(nilaiRupiah));
 
         const mainCard = document.getElementById('mainCard');
-        if (nilaiRupiah >= 0) {
-            mainCard.style.backgroundColor = '#28a745'; // Hijau
-        } else {
-            mainCard.style.backgroundColor = '#dc3545'; // Merah
-        }
+        mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#28a745' : '#dc3545';
 
         document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
         const absPersenOp = Math.abs(persenOperasional);

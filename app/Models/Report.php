@@ -13,6 +13,7 @@ class Report extends Model
     protected $fillable = [
         'Day_Report',
         'Total_Hours_Report',
-        'Total_Member_Report'
+        'Total_Member_Report',
+        'Id_Area'
     ];
 }

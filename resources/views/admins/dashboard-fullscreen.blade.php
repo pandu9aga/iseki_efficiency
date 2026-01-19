@@ -4,432 +4,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iseki - Efficiency</title>
-
-    <!-- Favicon -->
+    <title>Iseki - Efficiency (Fullscreen)</title>
     <link rel="shortcut icon" href="{{ asset('assets/images/icon.png') }}" type="image/x-icon">
-
-    <!-- CSS -->
-    <link rel="stylesheet" href="{{ asset('assets/css/custom-fonts.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/vendors/iconly/bold.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/dataTables.dataTables.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/fixedColumns.dataTables.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
-
     <style>
-    html, body {
-        height: 100%;
-    }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background-color: #f8f9fa;
+        }
 
-    body {
-        background-color: #fff5f9;
-        margin: 0;
-        overflow: hidden; /* ❗ hanya satu scroll */
-    }
+        .fullscreen-container {
+            padding: 10px;
+            overflow-y: auto;
+            height: 100vh;
+        }
 
-    .fullscreen-container {
-        height: 100vh;
-        display: flex;
-        padding: 10px;
-        box-sizing: border-box;
-    }
+        .area-card {
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
 
-    .fullscreen-card {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        border-radius: 20px;
-        box-shadow: 0 8px 24px rgba(189, 2, 55, 0.12);
-        border: 1px solid #ffe6ee;
-        overflow: hidden;
-    }
+        .area-card:hover {
+            transform: translateY(-2px);
+        }
 
-    /* header + alert */
-    .card-top {
-        flex-shrink: 0;
-    }
+        .chart-mini {
+            height: 180px;
+            position: relative;
+        }
 
-    /* area grafik */
-    .chart-section {
-        flex: 1;
-        position: relative;
-        min-height: 0; /* ❗ penting agar canvas bisa flex */
-    }
+        .efficiency-mini {
+            padding: 12px;
+        }
 
-    .chart-section canvas {
-        position: absolute;
-        inset: 0;
-    }
+        .efficiency-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
 
-    /* area bawah */
-    .bottom-section {
-        flex-shrink: 0;
-    }
+        .progress {
+            height: 6px;
+        }
+
+        .area-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
     </style>
-
 </head>
 
-<body data-pc-preset="preset-1" data-pc-theme="light">
+<body>
 
     <div class="fullscreen-container">
-        <div class="card fullscreen-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Dashboard Fullscreen — {{ $dateString }}</h4>
+            @if ($isToday)
+                <span class="badge bg-info">Real-time</span>
+            @endif
+            <a href="{{ route('admins.dashboard') }}" class="btn btn-sm btn-outline-secondary">Exit</a>
+        </div>
 
-            <!-- 🔹 BAGIAN ATAS -->
-            <div class="card-top p-3">
+        <div class="row" id="areasContainer">
+            @foreach ($areaData as $data)
+                <div class="col-xl-3 col-lg-3 col-md-6 col-sm-12">
+                    <div class="card area-card">
+                        <div class="card-body">
+                            <div class="area-title">{{ $data['area']->Name_Area }}</div>
 
-                @if ($isToday)
-                    <div class="alert alert-info d-flex align-items-center mb-3">
-                        <i class="bi bi-clock me-2"></i>
-                        <strong>Jam Operasional Real-Time:</strong>
-                        Total {{ $reportMembers }} Member (Start From 07.30)
-                    </div>
-                @endif
-
-                <div class="header-actions mb-2">
-                    <h5>Diagram: <span class="text-primary">{{ $dateString }}</span></h5>
-                    <a href="{{ route('admins.dashboard') }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
-                </div>
-
-            </div>
-
-            <div class="row">
-                <div class="col-9">
-                    <!-- 🔹 CHART (FULL HEIGHT) -->
-                    <div class="chart-section px-3">
-                        <canvas id="stackedChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="col-3">
-                    <!-- 🔹 BAGIAN BAWAH -->
-                    <div class="bottom-section p-3" id="efficiencyCard">
-                        <div class="row">
-                            <div class="col-12">
-                                <div class="card text-white" id="mainCard">
-                                    <div class="card-body text-center py-4">
-                                        <h6 class="card-title mb-2">
-                                            Efisiensi Hari Ini - 今日の作業効率
-                                        </h6>
-                                        <h2 class="fw-bold text-white" id="selisihJam">0.00 jam</h2>
-                                        <h3 class="mt-1 fs-4 text-white" id="nilaiRupiah">Rp0</h3>
-                                    </div>
-                                </div>
+                            <!-- Chart Mini -->
+                            <div class="chart-mini mb-3">
+                                <canvas id="chart-{{ $data['area']->Id_Area }}"></canvas>
                             </div>
 
-                            <div class="col-12">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6 class="card-title mb-3">Efficency Ratio</h6>
+                            <!-- Efisiensi Mini -->
+                            <div class="efficiency-mini">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Selisih Jam:</span>
+                                    <span class="efficiency-value" id="selisih-{{ $data['area']->Id_Area }}">
+                                        {{ number_format($data['selisihJam'], 2) }} jam
+                                    </span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span>Nilai:</span>
+                                    <span class="efficiency-value" id="rupiah-{{ $data['area']->Id_Area }}">
+                                        Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
+                                    </span>
+                                </div>
 
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-content-between small mb-1">
-                                                <span>Operational Ratio - 工数低減率</span>
-                                                <span id="persenOperasional">0%</span>
-                                            </div>
-                                            <div class="progress" style="height: 8px;">
-                                                <div class="progress-bar" id="persenOperasionalBar"></div>
-                                            </div>
-                                        </div>
+                                @php
+                                    $kategori1 = $data['reportNetHours'] + $data['penangananTotal'];
+                                    $kategori2 = $data['scanTotal'] + $data['costTotal'];
+                                    $persenOperasional =
+                                        $kategori2 != 0 ? (($kategori2 - $kategori1) / $kategori2) * 100 : 0;
+                                    $persenNonOperasional =
+                                        $kategori1 != 0 ? ($data['costTotal'] / $kategori1) * 100 : 0;
+                                    $color = $data['nilaiRupiah'] >= 0 ? 'success' : 'danger';
+                                @endphp
 
-                                        <div>
-                                            <div class="d-flex justify-content-between small mb-1">
-                                                <span>Non Operational Ratio - 非稼働工数率</span>
-                                                <span id="persenNonOperasional">0%</span>
-                                            </div>
-                                            <div class="progress" style="height: 8px;">
-                                                <div class="progress-bar bg-info"
-                                                    id="persenNonOperasionalBar"></div>
-                                            </div>
-                                        </div>
+                                <div class="small mb-1">
+                                    Operational Ratio: <strong>{{ number_format($persenOperasional, 1) }}%</strong>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-{{ $color }}"
+                                        style="width: {{ min(100, abs($persenOperasional)) }}%"></div>
+                                </div>
 
-                                    </div>
+                                <div class="small mb-1">
+                                    Non-Operational: <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info"
+                                        style="width: {{ min(100, $persenNonOperasional) }}%"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            @endforeach
         </div>
     </div>
 
-    <!-- JS: Core -->
-    <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <!-- JS -->
     <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ asset('assets/vendors/apexcharts/apexcharts.js') }}"></script>
-
-    <!-- JS: DataTables -->
-    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('assets/js/dataTables.min.js') }}"></script>
-    <script src="{{ asset('assets/js/fixedColumns.dataTables.min.js') }}"></script>
-    <script src="{{ asset('assets/js/html5-qrcode.min.js') }}"></script>
-
-    <!-- JS: Custom -->
-    <script>
-        document.querySelector('.year').textContent = new Date().getFullYear();
-        // Init DataTable if exists
-        const table1 = document.querySelector('#table1');
-        if (table1) {
-            new DataTable(table1);
-        }
-    </script>
-    <script src="{{ asset('assets/js/main.js') }}"></script>
-
-    <!-- Yield: Modal harus sebelum script agar bisa diakses -->
     <script src="{{ asset('assets/js/chart.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
-    <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
-    <script>
-        setTimeout(() => {
-            location.reload();
-        }, 10000); // 60 detik = 1 menit
-    </script>
-    <script>
-        // 🔹 Fungsi: Konversi desimal jam ke format "X jam Y menit" (termasuk nilai negatif)
-        function decimalToHoursMinutes(decimal) {
-            if (isNaN(decimal)) return '0 jam 0 menit';
 
+    <script>
+        function decimalToHoursMinutes(decimal) {
+            if (isNaN(decimal)) return '0j 0m';
             const sign = decimal < 0 ? '-' : '';
             const abs = Math.abs(decimal);
             const totalMinutes = Math.round(abs * 60);
             const jam = Math.floor(totalMinutes / 60);
             const menit = totalMinutes % 60;
-
-            return `${sign}${jam} jam ${menit} menit`;
+            return `${sign}${jam}j ${menit}m`;
         }
 
-        // 🔹 Ambil data dari PHP
-        const rawScans = @json($scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray());
-        const rawCosts = @json($costImpactList);
-        const rawPowers = @json($powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray());
-        const rawPenanganans = @json($penanganans->map(fn($p) => ['label' => $p->Keterangan_Penanganan ?? 'Unknown', 'value' => (float) $p->Hour_Penanganan])->toArray());
-
-        const memberHours = {{ (float) $memberHours }};
-        const reportMembers = {{ (int) $reportMembers }};
-        const powerTotal = {{ (float) $powerTotal }};
-
-        const scans = Array.isArray(rawScans) ? rawScans : [];
-        const costs = Array.isArray(rawCosts) ? rawCosts : [];
-        const powers = Array.isArray(rawPowers) ? rawPowers : [];
-        const penanganans = Array.isArray(rawPenanganans) ? rawPenanganans : [];
-
-        const scanTotal = scans.reduce((sum, s) => sum + s.value, 0);
-        const costTotal = costs.reduce((sum, c) => sum + c.value, 0);
-        const powerTotalCalculated = powers.reduce((sum, p) => sum + p.value, 0);
-        const penangananTotal = penanganans.reduce((sum, p) => sum + p.value, 0);
-
-        const reportNetHours = memberHours - powerTotalCalculated;
-
-        // 🔹 Inisialisasi Chart
-        const ctx = document.getElementById('stackedChart').getContext('2d');
-        Chart.register(ChartDataLabels);
-        Chart.register('chartjs-plugin-annotation');
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Operational Production'],
-                datasets: [{
-                        label: 'Handling',
-                        data: [penangananTotal],
-                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        borderWidth: 1,
-                        stack: 'group1',
-                        order: 3,
-                    },
-                    {
-                        label: 'Member Hours',
-                        data: [reportNetHours],
-                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1,
-                        stack: 'group1',
-                        order: 1,
-                    },
-                    {
-                        label: 'Tractor',
-                        data: [scanTotal],
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1,
-                        stack: 'group2',
-                        order: 4,
-                    },
-                    {
-                        label: 'Non Operational',
-                        data: [costTotal],
-                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1,
-                        stack: 'group2',
-                        order: 5,
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    x: {
-                        stacked: true
-                    },
-                    y: {
-                        stacked: true,
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    datalabels: {
-                        anchor: 'center',
-                        align: 'center',
-                        clamp: true,
-                        color: '#25396f',
-                        formatter: (value, ctx) => {
-                            const label = ctx.dataset.label;
-                            if (label === 'Member Hours')
-                                return `Member Hours: ${decimalToHoursMinutes(reportNetHours)}`;
-                            if (label === 'Handling')
-                                return `Handling: ${decimalToHoursMinutes(penangananTotal)}`;
-                            if (label === 'Tractor') return `Tractor: ${decimalToHoursMinutes(scanTotal)}`;
-                            if (label === 'Non Operational')
-                                return `Non Operational: ${decimalToHoursMinutes(costTotal)}`;
-                            return value ? `${decimalToHoursMinutes(value)}` : "";
+        @foreach ($areaData as $data)
+            // Siapkan data untuk area {{ $data['area']->Id_Area }}
+            const ctx{{ $data['area']->Id_Area }} = document.getElementById('chart-{{ $data['area']->Id_Area }}')
+                .getContext('2d');
+            new Chart(ctx{{ $data['area']->Id_Area }}, {
+                type: 'bar',
+                data: {
+                    labels: [''],
+                    datasets: [{
+                            label: 'Member Net',
+                            data: [{{ $data['reportNetHours'] }}],
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            stack: 'A',
+                            order: 1
                         },
-                        font: {
-                            weight: 'bold',
-                            size: 12
+                        {
+                            label: 'Handling',
+                            data: [{{ $data['penangananTotal'] }}],
+                            backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                            stack: 'A',
+                            order: 2
+                        },
+                        {
+                            label: 'Tractor',
+                            data: [{{ $data['scanTotal'] }}],
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            stack: 'B',
+                            order: 3
+                        },
+                        {
+                            label: 'Non Op',
+                            data: [{{ $data['costTotal'] }}],
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            stack: 'B',
+                            order: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        datalabels: {
+                            display: false
                         }
                     },
-                    tooltip: {
-                        callbacks: {
-                            beforeLabel: function(ctx) {
-                                const label = ctx.dataset.label || '';
-                                if (label === 'Member Hours') {
-                                    return [
-                                        `Total Members: ${reportMembers}`,
-                                        `Total Hours (sebelum izin): ${decimalToHoursMinutes(memberHours)}`,
-                                        `Jam Izin: ${decimalToHoursMinutes(powerTotal)}`,
-                                        `Net Hours: ${decimalToHoursMinutes(ctx.parsed.y)}`
-                                    ];
-                                }
-                                if (label === 'Tractor') {
-                                    const total = scans.reduce((s, x) => s + x.value, 0);
-                                    const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
-                                    const labels = scans.map(s =>
-                                        `${s.label} (${decimalToHoursMinutes(s.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
-                                    return lines;
-                                }
-                                if (label === 'Non Operational') {
-                                    const total = costs.reduce((s, x) => s + x.value, 0);
-                                    const lines = [`Total Non Operational: ${decimalToHoursMinutes(total)}`];
-                                    const labels = costs.map(c =>
-                                        `${c.label} (${decimalToHoursMinutes(c.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
-                                    return lines;
-                                }
-                                if (label === 'Handling') {
-                                    const total = penanganans.reduce((s, x) => s + x.value, 0);
-                                    const lines = [`Total Handling: ${decimalToHoursMinutes(total)}`];
-                                    const labels = penanganans.map(p =>
-                                        `${p.label} (${decimalToHoursMinutes(p.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
-                                    return lines;
-                                }
-                                return null;
-                            },
-                            label: () => ''
-                        }
-                    },
-                    annotation: {
-                        annotations: {
-                            handlingTopLine: {
-                                type: 'line',
-                                xMin: -0.05,
-                                xMax: 0.05,
-                                yMin: reportNetHours + penangananTotal,
-                                yMax: reportNetHours + penangananTotal,
-                                borderColor: 'red',
-                                borderWidth: 2,
-                                borderDash: [6, 6]
-                            },
-                            totalOperationalText: {
-                                type: 'label',
-                                xValue: -0.2,
-                                yValue: reportNetHours + penangananTotal + 1,
-                                backgroundColor: 'transparent',
-                                color: '#333',
+                    scales: {
+                        x: {
+                            display: false,
+                            stacked: true
+                        },
+                        y: {
+                            display: true,
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
                                 font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                },
-                                content: [decimalToHoursMinutes(reportNetHours + penangananTotal)],
-                                textAlign: 'center'
-                            },
-                            totalTractorText: {
-                                type: 'label',
-                                xValue: 0.2,
-                                yValue: scanTotal + costTotal + 1,
-                                backgroundColor: 'transparent',
-                                color: '#333',
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                },
-                                content: [decimalToHoursMinutes(scanTotal + costTotal)],
-                                textAlign: 'center'
+                                    size: 9
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        @endforeach
 
-        // === 🔥 EFISIENSI ===
-        const kategori1 = reportNetHours + penangananTotal;
-        const kategori2 = scanTotal + costTotal;
-        const selisihJam = kategori2 - kategori1;
-        const nilaiRupiah = selisihJam * 60000;
-
-        const persenOperasional = kategori2 !== 0 ? (selisihJam / kategori2) * 100 : 0;
-        const persenNonOperasional = kategori1 !== 0 ? (costTotal / kategori1) * 100 : 0;
-
-        function formatRupiahWithSign(angka) {
-            const sign = angka < 0 ? '-' : '';
-            return sign + new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            }).format(Math.abs(angka));
-        }
-
-        document.getElementById('selisihJam').textContent = decimalToHoursMinutes(selisihJam);
-        document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(Math.round(nilaiRupiah));
-
-        const mainCard = document.getElementById('mainCard');
-        if (nilaiRupiah >= 0) {
-            mainCard.style.backgroundColor = '#28a745';
-        } else {
-            mainCard.style.backgroundColor = '#dc3545';
-        }
-
-        document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
-        const absPersenOp = Math.abs(persenOperasional);
-        const persenOpBar = document.getElementById('persenOperasionalBar');
-        persenOpBar.style.width = Math.min(100, absPersenOp) + '%';
-        persenOpBar.className = 'progress-bar ' + (nilaiRupiah >= 0 ? 'bg-success' : 'bg-danger');
-
-        document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
-        document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
+        // Auto refresh
+        setTimeout(() => location.reload(), 60000);
     </script>
+
 </body>
 
 </html>

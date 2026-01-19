@@ -24,13 +24,7 @@ class Member extends Model
     /**
      * Kolom yang bisa diisi mass assignment.
      */
-    protected $fillable = [
-        'nama',
-        'nik',
-        'team',
-        'division_id',
-        'status'
-    ];
+    protected $fillable = ['nama', 'nik', 'team', 'division_id', 'status'];
 
     /**
      * Relasi ke Division (pastikan tabel divisions ada di DB 'rifa').
@@ -39,4 +33,10 @@ class Member extends Model
     {
         return $this->belongsTo(Division::class, 'division_id', 'id');
     }
+
+    // Hapus relasi ini jika ada:
+    // public function listMembers()
+    // {
+    //     return $this->hasMany(ListMember::class, 'Id_Member', 'id');
+    // }
 }
