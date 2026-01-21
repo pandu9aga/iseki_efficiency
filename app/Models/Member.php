@@ -33,6 +33,10 @@ class Member extends Model
     {
         return $this->belongsTo(Division::class, 'division_id', 'id');
     }
+    public function area()
+    {
+        return $this->belongsTo(Area::class, 'Id_Area', 'Id_Area');
+    }
 
     // Hapus relasi ini jika ada:
     // public function listMembers()

@@ -10,7 +10,7 @@ class Area extends Model
     protected $primaryKey = 'Id_Area';
     public $timestamps = false;
 
-    protected $fillable = ['Name_Area'];
+    protected $fillable = ['Name_Area', 'Password_Area'];
 
     public function jobMembers()
     {

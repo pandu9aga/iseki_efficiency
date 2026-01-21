@@ -52,7 +52,7 @@
                                                 <option value="">-- Pilih Member --</option>
                                                 @foreach ($allMembers as $member)
                                                 <option value="{{ $member->id }}"
-                                                    @if ($plan && $plan['member_id']==$member->id) selected @endif>
+                                                    @if ($plan && $plan['nik']==$member->nik) selected @endif>
                                                     {{ $member->nama }} ({{ $member->nik }})
                                                 </option>
                                                 @endforeach
@@ -122,10 +122,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Atur tampilan awal replace field
         document.querySelectorAll('.type-select').forEach(toggleReplaceField);
 
-        // Inisialisasi TomSelect
         const initTomSelect = (selector, placeholder) => {
             document.querySelectorAll(selector).forEach(el => {
                 if (!el.tomselect) {
@@ -141,7 +139,6 @@
         initTomSelect('.tom-select-member', '-- Pilih atau Cari Member --');
         initTomSelect('.replace-member-select', '-- Pilih Member yang Digantikan --');
 
-        // Validasi form
         const form = document.getElementById('planningForm');
         if (form) {
             form.addEventListener('submit', function(e) {

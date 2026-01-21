@@ -77,6 +77,9 @@ class AdminReportController extends Controller
                 ->toArray();
         }
 
+        // ✅ Tambahkan ini: ambil semua member untuk modal "Add Handling"
+        $allMembers = Member::with('area')->get();
+
         return view('admins.reports.index', compact(
             'dateString',
             'areaReports',
@@ -90,7 +93,8 @@ class AdminReportController extends Controller
             'activeMembersByArea',
             'scans',
             'areas',
-            'memberMap' // ← tambahkan ini
+            'memberMap',
+            'allMembers' // ← sekarang sudah didefinisikan!
         ));
     }
 
@@ -401,15 +405,25 @@ class AdminReportController extends Controller
         }
 
         $request->validate([
-            'Hour_Penanganan' => 'required|numeric|min:0',
+            'jam_penanganan' => 'required|integer|min:0',
+            'menit_penanganan' => 'required|integer|min:0|max:59',
             'kategori_penanganan' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
             'catatan_internal' => 'nullable|string|max:255',
             'Id_Area' => 'required|exists:areas,Id_Area',
+            'selected_members_area' => 'nullable|array',
+            'selected_members_all' => 'nullable|array',
         ]);
 
-        // 🔥 KATEGORI PENANGANAN BARU
+        $areaMembers = $request->input('selected_members_area', []);
+        $allMembersInput = $request->input('selected_members_all', []);
+        $selectedNiks = array_unique(array_merge($areaMembers, $allMembersInput));
+
+        if (empty($selectedNiks)) {
+            return back()->withErrors(['selected_members' => 'Pilih minimal 1 member dari salah satu daftar.']);
+        }
+
         $mapKategoriPenanganan = [
             'fix_back_up_proses' => 'Fix Back Up Proses',
             'back_up_absensi' => 'Back Up Absensi',
@@ -428,23 +442,27 @@ class AdminReportController extends Controller
             $keterangan = $mapKategoriPenanganan[$request->kategori_penanganan] ?? $request->kategori_penanganan;
         }
 
+        $jam = (float) $request->jam_penanganan;
+        $menit = (float) $request->menit_penanganan;
+        $durationPerPerson = $jam + ($menit / 60);
+        $memberCount = count($selectedNiks);
+        $totalHour = $durationPerPerson * $memberCount;
+
+        if ($request->kategori_penanganan === 'perbantuan_area_lain') {
+            $totalHour = -$totalHour;
+        }
+
         $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
-        $hour = (float) $request->Hour_Penanganan;
-        if ($request->kategori_penanganan === 'perbantuan_area_lain') {
-            $hour = -$hour; // negatif hanya untuk "perbantuan area lain"
-        }
-
         Penanganan::create([
-            'Hour_Penanganan' => $hour,
+            'Hour_Penanganan' => round($totalHour, 2),
             'Keterangan_Penanganan' => $keterangan,
             'Start_Penanganan' => $timestamp,
-            'catatan_internal' => $request->catatan_internal,
             'Id_Area' => $request->Id_Area,
+            'Applied_Members' => $selectedNiks,
         ]);
-
         return redirect()->back()->with('success', 'Time handling berhasil ditambahkan.');
     }
 
@@ -455,13 +473,23 @@ class AdminReportController extends Controller
         }
 
         $request->validate([
-            'Hour_Penanganan' => 'required|numeric|min:0',
+            'jam_penanganan' => 'required|integer|min:0',
+            'menit_penanganan' => 'required|integer|min:0|max:59',
             'kategori_penanganan' => 'required|string',
             'date_part' => 'required|date',
             'time_part' => 'nullable|date_format:H:i',
-            'catatan_internal' => 'nullable|string|max:255',
             'Id_Area' => 'required|exists:areas,Id_Area',
+            'selected_members_area' => 'nullable|array',
+            'selected_members_all' => 'nullable|array',
         ]);
+
+        $areaMembers = array_filter((array) $request->input('selected_members_area', []));
+        $allMembersInput = array_filter((array) $request->input('selected_members_all', []));
+        $selectedNiks = array_values(array_unique(array_merge($areaMembers, $allMembersInput)));
+
+        if (empty($selectedNiks)) {
+            return back()->withErrors(['selected_members' => 'Pilih minimal 1 member dari salah satu daftar.']);
+        }
 
         $mapKategoriPenanganan = [
             'fix_back_up_proses' => 'Fix Back Up Proses',
@@ -481,21 +509,26 @@ class AdminReportController extends Controller
             $keterangan = $mapKategoriPenanganan[$request->kategori_penanganan] ?? $request->kategori_penanganan;
         }
 
+        $jam = (float) $request->jam_penanganan;
+        $menit = (float) $request->menit_penanganan;
+        $durationPerPerson = $jam + ($menit / 60);
+        $memberCount = count($selectedNiks);
+        $totalHour = $durationPerPerson * $memberCount;
+
+        if ($request->kategori_penanganan === 'perbantuan_area_lain') {
+            $totalHour = -$totalHour;
+        }
+
         $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
-        $hour = (float) $request->Hour_Penanganan;
-        if ($request->kategori_penanganan === 'perbantuan_area_lain') {
-            $hour = -$hour;
-        }
-
         $penanganan->update([
-            'Hour_Penanganan' => $hour,
+            'Hour_Penanganan' => round($totalHour, 2),
             'Keterangan_Penanganan' => $keterangan,
             'Start_Penanganan' => $timestamp,
-            'catatan_internal' => $request->catatan_internal,
             'Id_Area' => $request->Id_Area,
+            'Applied_Members' => $selectedNiks,
         ]);
 
         return redirect()->back()->with('success', 'Time handling berhasil diperbarui.');
@@ -511,7 +544,6 @@ class AdminReportController extends Controller
         return redirect()->back()->with('success', 'Time handling berhasil dihapus.');
     }
 
-    // Tambahkan di akhir class (sebelum penutup })
     public function destroyScan(Request $request, Scan $scan)
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 1) {

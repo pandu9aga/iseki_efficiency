@@ -361,8 +361,8 @@
 
             Html5Qrcode.getCameras().then(cameras => {
                 if (cameras?.length) {
-                    const rearCamera = cameras.find(c => /back|rear|environment/i.test(c.label));
-                    const camId = rearCamera ? rearCamera.id : cameras[0].id;
+                    // 🔥 SAMA PERSIS DENGAN SCANNER TRACTOR: gunakan kamera pertama
+                    const camId = cameras[0].id;
 
                     replacementHtml5QrCode.start(camId, {}, (decodedText) => {
                         replacementHtml5QrCode.stop().then(() => replacementHtml5QrCode.clear()).catch(() => {});

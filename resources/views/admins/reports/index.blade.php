@@ -548,15 +548,18 @@
             @csrf
             <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
             <input type="hidden" name="date_part" value="{{ $dateString }}">
-            <input type="hidden" name="Hour_Penanganan">
+            <input type="hidden" name="Hour_Penanganan"> {{-- Akan diisi via JS --}}
+
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add Handling - {{ $area->Name_Area }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+
+                    <!-- Durasi per orang -->
                     <div class="mb-3">
-                        <label>Hour</label>
+                        <label>Duration (per person)</label>
                         <div class="input-group">
                             <input type="number" name="jam_penanganan" class="form-control" placeholder="Jam" min="0" required>
                             <span class="input-group-text">jam</span>
@@ -564,6 +567,83 @@
                             <span class="input-group-text">menit</span>
                         </div>
                     </div>
+
+                    <!-- Pilih Member -->
+                    <div class="mb-3">
+                        <label>Apply to Members</label>
+
+                        <!-- Dari Area Ini -->
+                        <div class="form-group mb-2">
+                            <label class="form-label small">From This Area</label>
+                            <input type="text" class="form-control form-control-sm mb-1" placeholder="Cari member..." onkeyup="filterMembers(this, 'area-{{ $area->Id_Area }}')">
+                            <div class="member-checkbox-list" id="area-{{ $area->Id_Area }}">
+                                @php
+                                $membersHere = $activeMembersByArea[$area->Id_Area] ?? collect();
+                                @endphp
+                                @foreach ($membersHere as $m)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="selected_members_area[]" value="{{ $m->nik }}" id="mem-area-{{ $m->nik }}">
+                                    <label class="form-check-label" for="mem-area-{{ $m->nik }}">{{ $m->nama }} ({{ $m->nik }})</label>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <!-- Dari Semua Area -->
+                        <div class="form-group">
+                            <label class="form-label small fw-bold">From All Areas</label>
+                            <input
+                                type="text"
+                                class="form-control form-control-sm mb-2"
+                                placeholder="🔍 Cari nama atau NIK..."
+                                onkeyup="filterMembers(this, 'all-{{ $area->Id_Area }}')"
+                                autocomplete="off">
+                            <div
+                                class="member-checkbox-list border rounded p-2 bg-light"
+                                id="all-{{ $area->Id_Area }}"
+                                style="max-height: 200px; overflow-y: auto; font-size: 0.875rem;">
+                                @if($allMembers->isEmpty())
+                                <div class="text-muted text-center py-2">
+                                    <em>Tidak ada member tersedia</em>
+                                </div>
+                                @else
+                                @php
+                                // Ambil NIK dari area ini agar tidak duplikat
+                                $areaNiks = $membersHere->pluck('nik')->toArray();
+                                @endphp
+                                @foreach ($allMembers as $m)
+                                @php
+                                $isInThisArea = in_array($m->nik, $areaNiks);
+                                @endphp
+                                @if (!$isInThisArea)
+                                <div class="form-check mb-1 d-flex align-items-center" style="gap: 0.5rem;">
+                                    <input
+                                        class="form-check-input flex-shrink-0"
+                                        type="checkbox"
+                                        name="selected_members_all[]"
+                                        value="{{ $m->nik }}"
+                                        id="mem-all-{{ $area->Id_Area }}-{{ $m->nik }}">
+                                    <label
+                                        class="form-check-label flex-grow-1 mb-0 text-truncate"
+                                        for="mem-all-{{ $area->Id_Area }}-{{ $m->nik }}"
+                                        title="{{ $m->nama }} ({{ $m->nik }}) - {{ $m->area?->Name_Area }}">
+                                        <span class="fw-medium">{{ $m->nama }}</span>
+                                        <span class="text-muted ms-1">({{ $m->nik }})</span>
+                                        @if($m->area?->Name_Area)
+                                        <br><small class="text-muted">Area: {{ $m->area->Name_Area }}</small>
+                                        @endif
+                                    </label>
+                                </div>
+                                @endif
+                                @endforeach
+                                @endif
+                            </div>
+                            <small class="text-muted mt-1">Centang untuk memilih member dari area mana pun.</small>
+                        </div>
+                        <small class="text-muted">Pilih minimal 1 member dari salah satu daftar.</small>
+                    </div>
+
+                    <!-- Kategori -->
                     <div class="mb-3">
                         <label>Kategori</label>
                         <select name="kategori_penanganan" class="form-control" required>
@@ -577,14 +657,19 @@
                             <option value="lain_lain">Lain-lain (Manual)</option>
                         </select>
                     </div>
+
+                    <!-- Deskripsi Manual -->
                     <div class="mb-3" id="manualPenangananDesc{{ $area->Id_Area }}" style="display:none;">
                         <label>Deskripsi Manual</label>
                         <textarea name="Keterangan_Penanganan" class="form-control"></textarea>
                     </div>
+
+                    <!-- Start Time -->
                     <div class="mb-3">
                         <label>Start</label>
                         <input type="time" name="time_part" class="form-control" value="07:30" required>
                     </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -595,7 +680,6 @@
     </div>
 </div>
 @endforeach
-
 {{-- MODAL EDIT COST --}}
 @foreach ($costs as $cost)
 @php
@@ -781,36 +865,65 @@ $menitPower = round(($power->Leave_Hour_Power - $jamPower) * 60);
 @php
 $penangananArea = $areas->firstWhere('Id_Area', $p->Id_Area);
 if (!$penangananArea) continue;
+
 $start = \Carbon\Carbon::parse($p->Start_Penanganan);
 $datePart = $start->format('Y-m-d');
 $timePart = $start->format('H:i');
-$duration = abs($p->Hour_Penanganan);
+
+$applied = $p->Applied_Members;
+$memberCount = is_array($applied) ? count($applied) : 0;
+$durationPerPerson = $memberCount > 0 ? abs($p->Hour_Penanganan) / $memberCount : 0;
+$jamDur = floor($durationPerPerson);
+$menitDur = round(($durationPerPerson - $jamDur) * 60);
+
 $isNegative = $p->Hour_Penanganan < 0;
-    $jamDur=floor($duration);
-    $menitDur=round(($duration - $jamDur) * 60);
-    $kategori=$isNegative
+    $kategoriMap=[ 'Fix Back Up Proses'=> 'fix_back_up_proses',
+    'Back Up Absensi' => 'back_up_absensi',
+    'Bantuan ke PIC Absensi' => 'bantuan_pic_absensi',
+    'Back Up Line Stop / Irregular' => 'back_up_line_stop_irregular',
+    'Lembur Produksi' => 'lembur_produksi',
+    'Lembur Mente' => 'lembur_mente',
+    ];
+    $kategori = $isNegative
     ? 'perbantuan_area_lain'
-    : ($p->Keterangan_Penanganan === 'Fix Back Up Proses'
-    ? 'fix_back_up_proses'
-    : ($p->Keterangan_Penanganan === 'Back Up Absensi'
-    ? 'back_up_absensi'
-    : 'lain_lain'));
+    : ($kategoriMap[$p->Keterangan_Penanganan] ?? 'lain_lain');
+
+    // 🔥 Ambil member aktif di area ini pada tanggal tersebut
+    $productionDateYmd = \Carbon\Carbon::parse($datePart)->format('Ymd');
+    $dailyJobNiks = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
+    ->where('Id_Area', $p->Id_Area)
+    ->pluck('Nik_Daily_Job')
+    ->unique();
+
+    $membersHere = \App\Models\Member::whereIn('nik', $dailyJobNiks)->get();
+    $areaNiks = $membersHere->pluck('nik')->toArray();
+
+    $preselectedArea = [];
+    $preselectedAll = [];
+
+    if (is_array($applied)) {
+    $preselectedArea = array_values(array_intersect($applied, $areaNiks));
+    $preselectedAll = array_values(array_diff($applied, $areaNiks));
+    }
     @endphp
+
     <div class="modal fade" id="editPenangananModal{{ $p->Id_Penanganan }}" tabindex="-1">
         <div class="modal-dialog">
             <form action="{{ route('admins.reports.penanganan.update', $p) }}" method="POST">
                 @csrf @method('PUT')
                 <input type="hidden" name="Id_Area" value="{{ $p->Id_Area }}">
                 <input type="hidden" name="date_part" value="{{ $datePart }}">
-                <input type="hidden" name="Hour_Penanganan">
+
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Edit Handling - {{ $penangananArea->Name_Area }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
+
+                        <!-- Durasi per orang -->
                         <div class="mb-3">
-                            <label>Hour</label>
+                            <label>Duration (per person)</label>
                             <div class="input-group">
                                 <input type="number" name="jam_penanganan" class="form-control" value="{{ $jamDur }}" min="0" required>
                                 <span class="input-group-text">jam</span>
@@ -818,27 +931,102 @@ $isNegative = $p->Hour_Penanganan < 0;
                                 <span class="input-group-text">menit</span>
                             </div>
                         </div>
+
+                        <!-- Pilih Member -->
+                        <div class="mb-3">
+                            <label>Apply to Members</label>
+
+                            <!-- Dari Area Ini -->
+                            <div class="form-group mb-2">
+                                <label class="form-label small">From This Area</label>
+                                <input type="text" class="form-control form-control-sm mb-1" placeholder="Cari member..." onkeyup="filterMembers(this, 'edit-area-{{ $p->Id_Penanganan }}')">
+                                <div class="member-checkbox-list" id="edit-area-{{ $p->Id_Penanganan }}">
+                                    @foreach ($membersHere as $m) {{-- ✅ INI YANG BENAR --}}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="selected_members_area[]" value="{{ $m->nik }}" id="edit-mem-area-{{ $p->Id_Penanganan }}-{{ $m->nik }}" {{ in_array($m->nik, $preselectedArea) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="edit-mem-area-{{ $p->Id_Penanganan }}-{{ $m->nik }}">{{ $m->nama }} ({{ $m->nik }})</label>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- Dari Semua Area -->
+                            <div class="form-group">
+                                <label class="form-label small fw-bold">From All Areas</label>
+                                <input
+                                    type="text"
+                                    class="form-control form-control-sm mb-2"
+                                    placeholder="🔍 Cari nama atau NIK..."
+                                    onkeyup="filterMembers(this, 'edit-all-{{ $p->Id_Penanganan }}')"
+                                    autocomplete="off">
+                                <div
+                                    class="member-checkbox-list border rounded p-2 bg-light"
+                                    id="edit-all-{{ $p->Id_Penanganan }}"
+                                    style="max-height: 200px; overflow-y: auto; font-size: 0.875rem;">
+                                    @if($allMembers->isEmpty())
+                                    <div class="text-muted text-center py-2">
+                                        <em>Tidak ada member tersedia</em>
+                                    </div>
+                                    @else
+                                    @foreach ($allMembers as $m)
+                                    @php
+                                    $isInArea = in_array($m->nik, $areaNiks);
+                                    @endphp
+                                    @if (!$isInArea)
+                                    <div class="form-check mb-1 d-flex align-items-center" style="gap: 0.5rem;">
+                                        <input
+                                            class="form-check-input flex-shrink-0"
+                                            type="checkbox"
+                                            name="selected_members_all[]"
+                                            value="{{ $m->nik }}"
+                                            id="edit-mem-all-{{ $p->Id_Penanganan }}-{{ $m->nik }}"
+                                            {{ in_array($m->nik, $preselectedAll) ? 'checked' : '' }}>
+                                        <label
+                                            class="form-check-label flex-grow-1 mb-0 text-truncate"
+                                            for="edit-mem-all-{{ $p->Id_Penanganan }}-{{ $m->nik }}"
+                                            title="{{ $m->nama }} ({{ $m->nik }}) - {{ $m->area?->Name_Area }}">
+                                            <span class="fw-medium">{{ $m->nama }}</span>
+                                            <span class="text-muted ms-1">({{ $m->nik }})</span>
+                                            @if($m->area?->Name_Area)
+                                            <br><small class="text-muted">Area: {{ $m->area->Name_Area }}</small>
+                                            @endif
+                                        </label>
+                                    </div>
+                                    @endif
+                                    @endforeach
+                                    @endif
+                                </div>
+                                <small class="text-muted mt-1">Centang untuk memilih member dari area mana pun.</small>
+                            </div>
+                        </div>
+
+                        <!-- Kategori -->
                         <div class="mb-3">
                             <label>Kategori</label>
                             <select name="kategori_penanganan" class="form-control" required>
-                                <option value="fix_back_up_proses">Fix Back Up Proses / 工程の応援</option>
-                                <option value="back_up_absensi">Back Up Absensi / 欠勤応援</option>
-                                <option value="bantuan_pic_absensi">Bantuan ke PIC Absensi / 欠勤対応の応援</option>
-                                <option value="back_up_line_stop_irregular">Back Up Line Stop / Irregular / イレギュラー対応</option>
-                                <option value="perbantuan_area_lain">Perbantuan area lain / 他部署応援 【－】</option>
-                                <option value="lembur_produksi">Lembur Produksi / 生産残業</option>
-                                <option value="lembur_mente">Lembur Mente / メンテ残業</option>
-                                <option value="lain_lain">Lain-lain (Manual)</option>
+                                <option value="fix_back_up_proses" {{ $kategori === 'fix_back_up_proses' ? 'selected' : '' }}>Fix Back Up Proses / 工程の応援</option>
+                                <option value="back_up_absensi" {{ $kategori === 'back_up_absensi' ? 'selected' : '' }}>Back Up Absensi / 欠勤応援</option>
+                                <option value="bantuan_pic_absensi" {{ $kategori === 'bantuan_pic_absensi' ? 'selected' : '' }}>Bantuan ke PIC Absensi / 欠勤対応の応援</option>
+                                <option value="back_up_line_stop_irregular" {{ $kategori === 'back_up_line_stop_irregular' ? 'selected' : '' }}>Back Up Line Stop / Irregular / イレギュラー対応</option>
+                                <option value="perbantuan_area_lain" {{ $kategori === 'perbantuan_area_lain' ? 'selected' : '' }}>Perbantuan area lain / 他部署応援 【－】</option>
+                                <option value="lembur_produksi" {{ $kategori === 'lembur_produksi' ? 'selected' : '' }}>Lembur Produksi / 生産残業</option>
+                                <option value="lembur_mente" {{ $kategori === 'lembur_mente' ? 'selected' : '' }}>Lembur Mente / メンテ残業</option>
+                                <option value="lain_lain" {{ $kategori === 'lain_lain' ? 'selected' : '' }}>Lain-lain (Manual)</option>
                             </select>
                         </div>
+
+                        <!-- Deskripsi Manual -->
                         <div class="mb-3" id="editManualPenangananDesc{{ $p->Id_Penanganan }}" style="display:{{ $kategori === 'lain_lain' ? 'block' : 'none' }};">
                             <label>Deskripsi Manual</label>
                             <textarea name="Keterangan_Penanganan" class="form-control">{{ $p->Keterangan_Penanganan }}</textarea>
                         </div>
+
+                        <!-- Start Time -->
                         <div class="mb-3">
                             <label>Start</label>
                             <input type="time" name="time_part" class="form-control" value="{{ $timePart }}" required>
                         </div>
+
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -948,5 +1136,24 @@ $isNegative = $p->Hour_Penanganan < 0;
                 });
             });
         });
+
+        // ✅ FUNGSI FILTER AMAN — TIDAK MENYEMBUNYIKAN CHECKBOX
+        function filterMembers(input, containerId) {
+            const filter = input.value.toLowerCase().trim();
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const items = container.querySelectorAll('.form-check');
+            items.forEach(item => {
+                const label = item.querySelector('.form-check-label');
+                if (!label) return;
+                const text = label.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    item.classList.remove('d-none');
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+        }
     </script>
     @endsection

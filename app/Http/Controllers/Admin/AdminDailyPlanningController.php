@@ -96,14 +96,19 @@ class AdminDailyPlanningController extends Controller
             'assignments.*.replace_nik' => 'nullable|string|max:20',
         ]);
 
-        // 🔥 Konversi tanggal ke format YYYYMMDD
-        $productionDateRaw = $request->input('production_date'); // '2025-01-02'
-        $productionDate = Carbon::parse($productionDateRaw)->format('Ymd'); // '20250102'
-
+        $productionDateRaw = $request->input('production_date');
+        $productionDate = Carbon::parse($productionDateRaw)->format('Ymd');
         $assignments = $request->input('assignments', []);
 
-        // Hapus rencana lama untuk tanggal ini (gunakan format baru)
-        DailyJob::where('Production_Date_Plan', $productionDate)->delete();
+        // 🔥 HANYA hapus data untuk job yang dikirim
+        $jobIdsToSave = array_keys($assignments);
+        $jobIdsToSave = array_filter(array_map('intval', $jobIdsToSave));
+
+        if (!empty($jobIdsToSave)) {
+            DailyJob::where('Production_Date_Plan', $productionDate)
+                ->whereIn('Id_Job_Member', $jobIdsToSave)
+                ->delete();
+        }
 
         $firstAreaId = null;
 

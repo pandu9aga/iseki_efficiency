@@ -39,8 +39,4 @@ class DailyJob extends Model
     {
         return $this->belongsTo(Area::class, 'Id_Area', 'Id_Area');
     }
-    public function dailyJob()
-    {
-        return $this->belongsTo(DailyJob::class, 'Id_Daily_Job', 'Id_Daily_Job');
-    }
 }
