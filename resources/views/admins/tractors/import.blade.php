@@ -9,9 +9,25 @@
                 <p><strong>Format file:</strong></p>
                 <ul>
                     <li>Ekstensi: <code>.xlsx</code>, <code>.xls</code>, atau <code>.csv</code></li>
-                    <li>Baris pertama: header (tidak diimpor)</li>
-                    <li>Kolom urutan: <code>Nama Tractor</code>, <code>Group</code>, <code>Jam</code></li>
+                    <li>Semua baris termasuk header akan diimpor</li>
+                    <li>Kolom urutan:
+                        <ol>
+                            <li><code>Nama Tractor</code> - nama tractor</li>
+                            <li><code>Group</code> - group tractor</li>
+                            <li><code>Jam</code> - jam operasional</li>
+                            <li><code>Area</code> - nama area (harus sesuai dengan data di tabel areas, tidak case sensitive)</li>
+                        </ol>
+                    </li>
                 </ul>
+
+                <div class="alert alert-info">
+                    <strong>Catatan:</strong> 
+                    <ul class="mb-0 mt-2">
+                        <li>Kolom Area harus menggunakan nama area yang sudah ada di sistem (misal: "MOWER", "TRANSMISI", dll). Jika area tidak ditemukan, baris tersebut akan diabaikan.</li>
+                        <li>Jika nama tractor sama dengan area yang sama, data akan diupdate.</li>
+                        <li>Jika nama tractor sama tapi area berbeda, akan ditambahkan sebagai data baru.</li>
+                    </ul>
+                </div>
 
                 @if ($errors->any())
                     <div class="alert alert-danger">{{ $errors->first('error') }}</div>

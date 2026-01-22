@@ -40,6 +40,7 @@
                                 <th class="text-primary text-center">Nama Tractor</th>
                                 <th class="text-primary text-center">Group</th>
                                 <th class="text-primary text-center">Jam</th>
+                                <th class="text-primary text-center">Area</th>
                                 <th class="text-primary text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -50,11 +51,12 @@
                                     <td class="text-center">{{ $t->Name_Tractor }}</td>
                                     <td class="text-center">{{ $t->Group_Tractor }}</td>
                                     <td class="text-center">{{ $t->Hour_Tractor }}</td>
+                                    <td class="text-center">{{ $t->area->Name_Area ?? '-' }}</td>
                                     <td class="text-center">
                                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
                                             data-bs-target="#editTractorModal" data-id="{{ $t->Id_Tractor }}"
                                             data-name="{{ $t->Name_Tractor }}" data-group="{{ $t->Group_Tractor }}"
-                                            data-hour="{{ $t->Hour_Tractor }}"
+                                            data-hour="{{ $t->Hour_Tractor }}" data-area="{{ $t->Id_Area }}"
                                             data-update-url="{{ route('admins.tractors.update', $t->Id_Tractor) }}">
                                             Edit
                                         </button>
@@ -100,6 +102,15 @@
                             <label>Jam</label>
                             <input type="number" name="Hour_Tractor" class="form-control" min="0" step="0.01" required>
                         </div>
+                        <div class="mb-3">
+                            <label>Area</label>
+                            <select name="Id_Area" class="form-control" required>
+                                <option value="">-- Pilih Area --</option>
+                                @foreach ($areas as $area)
+                                    <option value="{{ $area->Id_Area }}">{{ $area->Name_Area }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
@@ -135,6 +146,15 @@
                             <label>Jam</label>
                             <input type="number" name="Hour_Tractor" id="edit_hour" class="form-control"
                                 min="0" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Area</label>
+                            <select name="Id_Area" id="edit_area" class="form-control" required>
+                                <option value="">-- Pilih Area --</option>
+                                @foreach ($areas as $area)
+                                    <option value="{{ $area->Id_Area }}">{{ $area->Name_Area }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -179,22 +199,20 @@
                 const name = btn.data('name');
                 const group = btn.data('group');
                 const hour = btn.data('hour');
+                const area = btn.data('area');
                 const url = btn.data('update-url');
 
-                // Pastikan token CSRF ada di form
                 $('#edit_tractor_id').val(id);
                 $('#edit_name').val(name);
                 $('#edit_group').val(group);
                 $('#edit_hour').val(hour);
+                $('#edit_area').val(area);
 
-                // Isi action URL dan tambahkan token CSRF jika belum ada
                 $('#editTractorForm').attr('action', url);
 
-                // Cek apakah input _token sudah ada
                 if ($('#editTractorForm input[name="_token"]').length === 0) {
                     $('#editTractorForm').prepend('<input type="hidden" name="_token" value="' + $('meta[name="csrf-token"]').attr('content') + '">');
                 }
-                // Cek apakah input _method sudah ada
                 if ($('#editTractorForm input[name="_method"]').length === 0) {
                     $('#editTractorForm').prepend('<input type="hidden" name="_method" value="PUT">');
                 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\PublicReportController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminMemberController;
 use App\Http\Controllers\Admin\TractorController;
+use App\Http\Controllers\Admin\AreaController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\AdminReportController;
 use App\Http\Controllers\Admin\AdminMemberSelectionController;
@@ -151,6 +152,15 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
         Route::delete('/{tractor}', [TractorController::class, 'destroy'])->name('destroy');
         Route::get('/import', [TractorController::class, 'importForm'])->name('import.form');
         Route::post('/import', [TractorController::class, 'import'])->name('import');
+    });
+
+    Route::prefix('areas')->name('areas.')->group(function () {
+        Route::get('/', [AreaController::class, 'index'])->name('index');
+        Route::get('create', [AreaController::class, 'create'])->name('create');
+        Route::post('/', [AreaController::class, 'store'])->name('store');
+        Route::get('{area}/edit', [AreaController::class, 'edit'])->name('edit');
+        Route::put('{area}', [AreaController::class, 'update'])->name('update');
+        Route::delete('{area}', [AreaController::class, 'destroy'])->name('destroy');
     });
 
     // 🔥 GRUP REPORTS ADMIN — TAMBAHKAN ROUTE SCAN DESTROY DI SINI

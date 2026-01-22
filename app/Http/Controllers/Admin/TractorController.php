@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Tractor;
+use App\Models\Area;
 use Box\Spout\Reader\Common\Creator\ReaderEntityFactory;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,12 +14,14 @@ class TractorController extends Controller
     public function index()
     {
         $tractors = Tractor::all();
-        return view('admins.tractors.index', compact('tractors'));
+        $areas = Area::all();
+        return view('admins.tractors.index', compact('tractors', 'areas'));
     }
 
     public function create()
     {
-        return view('admins.tractors.create');
+        $areas = Area::all();
+        return view('admins.tractors.create', compact('areas'));
     }
 
     public function store(Request $request)
@@ -27,15 +30,17 @@ class TractorController extends Controller
             'Name_Tractor' => 'required|string|max:255',
             'Group_Tractor' => 'required|string|max:255',
             'Hour_Tractor' => 'required|numeric|min:0',
+            'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        Tractor::create($request->only(['Name_Tractor', 'Group_Tractor', 'Hour_Tractor']));
+        Tractor::create($request->only(['Name_Tractor', 'Group_Tractor', 'Hour_Tractor', 'Id_Area']));
         return redirect()->route('admins.tractors.index')->with('success', 'Tractor ditambahkan.');
     }
 
     public function edit(Tractor $tractor)
     {
-        return view('admins.tractors.edit', compact('tractor'));
+        $areas = Area::all();
+        return view('admins.tractors.edit', compact('tractor', 'areas'));
     }
 
     public function update(Request $request, Tractor $tractor)
@@ -44,9 +49,10 @@ class TractorController extends Controller
             'Name_Tractor' => 'required|string|max:255',
             'Group_Tractor' => 'required|string|max:255',
             'Hour_Tractor' => 'required|numeric|min:0',
+            'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $tractor->update($request->only(['Name_Tractor', 'Group_Tractor', 'Hour_Tractor']));
+        $tractor->update($request->only(['Name_Tractor', 'Group_Tractor', 'Hour_Tractor', 'Id_Area']));
         return redirect()->route('admins.tractors.index')->with('success', 'Tractor diupdate.');
     }
 
@@ -87,7 +93,6 @@ class TractorController extends Controller
 
             $reader->open($filePath);
 
-            $firstRow = true;
             $dataInserted = 0;
             $sheetCount = 0;
 
@@ -96,11 +101,6 @@ class TractorController extends Controller
                 if ($sheetCount > 1) break; // hanya baca sheet pertama
 
                 foreach ($sheet->getRowIterator() as $row) {
-                    if ($firstRow) {
-                        $firstRow = false;
-                        continue;
-                    }
-
                     $cells = $row->getCells();
                     $values = array_map(fn($cell) => $cell ? $cell->getValue() : null, $cells);
 
@@ -110,6 +110,7 @@ class TractorController extends Controller
                     $name = trim($values[0] ?? '');
                     $group = trim($values[1] ?? '');
                     $hourValue = $values[2] ?? null;
+                    $areaName = trim($values[3] ?? ''); // Kolom ke-4 untuk Area
 
                     // Konversi jam ke float
                     if (is_numeric($hourValue)) {
@@ -123,8 +124,20 @@ class TractorController extends Controller
                         continue; // skip baris kosong
                     }
 
+                    // Cari Area berdasarkan Name_Area (case insensitive)
+                    $area = Area::whereRaw('LOWER(Name_Area) = ?', [strtolower($areaName)])->first();
+                    
+                    if (!$area) {
+                        \Log::warning("Area tidak ditemukan: {$areaName}");
+                        continue; // skip jika area tidak ditemukan
+                    }
+
+                    // Update atau create berdasarkan Name_Tractor dan Id_Area
                     Tractor::updateOrCreate(
-                        ['Name_Tractor' => $name], // Kolom unik untuk pencarian
+                        [
+                            'Name_Tractor' => $name,
+                            'Id_Area' => $area->Id_Area,
+                        ],
                         [
                             'Group_Tractor' => $group,
                             'Hour_Tractor' => $hour,

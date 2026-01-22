@@ -100,6 +100,12 @@
                                 <span>Tractor</span>
                             </a>
                         </li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('admins.areas.index') }}" class='sidebar-link'>
+                                <i class="bi bi-map"></i>
+                                <span>Area</span>
+                            </a>
+                        </li>
                         <li class="sidebar-title">Account</li>
                         <li class="sidebar-item">
                             <a href="{{ route('logout') }}" class='sidebar-link'>
