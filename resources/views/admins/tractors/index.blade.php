@@ -32,46 +32,90 @@
                     </div>
                 @endif
 
-                <div class="table-responsive">
-                    <table class="table table-bordered" id="tractorsTable">
-                        <thead>
-                            <tr>
-                                <th class="text-primary text-center">No</th>
-                                <th class="text-primary text-center">Nama Tractor</th>
-                                <th class="text-primary text-center">Group</th>
-                                <th class="text-primary text-center">Jam</th>
-                                <th class="text-primary text-center">Area</th>
-                                <th class="text-primary text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($tractors as $t)
-                                <tr>
-                                    <td class="text-center">{{ $loop->iteration }}</td>
-                                    <td class="text-center">{{ $t->Name_Tractor }}</td>
-                                    <td class="text-center">{{ $t->Group_Tractor }}</td>
-                                    <td class="text-center">{{ $t->Hour_Tractor }}</td>
-                                    <td class="text-center">{{ $t->area->Name_Area ?? '-' }}</td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
-                                            data-bs-target="#editTractorModal" data-id="{{ $t->Id_Tractor }}"
-                                            data-name="{{ $t->Name_Tractor }}" data-group="{{ $t->Group_Tractor }}"
-                                            data-hour="{{ $t->Hour_Tractor }}" data-area="{{ $t->Id_Area }}"
-                                            data-update-url="{{ route('admins.tractors.update', $t->Id_Tractor) }}">
-                                            Edit
-                                        </button>
-                                        <form action="{{ route('admins.tractors.destroy', $t->Id_Tractor) }}"
-                                            method="POST" class="d-inline"
-                                            onsubmit="return confirm('Yakin hapus {{ $t->Name_Tractor }}?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <!-- Nav Tabs -->
+                <ul class="nav nav-tabs mb-3" id="areasTabs" role="tablist">
+                    @forelse ($areas as $area)
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @if($loop->first) active @endif" 
+                                id="area-{{ $area->Id_Area }}-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#area-{{ $area->Id_Area }}-content" 
+                                type="button" 
+                                role="tab" 
+                                aria-controls="area-{{ $area->Id_Area }}-content" 
+                                aria-selected="@if($loop->first)true @else false @endif">
+                                {{ $area->Name_Area }}
+                            </button>
+                        </li>
+                    @empty
+                        <li class="nav-item">
+                            <span class="text-muted">Tidak ada area tersedia</span>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="areasTabContent">
+                    @forelse ($areas as $area)
+                        @php
+                            $tractorsInArea = $tractors->where('Id_Area', $area->Id_Area);
+                        @endphp
+                        <div class="tab-pane fade @if($loop->first) show active @endif" 
+                            id="area-{{ $area->Id_Area }}-content" 
+                            role="tabpanel" 
+                            aria-labelledby="area-{{ $area->Id_Area }}-tab">
+                            
+                            <div class="table-responsive">
+                                @if($tractorsInArea->count() > 0)
+                                    <table class="table table-bordered tractors-table" id="tractorsTable-{{ $area->Id_Area }}">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-primary text-center">No</th>
+                                                <th class="text-primary text-center">Nama Tractor</th>
+                                                <th class="text-primary text-center">Group</th>
+                                                <th class="text-primary text-center">Jam</th>
+                                                <th class="text-primary text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($tractorsInArea as $t)
+                                                <tr>
+                                                    <td class="text-center">{{ $loop->iteration }}</td>
+                                                    <td class="text-center">{{ $t->Name_Tractor }}</td>
+                                                    <td class="text-center">{{ $t->Group_Tractor }}</td>
+                                                    <td class="text-center">{{ $t->Hour_Tractor }}</td>
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                                            data-bs-target="#editTractorModal" data-id="{{ $t->Id_Tractor }}"
+                                                            data-name="{{ $t->Name_Tractor }}" data-group="{{ $t->Group_Tractor }}"
+                                                            data-hour="{{ $t->Hour_Tractor }}" data-area="{{ $t->Id_Area }}"
+                                                            data-update-url="{{ route('admins.tractors.update', $t->Id_Tractor) }}">
+                                                            Edit
+                                                        </button>
+                                                        <form action="{{ route('admins.tractors.destroy', $t->Id_Tractor) }}"
+                                                            method="POST" class="d-inline"
+                                                            onsubmit="return confirm('Yakin hapus {{ $t->Name_Tractor }}?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                @else
+                                    <div class="alert alert-info">
+                                        Tidak ada data tractor untuk area {{ $area->Name_Area }}
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <div class="alert alert-warning">
+                            Tidak ada area tersedia. Silakan tambahkan area terlebih dahulu.
+                        </div>
+                    @endforelse
                 </div>
             </div>
         </div>
@@ -177,23 +221,68 @@
         .modal {
             z-index: 1050;
         }
+
+        .nav-tabs .nav-link {
+            color: #6c757d;
+            border: 1px solid transparent;
+            border-bottom: 2px solid #dee2e6;
+            border-radius: 0;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            border-bottom-color: #f7b5ca;
+            color: #f7b5ca;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #f7b5ca;
+            background-color: transparent;
+            border-bottom-color: #f7b5ca;
+            font-weight: 600;
+        }
+
+        .tab-pane {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
     </style>
 @endsection
 
 @section('script')
     <script>
         $(document).ready(function() {
-            $('#tractorsTable').DataTable({
-                pageLength: -1,
-                lengthMenu: [
-                    [10, 25, 50, -1],
-                    [10, 25, 50, "All"]
-                ],
-                scrollX: true,
+            // Initialize DataTable for each table
+            $('.tractors-table').each(function() {
+                $(this).DataTable({
+                    pageLength: -1,
+                    lengthMenu: [
+                        [10, 25, 50, -1],
+                        [10, 25, 50, "All"]
+                    ],
+                    scrollX: true,
+                    destroy: true,
+                    language: {
+                        emptyTable: "Tidak ada data"
+                    }
+                });
+            });
+
+            // Reinitialize DataTable when tab changes
+            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function() {
+                $.fn.dataTable.tables({visible: true, api: true}).columns.adjust();
             });
 
             // Handle modal edit
-            $('#tractorsTable').on('click', '[data-bs-toggle="modal"][data-bs-target="#editTractorModal"]', function() {
+            $(document).on('click', '[data-bs-toggle="modal"][data-bs-target="#editTractorModal"]', function() {
                 const btn = $(this);
                 const id = btn.data('id');
                 const name = btn.data('name');
