@@ -174,40 +174,16 @@
         </div>
 
         @if (session('loginError'))
-        <div class="alert alert-danger p-2 mb-3 rounded" style="background:#ffebee;color:#c62828;border-radius:8px;text-align:center;">
-            {{ session('loginError') }}
-        </div>
+            <div class="alert alert-danger p-2 mb-3 rounded"
+                style="background:#ffebee;color:#c62828;border-radius:8px;text-align:center;">
+                {{ session('loginError') }}
+            </div>
         @endif
 
-        <!-- 🔴 Ubah urutan tab: Scan (kiri), Admin/Leader (kanan) -->
-        <div class="switch-tabs">
-            <button class="tab-btn active" data-target="area">Scan</button>
-            <button class="tab-btn" data-target="admin">Admin/Leader</button>
-        </div>
-
-        <!-- Area Form (Scan) - Sekarang di atas -->
-        <div id="formArea" class="form-section active">
-            <form method="POST" action="{{ route('login.area') }}">
-                @csrf
-                <div class="form-group">
-                    <label>Pilih Area</label>
-                    <select name="Id_Area" class="form-control" required>
-                        <option value="">-- Pilih Area --</option>
-                        @foreach (\App\Models\Area::all() as $area)
-                        <option value="{{ $area->Id_Area }}">{{ $area->Name_Area }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Password Area</label>
-                    <input type="password" name="Password_Area" class="form-control" placeholder="Password Area" required>
-                </div>
-                <button type="submit" class="btn-login">Login Scan</button>
-            </form>
-        </div>
+        <h4 class="text-center mb-4" style="color: #f7b5ca;">Admin/Leader Login</h4>
 
         <!-- Admin/Leader Form -->
-        <div id="formAdmin" class="form-section">
+        <div id="formAdmin">
             <form method="POST" action="{{ route('login') }}">
                 @csrf
                 <div class="form-group">
@@ -218,29 +194,10 @@
                     <label>Password</label>
                     <input type="password" name="Password_User" class="form-control" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn-login">Login Admin/Leader</button>
+                <button type="submit" class="btn-login">Login</button>
             </form>
         </div>
     </div>
-
-    <script>
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Hapus active dari semua tombol
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                // Tambahkan active ke tombol yang diklik
-                btn.classList.add('active');
-
-                // Sembunyikan semua form
-                document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
-
-                // Tampilkan form yang sesuai
-                const target = btn.dataset.target;
-                const formId = 'form' + target.charAt(0).toUpperCase() + target.slice(1);
-                document.getElementById(formId).classList.add('active');
-            });
-        });
-    </script>
 </body>
 
 </html>

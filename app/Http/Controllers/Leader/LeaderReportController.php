@@ -13,6 +13,7 @@ use App\Models\Member;
 use App\Models\Scan;
 use App\Models\DailyJob;
 use App\Models\Area;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class LeaderReportController extends Controller
@@ -24,8 +25,8 @@ class LeaderReportController extends Controller
         }
 
         // ✅ Ambil Id_Area dari user yang login
-        $user = \App\Models\User::find(session('Id_User'));
-        if (!$user || !$user->Id_Area) {
+        $user = User::findOrFail(session('Id_User'));
+        if (!$user->Id_Area) {
             return redirect()->back()->withErrors(['error' => 'Your account is not assigned to any area.']);
         }
 
@@ -34,13 +35,13 @@ class LeaderReportController extends Controller
 
         $date = $request->filled('date')
             ? Carbon::parse($request->date)->startOfDay()
-            : Carbon::today();
+            : Carbon::today()->startOfDay();
 
         $dateString = $date->format('Y-m-d');
         $productionDateYmd = $date->format('Ymd');
 
         // Hanya ambil data untuk area leader ini
-        $areaReports = Report::where('Day_Report', $dateString)
+        $areaReports = Report::where('Day_Report', $date->format('Y-m-d'))
             ->where('Id_Area', $areaId)
             ->get();
 
@@ -48,17 +49,17 @@ class LeaderReportController extends Controller
             ->where('Id_Area', $areaId)
             ->count();
 
-        $costs = Cost::whereDate('Start_Cost', $dateString)
+        $costs = Cost::whereDate('Start_Cost', $date->format('Y-m-d'))
             ->where('Id_Area', $areaId)
             ->with('area')
             ->get();
 
-        $powers = Power::whereDate('Start_Power', $dateString)
+        $powers = Power::whereDate('Start_Power', $date->format('Y-m-d'))
             ->where('Id_Area', $areaId)
             ->with('member', 'area')
             ->get();
 
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)
+        $penanganans = Penanganan::whereDate('Start_Penanganan', $date->format('Y-m-d'))
             ->where('Id_Area', $areaId)
             ->with('area')
             ->get();
@@ -74,9 +75,9 @@ class LeaderReportController extends Controller
         // 🔥 Ambil SEMUA member dari semua area (untuk dropdown "All Areas")
         $allMembers = Member::with('area')->get(); // ← INI YANG BARU
 
-        // 🔥 Ambil semua NIK pengganti unik dari scan hari ini
-        $scans = Scan::whereDate('Time_Scan', $dateString)
-            ->where('Id_Area', $areaId)
+        // 🔥 Ambil scan: filter by date
+        $scans = Scan::where('Id_Area', $areaId)
+            ->whereDate('Time_Scan', $date->format('Y-m-d'))
             ->with(['tractor', 'dailyJob']) // JANGAN muat replacedMember (tidak bekerja)
             ->orderBy('Time_Scan', 'desc')
             ->get();

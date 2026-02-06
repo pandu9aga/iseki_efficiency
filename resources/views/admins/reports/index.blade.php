@@ -17,7 +17,7 @@
                     <div class="col-md-3">
                         <label for="date">Date</label>
                         <input type="date" name="date" id="date" class="form-control"
-                            value="{{ $dateString }}" required>
+                            value="{{ $dateString }}">
                     </div>
                     <div class="col-md-3 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary">Apply</button>
@@ -344,7 +344,7 @@
                         <p class="text-muted">No scan data.</p>
                         @else
                         <div class="table-responsive">
-                            <table class="table table-sm">
+                            <table class="table table-sm table-scan">
                                 <thead>
                                     <tr>
                                         <th>Time</th>
@@ -1046,8 +1046,22 @@ $isNegative = $p->Hour_Penanganan < 0;
 
     @section('script')
     <script src="{{ asset('assets/js/tom-select.complete.min.js') }}"></script>
-    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script>
+        $(document).ready(function() {
+            // ✅ Initialize DataTables
+            $('.table-scan').DataTable({
+                "order": [[ 0, "desc" ]], // Sort by Time
+                "pageLength": -1,
+                "lengthMenu": [
+                    [10, 25, 50, -1],
+                    [10, 25, 50, "All"]
+                ],
+                "searching": true,
+                "paging": true,
+                "info": true
+            });
+        });
+
         // Select All
         document.querySelectorAll('.select-all-edit-members').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
@@ -1157,3 +1171,4 @@ $isNegative = $p->Hour_Penanganan < 0;
         }
     </script>
     @endsection
+

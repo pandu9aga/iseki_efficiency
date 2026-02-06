@@ -30,7 +30,7 @@ class AdminController extends Controller
         $productionDateYmd = $date->format('Ymd');      // 🔑 untuk DailyJob (format: 20250108)
         $isToday = $date->isToday();
 
-        $areas = \App\Models\Area::orderBy('Id_Area')->get();
+        $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
         $areaId = $request->query('area');
 
         // ✅ Hitung total member aktif dari DailyJob → GUNAKAN $productionDateYmd
@@ -144,7 +144,7 @@ class AdminController extends Controller
         $productionDateYmd = $date->format('Ymd');
         $isToday = $date->isToday();
 
-        $areas = \App\Models\Area::orderBy('Id_Area')->get();
+        $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
         $areaData = [];
 
         foreach ($areas as $area) {

@@ -25,12 +25,13 @@ class AdminReportController extends Controller
 
         $date = $request->filled('date')
             ? Carbon::parse($request->date)->startOfDay()
-            : Carbon::today();
+            : Carbon::today()->startOfDay();
 
         $dateString = $date->format('Y-m-d');
         $productionDateYmd = $date->format('Ymd');
 
-        $areaReports = Report::where('Day_Report', $dateString)->get();
+        // Untuk data harian lainnya, gunakan $date
+        $areaReports = Report::where('Day_Report', $date->format('Y-m-d'))->get();
 
         $currentMembersPerArea = DailyJob::where('Production_Date_Plan', $productionDateYmd)
             ->select('Id_Area', DB::raw('COUNT(DISTINCT Nik_Daily_Job) as total'))
@@ -42,16 +43,16 @@ class AdminReportController extends Controller
             ->count();
         $currentTotalHours = round($currentTotalMembers * 8, 2);
 
-        $costs = Cost::whereDate('Start_Cost', $dateString)->with('area')->get();
-        $powers = Power::whereDate('Start_Power', $dateString)->with('member', 'area')->get();
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->with('area')->get();
+        $costs = Cost::whereDate('Start_Cost', $date->format('Y-m-d'))->with('area')->get();
+        $powers = Power::whereDate('Start_Power', $date->format('Y-m-d'))->with('member', 'area')->get();
+        $penanganans = Penanganan::whereDate('Start_Penanganan', $date->format('Y-m-d'))->with('area')->get();
 
         $dailyJobNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
             ->pluck('Nik_Daily_Job')
             ->unique();
         $activeMembers = Member::whereIn('nik', $dailyJobNiks)->get();
 
-        $areas = Area::all();
+        $areas = Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
         $activeMembersByArea = [];
         foreach ($areas as $area) {
             $nks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
@@ -62,8 +63,8 @@ class AdminReportController extends Controller
             $activeMembersByArea[$area->Id_Area] = $members;
         }
 
-        // 🔥 Ambil semua scan + NIK pengganti
-        $scans = Scan::whereDate('Time_Scan', $dateString)
+        // 🔥 Ambil scan: filter by date
+        $scans = Scan::whereDate('Time_Scan', $date->format('Y-m-d'))
             ->with(['tractor', 'dailyJob.area'])
             ->orderBy('Time_Scan', 'desc')
             ->get();
