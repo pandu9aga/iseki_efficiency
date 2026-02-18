@@ -81,7 +81,7 @@ Route::middleware(['web'])->prefix('members')->name('members.')->group(function 
 Route::middleware(['web'])->prefix('leaders')->name('leaders.')->group(function () {
     Route::get('/dashboard', [LeaderController::class, 'index'])->name('dashboard');
     Route::get('/dashboard-fullscreen', [LeaderController::class, 'fullscreen'])->name('dashboard.fullscreen');
-    Route::get('/dashboard/export', [LeaderController::class, 'exportExcel'])->name('dashboard.export');
+    Route::get('/dashboard/export', [LeaderController::class, 'export'])->name('dashboard.export');
 
     Route::get('/members', [LeaderMemberController::class, 'index'])->name('members.index');
 

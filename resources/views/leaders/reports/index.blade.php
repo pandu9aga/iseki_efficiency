@@ -14,367 +14,347 @@
         <div class="card">
             <div class="card-body">
                 <form method="GET" class="row g-3">
+                    <input type="hidden" name="area" value="{{ $area->Id_Area }}">
                     <div class="col-md-3">
                         <label for="date">Date</label>
                         <input type="date" name="date" id="date" class="form-control"
-                            value="{{ $dateString }}">
+                            value="{{ $dateString }}" onchange="this.form.submit()">
                     </div>
+                    {{-- Button not strictly needed with onchange, but good to keep --}}
                     <div class="col-md-3 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary">Apply</button>
                     </div>
                 </form>
             </div>
         </div>
+
+        @if(isset($assignedAreas) && $assignedAreas->count() > 1)
+        <ul class="nav nav-tabs mb-3">
+            @foreach($assignedAreas as $a)
+            <li class="nav-item">
+                <a class="nav-link {{ $a->Id_Area == $area->Id_Area ? 'active' : '' }}"
+                    href="{{ route('leaders.reports.index', ['date' => $dateString, 'area' => $a->Id_Area]) }}">
+                    {{ $a->Name_Area }}
+                </a>
+            </li>
+            @endforeach
+        </ul>
+        @endif
     </section>
 
-    @php
-    function decimalToJamMenit($decimal)
-    {
-    $isNegative = $decimal < 0;
-        $decimal=abs((float) $decimal);
-        $hours=floor($decimal);
-        $minutes=round(($decimal - $hours) * 60);
-        if ($minutes>= 60) {
-        $hours += floor($minutes / 60);
-        $minutes = $minutes % 60;
-        }
-        $text = '';
-        if ($hours > 0) {
-        $text .= "$hours jam ";
-        }
-        if ($minutes > 0 || $hours === 0) {
-        $text .= "$minutes menit";
-        }
-        if ($isNegative) {
-        $text = "−" . $text; // Gunakan tanda minus Unicode (lebih rapi)
-        }
-        return compact('hours', 'minutes', 'text', 'isNegative');
-        }
-        @endphp
 
-        <div class="tab-content" id="reportAreaTabContent">
-            @foreach ($areas as $index => $area)
-            <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" id="tab-{{ $area->Id_Area }}"
-                role="tabpanel">
+    <div class="tab-content" id="reportAreaTabContent">
+        <!-- Displaying Single Active Area (Selected via Tab) -->
+        <div class="tab-pane fade show active" role="tabpanel">
 
-                {{-- ✅ REPORT PER AREA --}}
-                @php
-                $areaReport = $areaReports->firstWhere('Id_Area', $area->Id_Area);
-                $reportExists = $areaReport !== null;
-                @endphp
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-0">Report for {{ $area->Name_Area }}</h5>
-                            <span class="badge bg-{{ $reportExists ? 'success' : 'secondary' }}">
-                                {{ $reportExists ? 'Recorded' : 'Not Recorded' }}
-                            </span>
-                        </div>
-                        <div>
-                            <h5 class="card-title mb-0">Current Member Status</h5>
-                            <span class="badge bg-info">Live</span>
-                        </div>
+            {{-- ✅ REPORT PER AREA --}}
+            @php
+            $areaReport = $areaReports->firstWhere('Id_Area', $area->Id_Area);
+            $reportExists = $areaReport !== null;
+            @endphp
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">Report for {{ $area->Name_Area }}</h5>
+                        <span class="badge bg-{{ $reportExists ? 'success' : 'secondary' }}">
+                            {{ $reportExists ? 'Recorded' : 'Not Recorded' }}
+                        </span>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                @if ($reportExists)
-                                <p><strong>Member:</strong> {{ $areaReport->Total_Member_Report }}</p>
-                                <p><strong>Hour:</strong> {{ number_format($areaReport->Total_Hours_Report, 2) }}</p>
-                                @else
-                                <p class="text-muted">No report recorded for this area.</p>
-                                @endif
-                                <form action="{{ route('leaders.reports.report.store') }}" method="POST" class="d-inline">
-                                    @csrf
-                                    <input type="hidden" name="date" value="{{ $dateString }}">
-                                    <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
-                                    <button type="submit" class="btn btn-{{ $reportExists ? 'warning' : 'success' }}">
-                                        {{ $reportExists ? 'Update Report' : 'Set Report' }}
-                                    </button>
-                                </form>
-                            </div>
-                            <div class="col-md-6">
-                                @php
-                                $areaMembers = $currentMembersPerArea[$area->Id_Area] ?? 0;
-                                $areaHours = round($areaMembers * 8, 2);
-                                @endphp
-                                <p><strong>Active Members:</strong> {{ $areaMembers }}</p>
-                                <p><strong>Calculated Hours:</strong> {{ number_format($areaHours, 2) }}
-                                    ({{ $areaMembers }} × 8 hours)
-                                </p>
-                            </div>
-                        </div>
+                    <div>
+                        <h5 class="card-title mb-0">Current Member Status</h5>
+                        <span class="badge bg-info">Live</span>
                     </div>
                 </div>
-
-                {{-- COST --}}
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Non Operational Cost</h5>
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#addCostModal{{ $area->Id_Area }}">
-                            Add Cost
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        @php $areaCosts = $costs->where('Id_Area', $area->Id_Area); @endphp
-                        @if ($areaCosts->isEmpty())
-                        <p class="text-muted">No cost data.</p>
-                        @else
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Hours</th>
-                                        <th>Start</th>
-                                        <th>Description</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($areaCosts as $cost)
-                                    <tr>
-                                        <td>
-                                            <div class="text-muted small">
-                                                {{ number_format($cost->Non_Operational_Cost, 2) }} hours
-                                            </div>
-                                            @php $jamMenit = decimalToJamMenit($cost->Non_Operational_Cost); @endphp
-                                            <div style="color: #bd0237; font-weight: 600;">
-                                                {{ $jamMenit['text'] }}
-                                            </div>
-                                            {{-- Rincian member --}}
-                                            @php
-                                            $applied = $cost->applied_members;
-                                            $memberCount = 0;
-                                            $infoText = 'Unknown';
-                                            if ($applied === null || $applied === 'all') {
-                                            $memberCount = \App\Models\DailyJob::where(
-                                            'Production_Date_Plan',
-                                            \Carbon\Carbon::parse($cost->Start_Cost)->format('Ymd'),
-                                            )
-                                            ->where('Id_Area', $cost->Id_Area)
-                                            ->distinct('Nik_Daily_Job')
-                                            ->count();
-                                            $infoText = "Applied to all active members ($memberCount)";
-                                            } elseif (is_array($applied)) {
-                                            $memberCount = count($applied);
-                                            $names = array_map(
-                                            fn($nik) => $allNiks[$nik] ?? $nik,
-                                            $applied,
-                                            );
-                                            $infoText = 'Applied to:<br>' . implode('<br>', $names);
-                                            }
-                                            $costPerPerson = $memberCount > 0 ? $cost->Non_Operational_Cost / $memberCount : 0;
-                                            $jamMenitPerPerson = decimalToJamMenit($costPerPerson);
-                                            @endphp
-                                            <div class="small text-muted mt-1">
-                                                ({{ $jamMenitPerPerson['text'] }} × {{ $memberCount }} members)
-                                            </div>
-                                            <button type="button" class="btn btn-link p-0 text-decoration-none"
-                                                data-bs-toggle="popover" data-bs-trigger="hover focus"
-                                                data-bs-html="true" data-bs-content="{{ $infoText }}"
-                                                title="Details">
-                                                <i class="bi bi-info-circle text-muted"></i>
-                                            </button>
-                                        </td>
-                                        <td>{{ \Carbon\Carbon::parse($cost->Start_Cost)->format('Y-m-d H:i') }}</td>
-                                        <td>{{ $cost->Keterangan_Cost }}</td>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-warning"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editCostModal{{ $cost->Id_Cost }}">Edit</button>
-                                            <form action="{{ route('leaders.reports.cost.destroy', $cost) }}"
-                                                method="POST" class="d-inline">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger"
-                                                    onclick="return confirm('Delete?')">Delete</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            @if ($reportExists)
+                            <p><strong>Member:</strong> {{ $areaReport->Total_Member_Report }}</p>
+                            <p><strong>Hour:</strong> {{ number_format($areaReport->Total_Hours_Report, 2) }}</p>
+                            @else
+                            <p class="text-muted">No report recorded for this area.</p>
+                            @endif
+                            <form action="{{ route('leaders.reports.report.store') }}" method="POST" class="d-inline">
+                                @csrf
+                                <input type="hidden" name="date" value="{{ $dateString }}">
+                                <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
+                                <button type="submit" class="btn btn-{{ $reportExists ? 'warning' : 'success' }}">
+                                    {{ $reportExists ? 'Update Report' : 'Set Report' }}
+                                </button>
+                            </form>
                         </div>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- PERMISSION --}}
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Permission</h5>
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#addPowerModal{{ $area->Id_Area }}">
-                            Add Permission
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        @php $areaPowers = $powers->where('Id_Area', $area->Id_Area); @endphp
-                        @if ($areaPowers->isEmpty())
-                        <p class="text-muted">No permission data.</p>
-                        @else
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Leave Hours</th>
-                                        <th>Start</th>
-                                        <th>Member</th>
-                                        <th>Description</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($areaPowers as $power)
-                                    <tr>
-                                        <td>
-                                            <div class="text-muted small">
-                                                {{ number_format($power->Leave_Hour_Power, 2) }} hours
-                                            </div>
-                                            @php $jamMenitPower = decimalToJamMenit($power->Leave_Hour_Power); @endphp
-                                            <div style="color: #bd0237; font-weight: 600;">
-                                                {{ $jamMenitPower['text'] }}
-                                            </div>
-                                        </td>
-                                        <td>{{ \Carbon\Carbon::parse($power->Start_Power)->format('Y-m-d H:i') }}</td>
-                                        <td>{{ $power->member->nama ?? '–' }}</td>
-                                        <td>{{ $power->Keterangan_Power }}</td>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-warning"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editPowerModal{{ $power->Id_Power }}">Edit</button>
-                                            <form action="{{ route('leaders.reports.power.destroy', $power) }}"
-                                                method="POST" class="d-inline">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger"
-                                                    onclick="return confirm('Delete?')">Delete</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- TIME HANDLING --}}
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Time Handling</h5>
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#addPenangananModal{{ $area->Id_Area }}">
-                            Add Handling
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        @php $areaPenanganans = $penanganans->where('Id_Area', $area->Id_Area); @endphp
-                        @if ($areaPenanganans->isEmpty())
-                        <p class="text-muted">No handling data.</p>
-                        @else
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Hours</th>
-                                        <th>Start</th>
-                                        <th>Description</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($areaPenanganans as $p)
-                                    <tr>
-                                        <td>
-                                            <div class="text-muted small">
-                                                {{ number_format($p->Hour_Penanganan, 2) }} hours
-                                            </div>
-                                            @php $jamMenitPenanganan = decimalToJamMenit($p->Hour_Penanganan); @endphp
-                                            <div style="color: #bd0237; font-weight: 600;">
-                                                {{ $jamMenitPenanganan['text'] }}
-                                            </div>
-                                        </td>
-                                        <td>{{ \Carbon\Carbon::parse($p->Start_Penanganan)->format('Y-m-d H:i') }}</td>
-                                        <td>{{ $p->Keterangan_Penanganan }}</td>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-warning"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editPenangananModal{{ $p->Id_Penanganan }}">Edit</button>
-                                            <form action="{{ route('leaders.reports.penanganan.destroy', $p) }}"
-                                                method="POST" class="d-inline">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger"
-                                                    onclick="return confirm('Delete?')">Delete</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- Scan Data -->
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Scan Data</h5>
-                    </div>
-                    <div class="card-body">
-                        @php $areaScans = $scans->where('Id_Area', $area->Id_Area); @endphp
-                        @if ($areaScans->isEmpty())
-                        <p class="text-muted">No scan data.</p>
-                        @else
-                        <div class="table-responsive">
-                            <table class="table table-sm table-scan">
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Tractor</th>
-                                        <th>Assigned Hour</th>
-                                        <th>Sequence No</th>
-                                        <th>Member Pengganti</th>
-                                        <th style="width: 80px;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($areaScans as $scan)
-                                    <tr>
-                                        <td>{{ \Carbon\Carbon::parse($scan->Time_Scan)->format('Y-m-d H:i:s') }}</td>
-                                        <td>{{ $scan->tractor?->Name_Tractor ?? '–' }}</td>
-                                        <td>{{ $scan->Assigned_Hour_Scan }}</td>
-                                        <td>{{ $scan->Sequence_No_Plan ?? '–' }}</td>
-                                        <td>
-                                            @if($scan->Nik_Replace && isset($memberMap[$scan->Nik_Replace]))
-                                            {{ $memberMap[$scan->Nik_Replace] }}
-                                            @elseif($scan->Nik_Replace)
-                                            {{ $scan->Nik_Replace }} <small class="text-muted">(nama tidak ditemukan)</small>
-                                            @else
-                                            –
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <form action="{{ route('leaders.scan.destroy', $scan->Id_Scan) }}" method="POST" style="display:inline;"> @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger"
-                                                    onclick="return confirm('Hapus scan ini?')">
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        @endif
                     </div>
                 </div>
             </div>
-            @endforeach
+
+            {{-- COST --}}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Non Operational Cost</h5>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                        data-bs-target="#addCostModal{{ $area->Id_Area }}">
+                        Add Cost
+                    </button>
+                </div>
+                <div class="card-body">
+                    @php $areaCosts = $costs->where('Id_Area', $area->Id_Area); @endphp
+                    @if ($areaCosts->isEmpty())
+                    <p class="text-muted">No cost data.</p>
+                    @else
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Hours</th>
+                                    <th>Start</th>
+                                    <th>Description</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($areaCosts as $cost)
+                                <tr>
+                                    <td>
+                                        <div class="text-muted small">
+                                            {{ number_format($cost->Non_Operational_Cost, 2) }} hours
+                                        </div>
+                                        @php $jamMenit = \App\Helpers\Formatter::decimalToJamMenit($cost->Non_Operational_Cost); @endphp
+                                        <div style="color: #bd0237; font-weight: 600;">
+                                            {{ $jamMenit['text'] }}
+                                        </div>
+                                        {{-- Rincian member --}}
+                                        @php
+                                        $applied = $cost->applied_members;
+                                        $memberCount = 0;
+                                        $infoText = 'Unknown';
+                                        if ($applied === null || $applied === 'all') {
+                                        $memberCount = \App\Models\DailyJob::where(
+                                        'Production_Date_Plan',
+                                        \Carbon\Carbon::parse($cost->Start_Cost)->format('Ymd'),
+                                        )
+                                        ->where('Id_Area', $cost->Id_Area)
+                                        ->distinct('Nik_Daily_Job')
+                                        ->count();
+                                        $infoText = "Applied to all active members ($memberCount)";
+                                        } elseif (is_array($applied)) {
+                                        $memberCount = count($applied);
+                                        $names = array_map(
+                                        fn($nik) => $allNiks[$nik] ?? $nik,
+                                        $applied,
+                                        );
+                                        $infoText = 'Applied to:<br>' . implode('<br>', $names);
+                                        }
+                                        $costPerPerson = $memberCount > 0 ? $cost->Non_Operational_Cost / $memberCount : 0;
+                                        $jamMenitPerPerson = \App\Helpers\Formatter::decimalToJamMenit($costPerPerson);
+                                        @endphp
+                                        <div class="small text-muted mt-1">
+                                            ({{ $jamMenitPerPerson['text'] }} × {{ $memberCount }} members)
+                                        </div>
+                                        <button type="button" class="btn btn-link p-0 text-decoration-none"
+                                            data-bs-toggle="popover" data-bs-trigger="hover focus"
+                                            data-bs-html="true" data-bs-content="{{ $infoText }}"
+                                            title="Details">
+                                            <i class="bi bi-info-circle text-muted"></i>
+                                        </button>
+                                    </td>
+                                    <td>{{ \Carbon\Carbon::parse($cost->Start_Cost)->format('Y-m-d H:i') }}</td>
+                                    <td>{{ $cost->Keterangan_Cost }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-warning"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editCostModal{{ $cost->Id_Cost }}">Edit</button>
+                                        <form action="{{ route('leaders.reports.cost.destroy', $cost) }}"
+                                            method="POST" class="d-inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Delete?')">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- PERMISSION --}}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Permission</h5>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                        data-bs-target="#addPowerModal{{ $area->Id_Area }}">
+                        Add Permission
+                    </button>
+                </div>
+                <div class="card-body">
+                    @php $areaPowers = $powers->where('Id_Area', $area->Id_Area); @endphp
+                    @if ($areaPowers->isEmpty())
+                    <p class="text-muted">No permission data.</p>
+                    @else
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Leave Hours</th>
+                                    <th>Start</th>
+                                    <th>Member</th>
+                                    <th>Description</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($areaPowers as $power)
+                                <tr>
+                                    <td>
+                                        <div class="text-muted small">
+                                            {{ number_format($power->Leave_Hour_Power, 2) }} hours
+                                        </div>
+                                        @php $jamMenitPower = \App\Helpers\Formatter::decimalToJamMenit($power->Leave_Hour_Power); @endphp
+                                        <div style="color: #bd0237; font-weight: 600;">
+                                            {{ $jamMenitPower['text'] }}
+                                        </div>
+                                    </td>
+                                    <td>{{ \Carbon\Carbon::parse($power->Start_Power)->format('Y-m-d H:i') }}</td>
+                                    <td>{{ $power->member->nama ?? '–' }}</td>
+                                    <td>{{ $power->Keterangan_Power }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-warning"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editPowerModal{{ $power->Id_Power }}">Edit</button>
+                                        <form action="{{ route('leaders.reports.power.destroy', $power) }}"
+                                            method="POST" class="d-inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Delete?')">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- TIME HANDLING --}}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Time Handling</h5>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                        data-bs-target="#addPenangananModal{{ $area->Id_Area }}">
+                        Add Handling
+                    </button>
+                </div>
+                <div class="card-body">
+                    @php $areaPenanganans = $penanganans->where('Id_Area', $area->Id_Area); @endphp
+                    @if ($areaPenanganans->isEmpty())
+                    <p class="text-muted">No handling data.</p>
+                    @else
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Hours</th>
+                                    <th>Start</th>
+                                    <th>Description</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($areaPenanganans as $p)
+                                <tr>
+                                    <td>
+                                        <div class="text-muted small">
+                                            {{ number_format($p->Hour_Penanganan, 2) }} hours
+                                        </div>
+                                        @php $jamMenitPenanganan = \App\Helpers\Formatter::decimalToJamMenit($p->Hour_Penanganan); @endphp
+                                        <div style="color: #bd0237; font-weight: 600;">
+                                            {{ $jamMenitPenanganan['text'] }}
+                                        </div>
+                                    </td>
+                                    <td>{{ \Carbon\Carbon::parse($p->Start_Penanganan)->format('Y-m-d H:i') }}</td>
+                                    <td>{{ $p->Keterangan_Penanganan }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-warning"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editPenangananModal{{ $p->Id_Penanganan }}">Edit</button>
+                                        <form action="{{ route('leaders.reports.penanganan.destroy', $p) }}"
+                                            method="POST" class="d-inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Delete?')">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Scan Data -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Scan Data</h5>
+                </div>
+                <div class="card-body">
+                    @php $areaScans = $scans->where('Id_Area', $area->Id_Area); @endphp
+                    @if ($areaScans->isEmpty())
+                    <p class="text-muted">No scan data.</p>
+                    @else
+                    <div class="table-responsive">
+                        <table class="table table-sm table-scan">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Tractor</th>
+                                    <th>Assigned Hour</th>
+                                    <th>Sequence No</th>
+                                    <th>Member Pengganti</th>
+                                    <th style="width: 80px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($areaScans as $scan)
+                                <tr>
+                                    <td>{{ \Carbon\Carbon::parse($scan->Time_Scan)->format('Y-m-d H:i:s') }}</td>
+                                    <td>{{ $scan->tractor?->Name_Tractor ?? '–' }}</td>
+                                    <td>{{ $scan->Assigned_Hour_Scan }}</td>
+                                    <td>{{ $scan->Sequence_No_Plan ?? '–' }}</td>
+                                    <td>
+                                        @if($scan->Nik_Replace && isset($memberMap[$scan->Nik_Replace]))
+                                        {{ $memberMap[$scan->Nik_Replace] }}
+                                        @elseif($scan->Nik_Replace)
+                                        {{ $scan->Nik_Replace }} <small class="text-muted">(nama tidak ditemukan)</small>
+                                        @else
+                                        –
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <form action="{{ route('leaders.scan.destroy', $scan->Id_Scan) }}" method="POST" style="display:inline;"> @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Hapus scan ini?')">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
+            </div>
         </div>
+
+    </div>
 </div>
 
 {{-- MODAL ADD COST PER AREA --}}
@@ -1033,7 +1013,9 @@ $isNegative = $p->Hour_Penanganan < 0;
         $(document).ready(function() {
             // ✅ Initialize DataTables
             $('.table-scan').DataTable({
-                "order": [[ 0, "desc" ]], // Sort by Time
+                "order": [
+                    [0, "desc"]
+                ], // Sort by Time
                 "pageLength": -1,
                 "lengthMenu": [
                     [10, 25, 50, -1],
@@ -1127,4 +1109,3 @@ $isNegative = $p->Hour_Penanganan < 0;
         }
     </script>
     @endsection
-

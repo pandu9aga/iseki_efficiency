@@ -4,7 +4,7 @@
 <div class="col-sm-12">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="text-primary">Perencanaan Harian - {{ $area->Name_Area }}</h4>
+            <h4 class="text-primary">Perencanaan Harian</h4>
             <div>
                 <span class="text-muted me-2">Tanggal:</span>
                 <input type="date" id="datePicker" class="form-control d-inline-block" style="width: auto;"
@@ -16,9 +16,24 @@
             <div class="alert alert-success">{{ session('success') }}</div>
             @endif
 
+            <!-- Area Tabs -->
+            @if($assignedAreas->count() > 1)
+            <ul class="nav nav-tabs mb-3">
+                @foreach($assignedAreas as $a)
+                <li class="nav-item">
+                    <a class="nav-link {{ $a->Id_Area == $area->Id_Area ? 'active' : '' }}"
+                        href="{{ route('leaders.planning.create', ['date' => $dateString, 'area' => $a->Id_Area]) }}">
+                        {{ $a->Name_Area }}
+                    </a>
+                </li>
+                @endforeach
+            </ul>
+            @endif
+
             <form action="{{ route('leaders.planning.store') }}" method="POST" id="planningForm">
                 @csrf
                 <input type="hidden" name="production_date" value="{{ $dateString }}">
+                <input type="hidden" name="area_id" value="{{ $area->Id_Area }}"> <!-- Important for deletion scope -->
 
                 <div class="card border">
                     <div class="card-header bg-light">
@@ -107,7 +122,14 @@
 
 <script>
     function changeDate(date) {
-        window.location.href = "{{ route('leaders.planning.create') }}?date=" + date;
+        // Keep current Area when changing date
+        const urlParams = new URLSearchParams(window.location.search);
+        const area = urlParams.get('area');
+        let url = "{{ route('leaders.planning.create') }}?date=" + date;
+        if (area) {
+            url += "&area=" + area;
+        }
+        window.location.href = url;
     }
 
     function toggleReplaceField(typeSelect) {

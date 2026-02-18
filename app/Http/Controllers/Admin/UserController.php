@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\Area; // ✅ Tambahkan ini untuk mengakses model Area
+use App\Models\Area;
 
 class UserController extends Controller
 {
@@ -16,8 +16,9 @@ class UserController extends Controller
         }
 
         $page = "user";
-        $users = User::with('area')->get(); // ✅ eager load relasi area (opsional tapi disarankan)
-        $areas = Area::all(); // ✅ DIPERBAIKI: ambil dari model Area, bukan User
+        // Eager load areas (many-to-many) and legacy area
+        $users = User::with(['area', 'areas'])->get();
+        $areas = Area::all();
 
         return view('admins.users.index', compact('page', 'users', 'areas'));
     }
@@ -29,16 +30,24 @@ class UserController extends Controller
             'Name_User'     => 'required|string|max:100',
             'Password_User' => 'required',
             'Id_Type_User'  => 'required|in:1,2',
-            'Id_Area'       => 'nullable|exists:areas,Id_Area',
+            // 'Id_Area'    => 'nullable', // Deprecated but might be passed
+            'area_ids'      => 'nullable|array',
+            'area_ids.*'    => 'exists:areas,Id_Area',
         ]);
 
-        User::create([
+        $user = User::create([
             'Username_User' => $request->Username_User,
             'Name_User'     => $request->Name_User,
             'Password_User' => $request->Password_User,
             'Id_Type_User'  => $request->Id_Type_User,
-            'Id_Area'       => $request->Id_Area,
+            // 'Id_Area' => null, // We stop assigning this for new logic, or we could assign first one for legacy support?
+            // Let's keep it null for now to force usage of new logic, OR take first one if needed.
+            'Id_Area'       => $request->input('area_ids.0'), // Optional backward compat
         ]);
+
+        if ($request->has('area_ids')) {
+            $user->areas()->sync($request->area_ids);
+        }
 
         return redirect()->route('admins.users.index')
             ->with('success', 'User berhasil ditambahkan.');
@@ -52,17 +61,25 @@ class UserController extends Controller
             'Username_User' => 'required|max:20|unique:users,Username_User,' . $id . ',Id_User',
             'Name_User'     => 'required|string|max:100',
             'Id_Type_User'  => 'required|in:1,2',
-            'Id_Area'       => 'nullable|exists:areas,Id_Area',
+            'area_ids'      => 'nullable|array',
+            'area_ids.*'    => 'exists:areas,Id_Area',
             'Password_User' => 'nullable|string|min:6',
         ]);
 
-        $data = $request->only(['Username_User', 'Name_User', 'Id_Type_User', 'Id_Area']);
+        $data = $request->only(['Username_User', 'Name_User', 'Id_Type_User']);
 
         if ($request->filled('Password_User')) {
             $data['Password_User'] = $request->Password_User;
         }
 
+        // Backward compat: update Id_Area to first selected area
+        $data['Id_Area'] = $request->input('area_ids.0');
+
         $user->update($data);
+
+        if ($request->has('area_ids')) {
+            $user->areas()->sync($request->area_ids);
+        }
 
         return redirect()->route('admins.users.index')
             ->with('success', 'User berhasil diperbarui.');

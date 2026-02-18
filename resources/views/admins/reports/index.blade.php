@@ -92,7 +92,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 @if ($reportExists)
-                                <p><strong>Member:</strong> {{ $areaReport->Total_Member_Report }}</p>
+                                <p><strong>Active Member:</strong> {{ $areaReport->Total_Member_Report }}</p>
                                 <p><strong>Hour:</strong> {{ number_format($areaReport->Total_Hours_Report, 2) }}</p>
                                 @else
                                 <p class="text-muted">No report recorded for this area.</p>
@@ -106,7 +106,7 @@
                                     </button>
                                 </form>
                             </div>
-                            <div class="col-md-6">
+                            <!-- <div class="col-md-6">
                                 @php
                                 $areaMembers = $currentMembersPerArea[$area->Id_Area] ?? 0;
                                 $areaHours = round($areaMembers * 8, 2);
@@ -115,7 +115,7 @@
                                 <p><strong>Calculated Hours:</strong> {{ number_format($areaHours, 2) }}
                                     ({{ $areaMembers }} × 8 hours)
                                 </p>
-                            </div>
+                            </div> -->
                         </div>
                     </div>
                 </div>
@@ -472,6 +472,7 @@
                 </div>
             </div>
         </form>
+
     </div>
 </div>
 @endforeach
@@ -1050,7 +1051,9 @@ $isNegative = $p->Hour_Penanganan < 0;
         $(document).ready(function() {
             // ✅ Initialize DataTables
             $('.table-scan').DataTable({
-                "order": [[ 0, "desc" ]], // Sort by Time
+                "order": [
+                    [0, "desc"]
+                ], // Sort by Time
                 "pageLength": -1,
                 "lengthMenu": [
                     [10, 25, 50, -1],
@@ -1171,4 +1174,3 @@ $isNegative = $p->Hour_Penanganan < 0;
         }
     </script>
     @endsection
-

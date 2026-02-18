@@ -71,18 +71,6 @@
         .bottom-section {
             flex-shrink: 0;
         }
-
-        /* Area tabs styling */
-        .area-tabs {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .area-tabs .btn {
-            font-size: 0.8rem;
-            padding: 4px 12px;
-        }
     </style>
 
 </head>
@@ -103,26 +91,9 @@
                 </div>
                 @endif
 
-                <div class="header-actions mb-2 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0">Diagram: <span class="text-primary">{{ $dateString }}</span>
-                            <small class="text-muted">| Area: {{ $area->Name_Area }}</small>
-                        </h5>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        {{-- Area Tabs --}}
-                        @if(isset($assignedAreas) && $assignedAreas->count() > 1)
-                        <div class="area-tabs">
-                            @foreach($assignedAreas as $a)
-                            <!-- <a href="{{ route('leaders.dashboard.fullscreen', ['date' => $dateString, 'area' => $a->Id_Area]) }}"
-                               class="btn btn-sm {{ $a->Id_Area == $area->Id_Area ? 'btn-primary' : 'btn-outline-primary' }}">
-                                {{ $a->Name_Area }}
-                            </a> -->
-                            @endforeach
-                        </div>
-                        @endif
-                        <a href="{{ route('leaders.dashboard', ['date' => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
-                    </div>
+                <div class="header-actions mb-2">
+                    <h5>Diagram: <span class="text-primary">{{ $dateString }}</span></h5>
+                    <a href="{{ route('leaders.dashboard') }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
                 </div>
 
             </div>
@@ -200,8 +171,7 @@
 
     <!-- JS: Custom -->
     <script>
-        const yearEl = document.querySelector('.year');
-        if (yearEl) yearEl.textContent = new Date().getFullYear();
+        document.querySelector('.year').textContent = new Date().getFullYear();
         const table1 = document.querySelector('#table1');
         if (table1) {
             new DataTable(table1);
@@ -215,7 +185,7 @@
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
 
     <script>
-        // 🔁 Auto refresh setiap 10 detik (preserve current URL with area param)
+        // 🔁 Auto refresh setiap 10 detik
         setTimeout(() => {
             location.reload();
         }, 10000);
@@ -231,19 +201,28 @@
             return `${sign}${jam} jam ${menit} menit`;
         }
 
-        const rawScans = @json($scansForJs);
-        const rawCosts = @json($costsForJs);
-        const rawPowers = @json($powersForJs);
-        const rawPenanganans = @json($penanganansForJs);
+        const scans = {
+            !!json_encode($scansForJs ?? []) !!
+        };
+        const costs = {
+            !!json_encode($costsForJs ?? []) !!
+        };
+        const powers = {
+            !!json_encode($powersForJs ?? []) !!
+        };
+        const penanganans = {
+            !!json_encode($penanganansForJs ?? []) !!
+        };
 
-        const memberHours = @json((float) $memberHours);
-        const reportMembers = @json((int) $reportMembers);
-        const powerTotal = @json((float) $powerTotal);
-
-        const scans = Array.isArray(rawScans) ? rawScans : [];
-        const costs = Array.isArray(rawCosts) ? rawCosts : [];
-        const powers = Array.isArray(rawPowers) ? rawPowers : [];
-        const penanganans = Array.isArray(rawPenanganans) ? rawPenanganans : [];
+        const memberHours = {
+            !!json_encode($memberHours ?? 0) !!
+        };
+        const reportMembers = {
+            !!json_encode($reportMembers ?? 0) !!
+        };
+        const powerTotal = {
+            !!json_encode($powerTotal ?? 0) !!
+        };
 
         // 🔢 Hitung total
         const scanTotal = scans.reduce((sum, s) => sum + s.value, 0);
@@ -255,6 +234,7 @@
         // 🔹 Inisialisasi Chart
         const ctx = document.getElementById('stackedChart').getContext('2d');
         Chart.register(ChartDataLabels);
+        // Chart.register('chartjs-plugin-annotation'); // ❌ HAPUS INI JIKA ERROR
 
 
         new Chart(ctx, {
@@ -347,7 +327,7 @@
                                     ];
                                 }
                                 if (label === 'Tractor') {
-                                    const total = scans.reduce((s, x) => s + x.value, 0);
+                                    const total = scanTotal;
                                     const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
                                     const labels = scans.map(s => `${s.label} (${decimalToHoursMinutes(s.value)})`);
                                     for (let i = 0; i < labels.length; i += 5) {
@@ -365,7 +345,7 @@
                                     return lines;
                                 }
                                 if (label === 'Handling') {
-                                    const total = penanganans.reduce((s, x) => s + x.value, 0);
+                                    const total = penangananTotal;
                                     const lines = [`Total Handling: ${decimalToHoursMinutes(total)}`];
                                     const labels = penanganans.map(p => `${p.label} (${decimalToHoursMinutes(p.value)})`);
                                     for (let i = 0; i < labels.length; i += 5) {

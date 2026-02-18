@@ -32,6 +32,7 @@ class AdminController extends Controller
 
         $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
         $areaId = $request->query('area');
+        $allReports = Report::where('Day_Report', $dateString)->get()->keyBy('Id_Area');
 
         // ✅ Hitung total member aktif dari DailyJob → GUNAKAN $productionDateYmd
         if ($areaId) {
@@ -51,19 +52,19 @@ class AdminController extends Controller
         $scanQuery = Scan::whereDate('Time_Scan', $dateString)->with('tractor');
         $costQuery = Cost::whereDate('Start_Cost', $dateString);
         $powerQuery = Power::whereDate('Start_Power', $dateString)->with('member');
-        $penangananQuery = Penanganan::whereDate('Start_Penanganan', $dateString);
+        $penanganansQuery = Penanganan::whereDate('Start_Penanganan', $dateString);
 
         if ($areaId) {
             $scanQuery->where('Id_Area', $areaId);
             $costQuery->where('Id_Area', $areaId);
             $powerQuery->where('Id_Area', $areaId);
-            $penangananQuery->where('Id_Area', $areaId);
+            $penanganansQuery->where('Id_Area', $areaId);
         }
 
         $scans = $scanQuery->get();
         $costs = $costQuery->get();
         $powers = $powerQuery->get();
-        $penanganans = $penangananQuery->get();
+        $penanganans = $penanganansQuery->get();
 
         $costImpactList = $costs->map(function ($cost) {
             return [
@@ -74,13 +75,23 @@ class AdminController extends Controller
 
         // ✅ Ambil jumlah member dari Report (jika ada), tapi fallback ke DailyJob
         if ($areaId) {
-            $report = Report::where('Day_Report', $dateString)
-                ->where('Id_Area', $areaId)
-                ->first();
+            $report = $allReports->get($areaId);
             $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
         } else {
-            // Tidak ada report global → pakai currentTotalMembers saja
-            $reportMembers = $currentTotalMembers;
+            // ✅ AGREGASI: Cek report per area, jika tak ada pakai DailyJob area tersebut
+            $sumMembers = 0;
+            foreach ($areas as $area) {
+                $areaReport = $allReports->get($area->Id_Area);
+                if ($areaReport) {
+                    $sumMembers += (int) $areaReport->Total_Member_Report;
+                } else {
+                    $sumMembers += DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                        ->where('Id_Area', $area->Id_Area)
+                        ->distinct('Nik_Daily_Job')
+                        ->count();
+                }
+            }
+            $reportMembers = $sumMembers;
         }
 
         $powerTotal = $powers->sum('Leave_Hour_Power');
@@ -105,12 +116,24 @@ class AdminController extends Controller
             }
         } else {
             if ($areaId) {
-                $report = Report::where('Day_Report', $dateString)
-                    ->where('Id_Area', $areaId)
-                    ->first();
+                $report = $allReports->get($areaId);
                 $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
             } else {
-                $memberHours = $reportMembers * 8.0;
+                // ✅ AGREGASI: Cek report per area, jika tak ada pakai (Area Members * 8)
+                $sumHours = 0;
+                foreach ($areas as $area) {
+                    $areaReport = $allReports->get($area->Id_Area);
+                    if ($areaReport) {
+                        $sumHours += (float) $areaReport->Total_Hours_Report;
+                    } else {
+                        $areaCount = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                            ->where('Id_Area', $area->Id_Area)
+                            ->distinct('Nik_Daily_Job')
+                            ->count();
+                        $sumHours += ($areaCount * 8.0);
+                    }
+                }
+                $memberHours = $sumHours;
             }
         }
 
@@ -240,11 +263,33 @@ class AdminController extends Controller
         // Ambil data
         $scans = Scan::whereDate('Time_Scan', $dateString)->with('member', 'tractor')->get();
         $costs = Cost::whereDate('Start_Cost', $dateString)->get();
-        $report = Report::where('Day_Report', $dateString)->first();
+        // 🔥 AMBIL DATA DENGAN AGREGASI AREA (Sesuai Logic Dashboard)
+        $allReports = Report::where('Day_Report', $dateString)->get()->keyBy('Id_Area');
+        $areas = \App\Models\Area::all();
+        $productionDateYmd = $date->format('Ymd');
+
         $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
         $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
 
-        $reportMembers = is_numeric($report?->Total_Member_Report) ? (int) $report->Total_Member_Report : 0;
+        $sumMembers = 0;
+        $sumHoursManual = 0;
+
+        foreach ($areas as $area) {
+            $areaReport = $allReports->get($area->Id_Area);
+            if ($areaReport) {
+                $sumMembers += (int) $areaReport->Total_Member_Report;
+                $sumHoursManual += (float) $areaReport->Total_Hours_Report;
+            } else {
+                $areaCount = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                    ->where('Id_Area', $area->Id_Area)
+                    ->distinct('Nik_Daily_Job')
+                    ->count();
+                $sumMembers += $areaCount;
+                $sumHoursManual += ($areaCount * 8.0);
+            }
+        }
+
+        $reportMembers = $sumMembers;
 
         if ($isToday) {
             $now = Carbon::now();
@@ -272,7 +317,7 @@ class AdminController extends Controller
                 $memberHours = $reportMembers * min($totalHours, 8.0);
             }
         } else {
-            $memberHours = $report ? (float) $report->Total_Hours_Report : 0.0;
+            $memberHours = $sumHoursManual;
         }
 
         // --- HITUNG KOMPONEN UTAMA ---

@@ -153,14 +153,28 @@
         return `${sign}${jam} jam ${menit} menit`;
     }
 
-    const rawScans = @json($scansForJs);
-    const rawCosts = @json($costsForJs);
-    const rawPowers = @json($powersForJs);
-    const rawPenanganans = @json($penanganansForJs);
+    const rawScans = {
+        !!json_encode($scansForJs) !!
+    };
+    const rawCosts = {
+        !!json_encode($costsForJs) !!
+    };
+    const rawPowers = {
+        !!json_encode($powersForJs) !!
+    };
+    const rawPenanganans = {
+        !!json_encode($penanganansForJs) !!
+    };
 
-    const memberHours = @json((float) $memberHours);
-    const reportMembers = @json((int) $reportMembers);
-    const powerTotal = @json((float) $powerTotal);
+    const memberHours = {
+        !!json_encode((float) $memberHours) !!
+    };
+    const reportMembers = {
+        !!json_encode((int) $reportMembers) !!
+    };
+    const powerTotal = {
+        !!json_encode((float) $powerTotal) !!
+    };
 
     const scans = Array.isArray(rawScans) ? rawScans : [];
     const costs = Array.isArray(rawCosts) ? rawCosts : [];

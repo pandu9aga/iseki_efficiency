@@ -28,21 +28,39 @@ class LeaderController extends Controller
         }
 
         $userId = session('Id_User');
-        $user = \App\Models\User::find($userId);
+        $user = \App\Models\User::with('areas')->find($userId);
 
         if (!$user || $user->Id_Type_User != 2) {
             abort(403, 'Akses ditolak.');
         }
 
-        $areaId = (int) $user->Id_Area;
-        if ($areaId <= 0) {
+        // --- LOGIKA MULTI-AREA ---
+        $assignedAreas = $user->areas;
+
+        // Fallback jika tidak ada areas di pivot, coba cek Id_Area lama
+        if ($assignedAreas->isEmpty() && $user->Id_Area) {
+            $assignedAreas = Area::where('Id_Area', $user->Id_Area)->get();
+        }
+
+        if ($assignedAreas->isEmpty()) {
             abort(403, 'Akun Anda belum ditetapkan ke area produksi.');
         }
 
-        $area = \App\Models\Area::find($areaId);
-        if (!$area) {
-            abort(404, 'Area Anda tidak ditemukan.');
+        // Tentukan Area Aktif
+        $activeAreaid = $request->query('area');
+        $activeArea = null;
+
+        if ($activeAreaid) {
+            $activeArea = $assignedAreas->where('Id_Area', $activeAreaid)->first();
         }
+
+        // Jika tidak ada area dipilih atau id area tidak valid untuk user ini, default ke yang pertama
+        if (!$activeArea) {
+            $activeArea = $assignedAreas->first();
+        }
+
+        $area = $activeArea;
+        $areaId = $area->Id_Area;
 
         // 🔢 Tanggal
         $date = $request->filled('date')
@@ -92,12 +110,37 @@ class LeaderController extends Controller
         }
 
         $powerTotal = $powers->sum('Leave_Hour_Power');
-        $costImpactList = $costs->map(function ($cost) {
+        // ✅ Siapkan data untuk JavaScript (Standardized)
+        $scansForJs = $scans->map(function ($s) {
             return [
-                'label' => $cost->Keterangan_Cost ?? 'Unknown',
-                'value' => (float) $cost->Non_Operational_Cost,
+                'label' => $s->tractor?->Name_Tractor ?? 'Unknown',
+                'value' => (float) $s->Assigned_Hour_Scan
             ];
         })->toArray();
+
+        $costsForJs = $costs->map(function ($c) {
+            return [
+                'label' => $c->Keterangan_Cost ?? 'Unknown',
+                'value' => (float) $c->Non_Operational_Cost
+            ];
+        })->toArray();
+
+        $powersForJs = $powers->map(function ($p) {
+            return [
+                'label' => $p->Keterangan_Power ?? 'Unknown',
+                'value' => (float) $p->Leave_Hour_Power
+            ];
+        })->toArray();
+
+        $penanganansForJs = $penanganans->map(function ($p) {
+            return [
+                'label' => $p->Keterangan_Penanganan ?? 'Unknown',
+                'value' => (float) $p->Hour_Penanganan
+            ];
+        })->toArray();
+
+        // Compatibility for existing costImpactList usage if any (or just use costsForJs)
+        $costImpactList = $costsForJs;
 
         // Kirim data ke view
         return view('leaders.dashboard', compact(
@@ -111,7 +154,12 @@ class LeaderController extends Controller
             'dateString',
             'isToday',
             'costImpactList',
-            'area' // kirim juga objek area untuk judul
+            'area', // Area Aktif
+            'assignedAreas', // Daftar area untuk tabs
+            'scansForJs',
+            'costsForJs',
+            'powersForJs',
+            'penanganansForJs'
         ));
     }
     public function fullscreen(Request $request)
@@ -128,26 +176,39 @@ class LeaderController extends Controller
 
         // 🔑 3. Ambil data user dari database berdasarkan Id_User di session
         $userId = session('Id_User');
-        $user = \App\Models\User::find($userId);
+        $user = \App\Models\User::with('areas')->find($userId);
 
         if (!$user) {
             session()->flush();
             return redirect()->route('login.form')->withErrors(['loginError' => 'Sesi tidak valid. Silakan login ulang.']);
         }
 
-        // 🔑 4. Ambil Id_Area dari user
-        $areaId = (int) $user->Id_Area;
+        $assignedAreas = $user->areas;
 
-        // 🔑 5. Validasi area: harus angka positif
-        if ($areaId <= 0) {
-            abort(403, 'Akun Anda belum ditetapkan ke area produksi. Hubungi administrator.');
+        // Fallback jika tidak ada areas di pivot, coba cek Id_Area lama
+        if ($assignedAreas->isEmpty() && $user->Id_Area) {
+            $assignedAreas = Area::where('Id_Area', $user->Id_Area)->get();
         }
 
-        // 🔑 6. Cek apakah area tersebut benar-benar ada di tabel areas
-        $area = \App\Models\Area::find($areaId);
-        if (!$area) {
-            abort(404, 'Area produksi Anda tidak ditemukan dalam sistem.');
+        if ($assignedAreas->isEmpty()) {
+            abort(403, 'Akun Anda belum ditetapkan ke area produksi.');
         }
+
+        // Tentukan Area Aktif
+        $activeAreaid = $request->query('area');
+        $activeArea = null;
+
+        if ($activeAreaid) {
+            $activeArea = $assignedAreas->where('Id_Area', $activeAreaid)->first();
+        }
+
+        // Jika tidak ada area dipilih atau id area tidak valid untuk user ini, default ke yang pertama
+        if (!$activeArea) {
+            $activeArea = $assignedAreas->first();
+        }
+
+        $area = $activeArea;
+        $areaId = $area->Id_Area;
 
         // 🔢 Lanjutkan logika seperti sebelumnya
         $date = $request->filled('date')
@@ -237,6 +298,7 @@ class LeaderController extends Controller
             'dateString',
             'isToday',
             'area',
+            'assignedAreas',
             'memberHours',
             'reportMembers',
             'powerTotal',

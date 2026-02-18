@@ -31,13 +31,19 @@ class User extends Authenticatable
         ];
     }
 
-    // Relasi ke Area
+    // Relasi ke Area (Legacy: BelongsTo)
     public function area()
     {
         return $this->belongsTo(Area::class, 'Id_Area', 'Id_Area');
     }
 
+    // New: Many-to-Many
+    public function areas()
+    {
+        return $this->belongsToMany(Area::class, 'area_user', 'user_id', 'area_id');
+    }
+
     protected $table = 'users';
     protected $primaryKey = 'Id_User';
-    public $timestamps = false; // ✅ Titik koma wajib!
+    public $timestamps = false;
 }

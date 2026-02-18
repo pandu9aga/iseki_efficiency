@@ -12,6 +12,19 @@
             <div class="alert alert-success">{{ session('success') }}</div>
             @endif
 
+            @if(isset($assignedAreas) && $assignedAreas->count() > 1)
+            <ul class="nav nav-tabs mb-4">
+                @foreach($assignedAreas as $a)
+                <li class="nav-item">
+                    <a class="nav-link {{ $a->Id_Area == $area->Id_Area ? 'active' : '' }}"
+                        href="{{ route('leaders.jobs.manage', ['area' => $a->Id_Area]) }}">
+                        {{ $a->Name_Area }}
+                    </a>
+                </li>
+                @endforeach
+            </ul>
+            @endif
+
             @if ($errors->any())
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -27,6 +40,7 @@
                 <h5>Tambah Pekerjaan</h5>
                 <form action="{{ route('leaders.jobs.store') }}" method="POST">
                     @csrf
+                    <input type="hidden" name="Id_Area" value="{{ $area->Id_Area }}">
                     <div class="row">
                         <div class="col-md-8">
                             <div class="mb-3">
@@ -89,13 +103,16 @@
     </div>
 </div>
 
-{{-- Modal Edit --}}
+{{-- Modal Edit - Pastikan redirect ada area param --}}
 @foreach ($jobMembers as $job)
 <div class="modal fade" id="editJobModal{{ $job->Id_Job_Member }}" tabindex="-1">
     <div class="modal-dialog">
         <form action="{{ route('leaders.jobs.update', $job) }}" method="POST">
             @csrf
             @method('PUT')
+            {{-- ✅ TAMBAHKAN HIDDEN FIELD area_id --}}
+            <input type="hidden" name="area_id" value="{{ $area->Id_Area }}">
+
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Pekerjaan</h5>
@@ -121,4 +138,5 @@
     </div>
 </div>
 @endforeach
+
 @endsection

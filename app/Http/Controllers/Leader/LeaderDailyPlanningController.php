@@ -10,6 +10,7 @@ use App\Models\DailyJob;
 use App\Models\Area;
 use App\Models\JobMember;
 use App\Models\Member;
+use Illuminate\Support\Facades\DB;
 
 class LeaderDailyPlanningController extends Controller
 {
@@ -19,18 +20,30 @@ class LeaderDailyPlanningController extends Controller
             abort(403);
         }
 
-        $user = \App\Models\User::findOrFail(session('Id_User'));
-        if (!$user->Id_Area) {
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+
+        if ($user->areas->isEmpty()) {
             return redirect()->back()->withErrors(['error' => 'Akun Anda belum ditugaskan ke area mana pun.']);
         }
 
-        $area = Area::with('jobMembers')->findOrFail($user->Id_Area);
+        // Determine active area
+        $activeAreaId = $request->query('area');
+        if ($activeAreaId) {
+            $activeArea = $user->areas->where('Id_Area', $activeAreaId)->first();
+            if (!$activeArea) {
+                $activeArea = $user->areas->first();
+            }
+        } else {
+            $activeArea = $user->areas->first();
+        }
+
+        $area = Area::with('jobMembers')->findOrFail($activeArea->Id_Area);
+
         $dateString = $request->input('date', now()->format('Y-m-d'));
         $productionDateForQuery = Carbon::parse($dateString)->format('Ymd');
 
         $allMembers = Member::all();
 
-        // Cek apakah sudah ada rencana untuk tanggal ini
         $existingPlans = DailyJob::where('Production_Date_Plan', $productionDateForQuery)
             ->where('Id_Area', $area->Id_Area)
             ->get();
@@ -38,7 +51,6 @@ class LeaderDailyPlanningController extends Controller
         if ($existingPlans->isNotEmpty()) {
             $planMap = $this->buildPlanMap($existingPlans);
         } else {
-            // 🔥 Ambil rencana TERAKHIR SECARA GLOBAL (tanpa batas tanggal)
             $lastPlanDate = DailyJob::where('Id_Area', $area->Id_Area)
                 ->max('Production_Date_Plan');
 
@@ -52,21 +64,23 @@ class LeaderDailyPlanningController extends Controller
             }
         }
 
+        $assignedAreas = $user->areas;
+
         return view('leaders.planning.create', compact(
             'area',
+            'assignedAreas',
             'allMembers',
             'dateString',
             'planMap'
         ));
     }
 
-    // 🔥 Simpan NIK langsung, tidak pakai relasi
     private function buildPlanMap($dailyJobs)
     {
         $planMap = [];
         foreach ($dailyJobs as $plan) {
             $planMap[$plan->Id_Job_Member] = [
-                'nik' => $plan->Nik_Daily_Job,           // ← gunakan nik
+                'nik' => $plan->Nik_Daily_Job,
                 'type' => $plan->Type_Daily_Job,
                 'replace_nik' => $plan->Nik_Replace_Daily_Job,
             ];
@@ -82,6 +96,7 @@ class LeaderDailyPlanningController extends Controller
 
         $request->validate([
             'production_date' => 'required|date',
+            'area_id' => 'required|exists:areas,Id_Area',
             'assignments' => 'nullable|array',
             'assignments.*.member_id' => 'nullable|integer|exists:rifa.employees,id',
             'assignments.*.type' => 'nullable|in:asli,pengganti',
@@ -91,24 +106,59 @@ class LeaderDailyPlanningController extends Controller
         $productionDateRaw = $request->input('production_date');
         $productionDate = Carbon::parse($productionDateRaw)->format('Ymd');
         $assignments = $request->input('assignments', []);
+        $currentAreaId = $request->input('area_id');
 
-        DailyJob::where('Production_Date_Plan', $productionDate)->delete();
+        // ✅ SECURITY: Validasi user punya akses ke area ini
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $currentAreaId)) {
+            abort(403, 'You are not assigned to this area.');
+        }
 
-        $firstAreaId = null;
+        // ✅ FIX #2: Guard against empty assignments (prevent accidental deletion)
+        if (empty($assignments)) {
+            return redirect()->route('leaders.planning.create', [
+                'date' => $productionDateRaw,
+                'area' => $currentAreaId,
+            ])->with('warning', 'Tidak ada assignment yang dikirim. Data lama tidak dihapus.');
+        }
+
+        // ✅ FIX #3 & #4: Pre-validate assignments, track skips, block cross-area injection
+        $validAssignments = [];
+        $skipped = 0;
+        $skippedReasons = [];
 
         foreach ($assignments as $jobId => $data) {
-            if (!is_numeric($jobId)) continue;
+            if (!is_numeric($jobId)) {
+                $skipped++;
+                continue;
+            }
 
             $memberId = $data['member_id'] ?? null;
-            if (!$memberId) continue;
+            if (!$memberId) {
+                $skipped++;
+                continue;
+            }
 
             $member = Member::find($memberId);
             $jobMember = JobMember::find($jobId);
 
-            if (!$member || !$jobMember) continue;
+            if (!$member) {
+                $skipped++;
+                $skippedReasons[] = "Job #{$jobId}: Member ID {$memberId} tidak ditemukan";
+                continue;
+            }
 
-            if (!$firstAreaId) {
-                $firstAreaId = $jobMember->Id_Area;
+            if (!$jobMember) {
+                $skipped++;
+                $skippedReasons[] = "Job #{$jobId}: Pekerjaan tidak ditemukan";
+                continue;
+            }
+
+            // ✅ FIX #4: Block cross-area job injection
+            if ($jobMember->Id_Area != $currentAreaId) {
+                $skipped++;
+                $skippedReasons[] = "Job #{$jobId}: Pekerjaan bukan milik area ini";
+                continue;
             }
 
             $type = ($data['type'] ?? 'asli') === 'pengganti' ? 'pengganti' : 'asli';
@@ -120,24 +170,60 @@ class LeaderDailyPlanningController extends Controller
                 $replaceNikFinal = $replaceMember?->nik;
             }
 
-            $sequence = 'SEQ_' . $jobId . '_' . now()->format('Ymd') . '_' . Str::random(5);
-
-            DailyJob::create([
-                'Nik_Daily_Job' => $member->nik,
-                'Id_Job_Member' => $jobId,
-                'Id_Area' => $jobMember->Id_Area,
-                'Sequence_No_Plan' => $sequence,
-                'Production_Date_Plan' => $productionDate,
-                'Type_Daily_Job' => $type,
-                'Nik_Replace_Daily_Job' => $replaceNikFinal,
-            ]);
+            $validAssignments[] = [
+                'nik' => $member->nik,
+                'jobId' => $jobId,
+                'areaId' => $jobMember->Id_Area,
+                'type' => $type,
+                'replaceNik' => $replaceNikFinal,
+            ];
         }
 
-        if ($firstAreaId) {
-            session(['active_area_id' => $firstAreaId]);
+        // ✅ FIX #2 (extra): If ALL assignments were invalid, don't delete existing data
+        if (empty($validAssignments)) {
+            $msg = 'Semua assignment tidak valid, data lama tidak dihapus.';
+            if (!empty($skippedReasons)) {
+                $msg .= ' Detail: ' . implode('; ', array_slice($skippedReasons, 0, 5));
+            }
+            return redirect()->route('leaders.planning.create', [
+                'date' => $productionDateRaw,
+                'area' => $currentAreaId,
+            ])->withErrors(['assignments' => $msg]);
         }
 
-        return redirect()->route('leaders.planning.create', ['date' => $productionDateRaw])
-            ->with('success', 'Rencana harian berhasil disimpan.');
+        // ✅ FIX #5: Wrap in DB::transaction for atomicity
+        DB::transaction(function () use ($productionDate, $currentAreaId, $validAssignments) {
+            // Delete existing plans for this area and date (inside transaction)
+            DailyJob::where('Production_Date_Plan', $productionDate)
+                ->where('Id_Area', $currentAreaId)
+                ->delete();
+
+            // Insert all validated assignments
+            foreach ($validAssignments as $item) {
+                $sequence = 'SEQ_' . $item['jobId'] . '_' . now()->format('Ymd') . '_' . Str::random(5);
+
+                DailyJob::create([
+                    'Nik_Daily_Job' => $item['nik'],
+                    'Id_Job_Member' => $item['jobId'],
+                    'Id_Area' => $item['areaId'],
+                    'Sequence_No_Plan' => $sequence,
+                    'Production_Date_Plan' => $productionDate,
+                    'Type_Daily_Job' => $item['type'],
+                    'Nik_Replace_Daily_Job' => $item['replaceNik'],
+                ]);
+            }
+        });
+
+        // ✅ FIX #3: Report skipped assignments to user
+        $savedCount = count($validAssignments);
+        $message = "Rencana harian berhasil disimpan ({$savedCount} assignment).";
+        if ($skipped > 0) {
+            $message .= " {$skipped} assignment di-skip.";
+        }
+
+        return redirect()->route('leaders.planning.create', [
+            'date' => $productionDateRaw,
+            'area' => $currentAreaId,
+        ])->with('success', $message);
     }
 }

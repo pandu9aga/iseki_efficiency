@@ -24,13 +24,27 @@ class LeaderReportController extends Controller
             abort(403);
         }
 
-        // ✅ Ambil Id_Area dari user yang login
-        $user = User::findOrFail(session('Id_User'));
-        if (!$user->Id_Area) {
-            return redirect()->back()->withErrors(['error' => 'Your account is not assigned to any area.']);
+        $user = User::with('areas')->findOrFail(session('Id_User'));
+
+        // Check if user has assigned areas
+        if ($user->areas->isEmpty()) {
+            return redirect()->back()->withErrors(['error' => 'Akun Anda belum ditugaskan ke area mana pun.']);
         }
 
-        $areaId = $user->Id_Area;
+        // Determine active area from request or default to first assigned area
+        $activeAreaId = $request->query('area');
+        if ($activeAreaId) {
+            // Verify if user is assigned to this area
+            $activeArea = $user->areas->where('Id_Area', $activeAreaId)->first();
+            if (!$activeArea) {
+                // If requested area is not assigned, fallback to first assigned
+                $activeArea = $user->areas->first();
+            }
+        } else {
+            $activeArea = $user->areas->first();
+        }
+
+        $areaId = $activeArea->Id_Area;
         $area = Area::findOrFail($areaId);
 
         $date = $request->filled('date')
@@ -73,28 +87,44 @@ class LeaderReportController extends Controller
         $activeMembersByArea = [$areaId => $activeMembers];
 
         // 🔥 Ambil SEMUA member dari semua area (untuk dropdown "All Areas")
-        $allMembers = Member::with('area')->get(); // ← INI YANG BARU
+        $allMembers = Member::with('area')->get();
 
         // 🔥 Ambil scan: filter by date
         $scans = Scan::where('Id_Area', $areaId)
             ->whereDate('Time_Scan', $date->format('Y-m-d'))
-            ->with(['tractor', 'dailyJob']) // JANGAN muat replacedMember (tidak bekerja)
+            ->with(['tractor', 'dailyJob'])
             ->orderBy('Time_Scan', 'desc')
             ->get();
 
         $nikReplaces = $scans->pluck('Nik_Replace')->filter()->unique()->values();
         $memberMap = [];
         if ($nikReplaces->isNotEmpty()) {
-            // 🔥 Ambil data member dari database 'rifa' hanya untuk NIK yang dibutuhkan
             $memberMap = Member::whereIn('nik', $nikReplaces)
                 ->pluck('nama', 'nik')
                 ->toArray();
         }
 
-        // Kirim hanya 1 area
-        $areas = collect([$area]);
+        // Pass assigned areas for Tabs (instead of single $areas collection)
+        $assignedAreas = $user->areas;
 
-        // ✅ KIRIM $allMembers KE VIEW
+        // Note: View expects 'areas' variable for looping in modals (cost, power, etc).
+        // For the single active area view, we can pass $assignedAreas as 'areas' if the view iterates it,
+        // BUT the view seems to iterate 'areas' to create tab panes.
+        // Let's pass $assignedAreas as 'areas' so the view loop works for tabs (if we update view to use it).
+        // Actually, let's keep 'areas' as the collection of ALL assigned areas so the view loop generates all tabs?
+        // Wait, the controller logic above focuses on ONE active area ($area).
+        // Creating tabs purely in view requires iterating all assigned areas.
+        // So I should pass $assignedAreas.
+        // AND, to minimize view changes, I might rename it to 'areas' if the view uses 'areas' for tabs?
+        // The current view uses `@foreach ($areas as $index => $area)` for tabs!
+        // So if I pass `$areas = $assignedAreas`, the existing loop might just work if I update the loop logic!
+        // BUT I want to change the view to use explicit tabs and then content.
+        // Let's pass both: 'assignedAreas' for the top tabs, and 'area' (single) for the content?
+        // Or just 'areas' = $assignedAreas.
+
+        // View uses $areas for modals loop.
+        $areas = $assignedAreas;
+
         return view('leaders.reports.index', compact(
             'dateString',
             'areaReports',
@@ -105,10 +135,11 @@ class LeaderReportController extends Controller
             'activeMembers',
             'activeMembersByArea',
             'scans',
-            'areas',
-            'area',
+            'area', // The active area
             'memberMap',
-            'allMembers' // ← INI YANG DITAMBAHKAN
+            'allMembers',
+            'assignedAreas', // For the new tabs
+            'areas'
         ));
     }
 
@@ -116,6 +147,12 @@ class LeaderReportController extends Controller
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
+        }
+
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You are not assigned to this area.');
         }
 
         $request->validate([
@@ -160,6 +197,12 @@ class LeaderReportController extends Controller
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
+        }
+
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You are not assigned to this area.');
         }
 
         $request->validate([
@@ -251,6 +294,17 @@ class LeaderReportController extends Controller
             abort(403);
         }
 
+        // ✅ SECURITY: Verify user area assignment (Both record and request)
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+
+        if (!$user->areas->contains('Id_Area', $cost->Id_Area)) {
+            abort(403, 'You cannot edit records from areas you are not assigned to.');
+        }
+
+        if ($request->has('Id_Area') && !$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You cannot move records to areas you are not assigned to.');
+        }
+
         $request->validate([
             'kategori_cost' => 'required|string',
             'date_part' => 'required|date',
@@ -337,6 +391,12 @@ class LeaderReportController extends Controller
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
         }
+
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $cost->Id_Area)) {
+            abort(403, 'You cannot delete records from areas you are not assigned to.');
+        }
         $cost->delete();
         return redirect()->back()->with('success', 'Cost berhasil dihapus.');
     }
@@ -346,6 +406,12 @@ class LeaderReportController extends Controller
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
+        }
+
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You are not assigned to this area.');
         }
 
         $request->validate([
@@ -378,6 +444,17 @@ class LeaderReportController extends Controller
             abort(403);
         }
 
+        // ✅ SECURITY: Verify user area assignment (Both record and request)
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+
+        if (!$user->areas->contains('Id_Area', $power->Id_Area)) {
+            abort(403, 'You cannot edit records from areas you are not assigned to.');
+        }
+
+        if ($request->has('Id_Area') && !$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You cannot move records to areas you are not assigned to.');
+        }
+
         $request->validate([
             'Id_Member' => 'required|exists:rifa.employees,id',
             'Leave_Hour_Power' => 'required|numeric|min:0',
@@ -407,6 +484,12 @@ class LeaderReportController extends Controller
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
         }
+
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $power->Id_Area)) {
+            abort(403, 'You cannot delete records from areas you are not assigned to.');
+        }
         $power->delete();
         return redirect()->back()->with('success', 'Permission berhasil dihapus.');
     }
@@ -417,6 +500,12 @@ class LeaderReportController extends Controller
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
+        }
+
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You are not assigned to this area.');
         }
 
         $request->validate([
@@ -485,6 +574,17 @@ class LeaderReportController extends Controller
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
+        }
+
+        // ✅ SECURITY: Verify user area assignment (Both record and request)
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+
+        if (!$user->areas->contains('Id_Area', $penanganan->Id_Area)) {
+            abort(403, 'You cannot edit records from areas you are not assigned to.');
+        }
+
+        if ($request->has('Id_Area') && !$user->areas->contains('Id_Area', $request->Id_Area)) {
+            abort(403, 'You cannot move records to areas you are not assigned to.');
         }
 
         $request->validate([
@@ -556,21 +656,29 @@ class LeaderReportController extends Controller
             abort(403);
         }
 
+        // ✅ SECURITY: Verify user area assignment
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+        if (!$user->areas->contains('Id_Area', $penanganan->Id_Area)) {
+            abort(403, 'You cannot delete records from areas you are not assigned to.');
+        }
+
         $penanganan->delete();
         return redirect()->back()->with('success', 'Time handling berhasil dihapus.');
     }
 
     // 🔥 METHOD BARU: HAPUS SCAN
+    // 🔥 METHOD BARU: HAPUS SCAN (di bagian bawah class)
     public function destroyScan(Request $request, Scan $scan)
     {
         if (!session()->has('Id_User') || session('Id_Type_User') != 2) {
             abort(403);
         }
 
-        // ✅ Pastikan scan milik area leader yang sedang login
-        $user = \App\Models\User::find(session('Id_User'));
-        if (!$user || $scan->Id_Area !== $user->Id_Area) {
-            abort(403, 'You can only delete scans from your area.');
+        // ✅ PERBAIKAN: Gunakan relasi areas (MULTI-AREA)
+        $user = \App\Models\User::with('areas')->findOrFail(session('Id_User'));
+
+        if (!$user->areas->contains('Id_Area', $scan->Id_Area)) {
+            abort(403, 'You can only delete scans from areas you are assigned to.');
         }
 
         $scan->delete();

@@ -38,7 +38,11 @@
                                 @endif
                             </td>
                             <td class="text-center">
-                                {{ $u->area?->Name_Area ?? '-' }}
+                                @if($u->areas && $u->areas->isNotEmpty())
+                                {{ $u->areas->pluck('Name_Area')->join(', ') }}
+                                @else
+                                -
+                                @endif
                             </td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
@@ -47,7 +51,7 @@
                                     data-username="{{ $u->Username_User }}"
                                     data-name="{{ $u->Name_User }}"
                                     data-type="{{ $u->Id_Type_User }}"
-                                    data-area="{{ $u->Id_Area }}"
+                                    data-areas="{{ $u->areas->pluck('Id_Area') }}"
                                     data-update-url="{{ route('admins.users.update', $u->Id_User) }}">
                                     Edit
                                 </button>
@@ -105,13 +109,18 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label>Area</label>
-                        <select name="Id_Area" class="form-select">
-                            <option value="">-- Pilih Area --</option>
+                        <label class="form-label">Area (Pilih satu atau lebih)</label>
+                        <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
                             @foreach ($areas as $area)
-                            <option value="{{ $area->Id_Area }}">{{ $area->Name_Area }}</option>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="area_ids[]"
+                                    value="{{ $area->Id_Area }}" id="add_area_{{ $area->Id_Area }}">
+                                <label class="form-check-label" for="add_area_{{ $area->Id_Area }}">
+                                    {{ $area->Name_Area }}
+                                </label>
+                            </div>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -156,13 +165,18 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label>Area</label>
-                        <select name="Id_Area" id="edit_area" class="form-select">
-                            <option value="">-- Pilih Area --</option>
+                        <label class="form-label">Area (Pilih satu atau lebih)</label>
+                        <div class="border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
                             @foreach ($areas as $area)
-                            <option value="{{ $area->Id_Area }}">{{ $area->Name_Area }}</option>
+                            <div class="form-check">
+                                <input class="form-check-input edit-area-checkbox" type="checkbox" name="area_ids[]"
+                                    value="{{ $area->Id_Area }}" id="edit_area_{{ $area->Id_Area }}">
+                                <label class="form-check-label" for="edit_area_{{ $area->Id_Area }}">
+                                    {{ $area->Name_Area }}
+                                </label>
+                            </div>
                             @endforeach
-                        </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -205,16 +219,28 @@
             const username = btn.data('username');
             const name = btn.data('name');
             const type = btn.data('type');
-            const area = btn.data('area');
+            const areas = btn.data('areas'); // Expect array of IDs
             const url = btn.data('update-url');
 
             $('#edit_user_id').val(id);
             $('#edit_username').val(username);
             $('#edit_name_user').val(name);
             $('#edit_type').val(type);
-            $('#edit_area').val(area); // ✅ Isi dropdown area
-            $('#edit_password').val('');
 
+            // Reset selection for checkboxes
+            $('.edit-area-checkbox').prop('checked', false);
+
+            if (Array.isArray(areas)) {
+                areas.forEach(function(areaId) {
+                    $('#edit_area_' + areaId).prop('checked', true);
+                });
+            } else {
+                if (areas) {
+                    $('#edit_area_' + areas).prop('checked', true);
+                }
+            }
+
+            $('#edit_password').val('');
             $('#editUserForm').attr('action', url);
         });
     });
