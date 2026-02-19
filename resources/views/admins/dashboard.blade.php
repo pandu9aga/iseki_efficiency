@@ -49,13 +49,16 @@
                                     <div class="col-auto">
                                         <button type="submit" class="btn btn-primary">Show</button>
                                     </div>
+                                    @if(request()->filled('area'))
+                                        <input type="hidden" name="area" value="{{ request('area') }}">
+                                    @endif
                                     <!-- 🔸 TOMBOL EXPORT EXCEL 🔸 -->
                                     <div class="col-auto">
-                                        <a href="{{ route('admins.dashboard.export', ['date' => $dateString]) }}"
+                                        <a href="{{ route('admins.dashboard.export', ['date' => $dateString, 'area' => request('area')]) }}"
                                             class="btn btn-success">
                                             <i class="fas fa-file-excel"></i> Export Excel
                                         </a>
-                                        <a href="{{ route('admins.dashboard.fullscreen', ['date' => $dateString]) }}"
+                                        <a href="{{ route('admins.dashboard.fullscreen', ['date' => $dateString, 'area' => request('area')]) }}"
                                             class="btn btn-info">Fullscreen View</a>
                                     </div>
                                 </div>
@@ -185,41 +188,41 @@
             data: {
                 labels: ['Operational Production'],
                 datasets: [{
-                        label: 'Handling',
-                        data: [penangananTotal],
-                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        borderWidth: 1,
-                        stack: 'group1',
-                        order: 3,
-                    },
-                    {
-                        label: 'Member Hours',
-                        data: [reportNetHours],
-                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1,
-                        stack: 'group1',
-                        order: 1,
-                    },
-                    {
-                        label: 'Tractor',
-                        data: [scanTotal],
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1,
-                        stack: 'group2',
-                        order: 4,
-                    },
-                    {
-                        label: 'Non Operational',
-                        data: [costTotal],
-                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1,
-                        stack: 'group2',
-                        order: 5,
-                    }
+                    label: 'Handling',
+                    data: [penangananTotal],
+                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1,
+                    stack: 'group1',
+                    order: 3,
+                },
+                {
+                    label: 'Member Hours',
+                    data: [reportNetHours],
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    stack: 'group1',
+                    order: 1,
+                },
+                {
+                    label: 'Tractor',
+                    data: [scanTotal],
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    stack: 'group2',
+                    order: 4,
+                },
+                {
+                    label: 'Non Operational',
+                    data: [costTotal],
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    stack: 'group2',
+                    order: 5,
+                }
                 ]
             },
             options: {
@@ -257,7 +260,7 @@
                     },
                     tooltip: {
                         callbacks: {
-                            beforeLabel: function(ctx) {
+                            beforeLabel: function (ctx) {
                                 const label = ctx.dataset.label || '';
                                 if (label === 'Member Hours') {
                                     return [

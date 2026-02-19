@@ -25,7 +25,7 @@
         .area-card {
             border-radius: 16px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            margin-bottom: 20px;
+            margin-bottom: 5px;
             transition: transform 0.2s;
         }
 
@@ -62,7 +62,7 @@
 <body>
 
     <div class="fullscreen-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
             <h4>Dashboard Fullscreen — {{ $dateString }}</h4>
             @if ($isToday)
                 <span class="badge bg-info">Real-time</span>
@@ -78,19 +78,19 @@
                             <div class="area-title">{{ $data['area']->Name_Area }}</div>
 
                             <!-- Chart Mini -->
-                            <div class="chart-mini mb-3">
+                            <div class="chart-mini mb-1">
                                 <canvas id="chart-{{ $data['area']->Id_Area }}"></canvas>
                             </div>
 
                             <!-- Efisiensi Mini -->
                             <div class="efficiency-mini">
-                                <div class="d-flex justify-content-between mb-2">
+                                <div class="d-flex justify-content-between mb-1">
                                     <span>Selisih Jam:</span>
                                     <span class="efficiency-value" id="selisih-{{ $data['area']->Id_Area }}">
                                         {{ number_format($data['selisihJam'], 2) }} jam
                                     </span>
                                 </div>
-                                <div class="d-flex justify-content-between mb-3">
+                                <div class="d-flex justify-content-between mb-1">
                                     <span>Nilai:</span>
                                     <span class="efficiency-value" id="rupiah-{{ $data['area']->Id_Area }}">
                                         Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
@@ -110,7 +110,7 @@
                                 <div class="small mb-1">
                                     Operational Ratio: <strong>{{ number_format($persenOperasional, 1) }}%</strong>
                                 </div>
-                                <div class="progress mb-2">
+                                <div class="progress mb-1">
                                     <div class="progress-bar bg-{{ $color }}"
                                         style="width: {{ min(100, abs($persenOperasional)) }}%"></div>
                                 </div>
@@ -119,8 +119,8 @@
                                     Non-Operational: <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
                                 </div>
                                 <div class="progress">
-                                    <div class="progress-bar bg-info"
-                                        style="width: {{ min(100, $persenNonOperasional) }}%"></div>
+                                    <div class="progress-bar bg-info" style="width: {{ min(100, $persenNonOperasional) }}%">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -155,33 +155,33 @@
                 data: {
                     labels: [''],
                     datasets: [{
-                            label: 'Member Net',
-                            data: [{{ $data['reportNetHours'] }}],
-                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                            stack: 'A',
-                            order: 1
-                        },
-                        {
-                            label: 'Handling',
-                            data: [{{ $data['penangananTotal'] }}],
-                            backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                            stack: 'A',
-                            order: 2
-                        },
-                        {
-                            label: 'Tractor',
-                            data: [{{ $data['scanTotal'] }}],
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                            stack: 'B',
-                            order: 3
-                        },
-                        {
-                            label: 'Non Op',
-                            data: [{{ $data['costTotal'] }}],
-                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                            stack: 'B',
-                            order: 4
-                        }
+                        label: 'Member Net',
+                        data: [{{ $data['reportNetHours'] }}],
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        stack: 'A',
+                        order: 1
+                    },
+                    {
+                        label: 'Handling',
+                        data: [{{ $data['penangananTotal'] }}],
+                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                        stack: 'A',
+                        order: 2
+                    },
+                    {
+                        label: 'Tractor',
+                        data: [{{ $data['scanTotal'] }}],
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        stack: 'B',
+                        order: 3
+                    },
+                    {
+                        label: 'Non Op',
+                        data: [{{ $data['costTotal'] }}],
+                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                        stack: 'B',
+                        order: 4
+                    }
                     ]
                 },
                 options: {

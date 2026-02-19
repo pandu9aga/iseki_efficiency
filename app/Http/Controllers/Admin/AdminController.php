@@ -260,36 +260,60 @@ class AdminController extends Controller
         $dateString = $date->format('Y-m-d');
         $isToday = $date->isToday();
 
-        // Ambil data
-        $scans = Scan::whereDate('Time_Scan', $dateString)->with('member', 'tractor')->get();
-        $costs = Cost::whereDate('Start_Cost', $dateString)->get();
-        // 🔥 AMBIL DATA DENGAN AGREGASI AREA (Sesuai Logic Dashboard)
+        $areaId = $request->query('area');
         $allReports = Report::where('Day_Report', $dateString)->get()->keyBy('Id_Area');
-        $areas = \App\Models\Area::all();
+        $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
         $productionDateYmd = $date->format('Ymd');
 
-        $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
+        $scanQuery = Scan::whereDate('Time_Scan', $dateString)->with('member', 'tractor');
+        $costQuery = Cost::whereDate('Start_Cost', $dateString);
+        $powerQuery = Power::whereDate('Start_Power', $dateString)->with('member');
+        $penanganansQuery = Penanganan::whereDate('Start_Penanganan', $dateString);
 
-        $sumMembers = 0;
-        $sumHoursManual = 0;
-
-        foreach ($areas as $area) {
-            $areaReport = $allReports->get($area->Id_Area);
-            if ($areaReport) {
-                $sumMembers += (int) $areaReport->Total_Member_Report;
-                $sumHoursManual += (float) $areaReport->Total_Hours_Report;
-            } else {
-                $areaCount = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-                    ->where('Id_Area', $area->Id_Area)
-                    ->distinct('Nik_Daily_Job')
-                    ->count();
-                $sumMembers += $areaCount;
-                $sumHoursManual += ($areaCount * 8.0);
-            }
+        if ($areaId) {
+            $scanQuery->where('Id_Area', $areaId);
+            $costQuery->where('Id_Area', $areaId);
+            $powerQuery->where('Id_Area', $areaId);
+            $penanganansQuery->where('Id_Area', $areaId);
         }
 
-        $reportMembers = $sumMembers;
+        $scans = $scanQuery->get();
+        $costs = $costQuery->get();
+        $powers = $powerQuery->get();
+        $penanganans = $penanganansQuery->get();
+
+        if ($areaId) {
+            $report = $allReports->get($areaId);
+            if ($report) {
+                $reportMembers = (int) $report->Total_Member_Report;
+                $sumHoursManual = (float) $report->Total_Hours_Report;
+            } else {
+                $reportMembers = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                    ->where('Id_Area', $areaId)
+                    ->distinct('Nik_Daily_Job')
+                    ->count();
+                $sumHoursManual = ($reportMembers * 8.0);
+            }
+        } else {
+            $sumMembers = 0;
+            $sumHoursManual = 0;
+
+            foreach ($areas as $area) {
+                $areaReport = $allReports->get($area->Id_Area);
+                if ($areaReport) {
+                    $sumMembers += (int) $areaReport->Total_Member_Report;
+                    $sumHoursManual += (float) $areaReport->Total_Hours_Report;
+                } else {
+                    $areaCount = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                        ->where('Id_Area', $area->Id_Area)
+                        ->distinct('Nik_Daily_Job')
+                        ->count();
+                    $sumMembers += $areaCount;
+                    $sumHoursManual += ($areaCount * 8.0);
+                }
+            }
+            $reportMembers = $sumMembers;
+        }
 
         if ($isToday) {
             $now = Carbon::now();
