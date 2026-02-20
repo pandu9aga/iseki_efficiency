@@ -63,7 +63,7 @@
 
     <div class="fullscreen-container">
         <div class="d-flex justify-content-between align-items-center mb-1">
-            <h4>Dashboard Fullscreen — {{ $dateString }}</h4>
+            <h4>Dashboard Fullscreen — {{ $dateString }} <span id="liveClock"></span></h4>
             @if ($isToday)
                 <span class="badge bg-info">Real-time</span>
             @endif
@@ -217,6 +217,19 @@
                 }
             });
         @endforeach
+
+        // Live clock
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const clockElement = document.getElementById('liveClock');
+            if (clockElement) {
+                clockElement.textContent = ` ${hours}:${minutes}`;
+            }
+        }
+        setInterval(updateClock, 60000);
+        updateClock();
 
         // Auto refresh
         setTimeout(() => location.reload(), 60000);
