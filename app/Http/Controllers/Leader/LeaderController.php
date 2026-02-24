@@ -91,8 +91,8 @@ class LeaderController extends Controller
         // Hitung jam member
         if ($isToday) {
             $now = \Carbon\Carbon::now();
-            $start = \Carbon\Carbon::today()->setTime(7, 30);
-            $endOfWork = \Carbon\Carbon::today()->setTime(16, 30);
+            $start = \Carbon\Carbon::today()->setTime(7, 0);
+            $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
             if ($now->lt($start)) {
                 $memberHours = 0.0;
             } elseif ($now->gt($endOfWork)) {
@@ -240,8 +240,8 @@ class LeaderController extends Controller
         // Hitung jam member
         if ($isToday) {
             $now = \Carbon\Carbon::now();
-            $start = \Carbon\Carbon::today()->setTime(7, 30);
-            $endOfWork = \Carbon\Carbon::today()->setTime(16, 30);
+            $start = \Carbon\Carbon::today()->setTime(7, 0);
+            $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
             if ($now->lt($start)) {
                 $memberHours = 0.0;
             } elseif ($now->gt($endOfWork)) {
@@ -345,8 +345,8 @@ class LeaderController extends Controller
 
         if ($isToday) {
             $now = Carbon::now();
-            $start = Carbon::today()->setTime(7, 30);
-            $endOfWork = Carbon::today()->setTime(16, 30);
+            $start = Carbon::today()->setTime(7, 0);
+            $endOfWork = Carbon::today()->setTime(16, 0);
 
             if ($now->lt($start)) {
                 $memberHours = 0.0;

@@ -216,7 +216,7 @@ class AdminReportController extends Controller
         $durationPerPerson = (float) $request->jam_cost + ((float) $request->menit_cost / 60);
         $finalCost = $durationPerPerson * $memberCount;
 
-        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:00'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
@@ -303,7 +303,7 @@ class AdminReportController extends Controller
         $durationPerPerson = (float) $request->jam_cost + ((float) $request->menit_cost / 60);
         $finalCost = $durationPerPerson * $memberCount;
 
-        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:00'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
@@ -344,7 +344,7 @@ class AdminReportController extends Controller
             'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:00'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
@@ -374,7 +374,7 @@ class AdminReportController extends Controller
             'Id_Area' => 'required|exists:areas,Id_Area',
         ]);
 
-        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:00'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
@@ -453,7 +453,7 @@ class AdminReportController extends Controller
             $totalHour = -$totalHour;
         }
 
-        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:00'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 
@@ -520,7 +520,7 @@ class AdminReportController extends Controller
             $totalHour = -$totalHour;
         }
 
-        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:30'))
+        $timestamp = Carbon::createFromFormat('Y-m-d H:i', $request->date_part . ' ' . ($request->time_part ?? '07:00'))
             ->tz('Asia/Jakarta')
             ->format('Y-m-d H:i:s');
 

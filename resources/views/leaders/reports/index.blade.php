@@ -426,7 +426,7 @@
                     </div>
                     <div class="mb-3">
                         <label>Start</label>
-                        <input type="time" name="time_part" class="form-control" value="07:30" required>
+                        <input type="time" name="time_part" class="form-control" value="07:00" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -490,7 +490,7 @@
                     </div>
                     <div class="mb-3">
                         <label>Start</label>
-                        <input type="time" name="time_part" class="form-control" value="07:30" required>
+                        <input type="time" name="time_part" class="form-control" value="07:00" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -630,7 +630,7 @@
                     <!-- Start Time -->
                     <div class="mb-3">
                         <label>Start</label>
-                        <input type="time" name="time_part" class="form-control" value="07:30" required>
+                        <input type="time" name="time_part" class="form-control" value="07:00" required>
                     </div>
 
                 </div>

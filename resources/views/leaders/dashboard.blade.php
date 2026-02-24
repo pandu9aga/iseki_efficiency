@@ -64,7 +64,7 @@
                 <div class="alert alert-info d-flex align-items-center">
                     <i class="bi bi-clock me-2"></i>
                     <strong>Jam Operasional Real-Time:</strong>
-                    Total {{ $reportMembers }} Member (Start From 07.30)
+                    Total {{ $reportMembers }} Member (Start From 07.00)
                 </div>
                 @endif
 

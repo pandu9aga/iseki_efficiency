@@ -99,8 +99,8 @@ class AdminController extends Controller
         // ✅ Hitung jam member
         if ($isToday) {
             $now = Carbon::now();
-            $start = Carbon::today()->setTime(7, 30);
-            $endOfWork = Carbon::today()->setTime(16, 30);
+            $start = Carbon::today()->setTime(7, 0);
+            $endOfWork = Carbon::today()->setTime(16, 0);
 
             if ($now->lt($start)) {
                 $memberHours = 0.0;
@@ -139,6 +139,28 @@ class AdminController extends Controller
 
         $memberHoursText = $this->formatHoursToText($memberHours);
 
+        // ✅ Siapkan data untuk JavaScript (hindari logika kompleks di view)
+        $scansForJs = $scans->map(function ($s) {
+            return [
+                'label' => $s->tractor?->Name_Tractor ?? 'Unknown',
+                'value' => (float) $s->Assigned_Hour_Scan
+            ];
+        })->toArray();
+
+        $powersForJs = $powers->map(function ($p) {
+            return [
+                'label' => $p->Keterangan_Power ?? 'Unknown',
+                'value' => (float) $p->Leave_Hour_Power
+            ];
+        })->toArray();
+
+        $penanganansForJs = $penanganans->map(function ($p) {
+            return [
+                'label' => $p->Keterangan_Penanganan ?? 'Unknown',
+                'value' => (float) $p->Hour_Penanganan
+            ];
+        })->toArray();
+
         return view('admins.dashboard', compact(
             'scans',
             'costs',
@@ -153,7 +175,10 @@ class AdminController extends Controller
             'currentTotalMembers',
             'costImpactList',
             'areaId',
-            'areas'
+            'areas',
+            'scansForJs',
+            'powersForJs',
+            'penanganansForJs'
         ));
     }
 
@@ -194,8 +219,8 @@ class AdminController extends Controller
             // Hitung jam
             if ($isToday) {
                 $now = Carbon::now();
-                $start = Carbon::today()->setTime(7, 30);
-                $endOfWork = Carbon::today()->setTime(16, 30);
+                $start = Carbon::today()->setTime(7, 0);
+                $endOfWork = Carbon::today()->setTime(16, 0);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
                 } elseif ($now->gt($endOfWork)) {
@@ -317,8 +342,8 @@ class AdminController extends Controller
 
         if ($isToday) {
             $now = Carbon::now();
-            $start = Carbon::today()->setTime(7, 30);
-            $endOfWork = Carbon::today()->setTime(16, 30);
+            $start = Carbon::today()->setTime(7, 0);
+            $endOfWork = Carbon::today()->setTime(16, 0);
 
             if ($now->lt($start)) {
                 $memberHours = 0.0;
