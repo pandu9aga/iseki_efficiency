@@ -65,67 +65,67 @@
         <div class="d-flex justify-content-between align-items-center mb-1">
             <h4>Dashboard Fullscreen — {{ $dateString }} <span id="liveClock"></span></h4>
             @if ($isToday)
-                <span class="badge bg-info">Real-time</span>
+            <span class="badge bg-info">Real-time</span>
             @endif
             <a href="{{ route('admins.dashboard') }}" class="btn btn-sm btn-outline-secondary">Exit</a>
         </div>
 
         <div class="row" id="areasContainer">
             @foreach ($areaData as $data)
-                <div class="col-xl-3 col-lg-3 col-md-6 col-sm-12">
-                    <div class="card area-card">
-                        <div class="card-body">
-                            <div class="area-title">{{ $data['area']->Name_Area }}</div>
+            <div class="col-xl-3 col-lg-3 col-md-6 col-sm-12">
+                <div class="card area-card">
+                    <div class="card-body">
+                        <div class="area-title">{{ $data['area']->Name_Area }}</div>
 
-                            <!-- Chart Mini -->
-                            <div class="chart-mini mb-1">
-                                <canvas id="chart-{{ $data['area']->Id_Area }}"></canvas>
+                        <!-- Chart Mini -->
+                        <div class="chart-mini mb-1">
+                            <canvas id="chart-{{ $data['area']->Id_Area }}"></canvas>
+                        </div>
+
+                        <!-- Efisiensi Mini -->
+                        <div class="efficiency-mini">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Selisih Jam:</span>
+                                <span class="efficiency-value" id="selisih-{{ $data['area']->Id_Area }}">
+                                    {{ number_format($data['selisihJam'], 2) }} jam
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Nilai:</span>
+                                <span class="efficiency-value" id="rupiah-{{ $data['area']->Id_Area }}">
+                                    Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
+                                </span>
                             </div>
 
-                            <!-- Efisiensi Mini -->
-                            <div class="efficiency-mini">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Selisih Jam:</span>
-                                    <span class="efficiency-value" id="selisih-{{ $data['area']->Id_Area }}">
-                                        {{ number_format($data['selisihJam'], 2) }} jam
-                                    </span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Nilai:</span>
-                                    <span class="efficiency-value" id="rupiah-{{ $data['area']->Id_Area }}">
-                                        Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
-                                    </span>
-                                </div>
+                            @php
+                            $kategori1 = $data['reportNetHours'] + $data['penangananTotal'];
+                            $kategori2 = $data['scanTotal'] + $data['costTotal'];
+                            $persenOperasional =
+                            $kategori2 != 0 ? (($kategori2 - $kategori1) / $kategori2) * 100 : 0;
+                            $persenNonOperasional =
+                            $kategori1 != 0 ? ($data['costTotal'] / $kategori1) * 100 : 0;
+                            $color = $data['nilaiRupiah'] >= 0 ? 'success' : 'danger';
+                            @endphp
 
-                                @php
-                                    $kategori1 = $data['reportNetHours'] + $data['penangananTotal'];
-                                    $kategori2 = $data['scanTotal'] + $data['costTotal'];
-                                    $persenOperasional =
-                                        $kategori2 != 0 ? (($kategori2 - $kategori1) / $kategori2) * 100 : 0;
-                                    $persenNonOperasional =
-                                        $kategori1 != 0 ? ($data['costTotal'] / $kategori1) * 100 : 0;
-                                    $color = $data['nilaiRupiah'] >= 0 ? 'success' : 'danger';
-                                @endphp
+                            <div class="small mb-1">
+                                Operational Ratio: <strong>{{ number_format($persenOperasional, 1) }}%</strong>
+                            </div>
+                            <div class="progress mb-1">
+                                <div class="progress-bar bg-{{ $color }}"
+                                    style="width: {{ min(100, abs($persenOperasional)) }}%"></div>
+                            </div>
 
-                                <div class="small mb-1">
-                                    Operational Ratio: <strong>{{ number_format($persenOperasional, 1) }}%</strong>
-                                </div>
-                                <div class="progress mb-1">
-                                    <div class="progress-bar bg-{{ $color }}"
-                                        style="width: {{ min(100, abs($persenOperasional)) }}%"></div>
-                                </div>
-
-                                <div class="small mb-1">
-                                    Non-Operational: <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar bg-info" style="width: {{ min(100, $persenNonOperasional) }}%">
-                                    </div>
+                            <div class="small mb-1">
+                                Non-Operational: <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-info" style="width: {{ min(100, $persenNonOperasional) }}%">
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
             @endforeach
         </div>
     </div>
@@ -146,76 +146,101 @@
             return `${sign}${jam}j ${menit}m`;
         }
 
-        @foreach ($areaData as $data)
-            // Siapkan data untuk area {{ $data['area']->Id_Area }}
-            const ctx{{ $data['area']->Id_Area }} = document.getElementById('chart-{{ $data['area']->Id_Area }}')
-                .getContext('2d');
-            new Chart(ctx{{ $data['area']->Id_Area }}, {
-                type: 'bar',
-                data: {
-                    labels: [''],
-                    datasets: [{
+        @foreach($areaData as $data)
+        // Siapkan data untuk area {{ $data['area']->Id_Area }}
+        const ctx {
+                {
+                    $data['area'] - > Id_Area
+                }
+            } = document.getElementById('chart-{{ $data['
+                area ']->Id_Area }}')
+            .getContext('2d');
+        new Chart(ctx {
+            {
+                $data['area'] - > Id_Area
+            }
+        }, {
+            type: 'bar',
+            data: {
+                labels: [''],
+                datasets: [{
                         label: 'Member Net',
-                        data: [{{ $data['reportNetHours'] }}],
+                        data: [{
+                            {
+                                max(0, $data['reportNetHours'])
+                            }
+                        }],
                         backgroundColor: 'rgba(75, 192, 192, 0.6)',
                         stack: 'A',
                         order: 1
                     },
                     {
                         label: 'Handling',
-                        data: [{{ $data['penangananTotal'] }}],
+                        data: [{
+                            {
+                                $data['penangananTotal']
+                            }
+                        }],
                         backgroundColor: 'rgba(255, 159, 64, 0.7)',
                         stack: 'A',
                         order: 2
                     },
                     {
                         label: 'Tractor',
-                        data: [{{ $data['scanTotal'] }}],
+                        data: [{
+                            {
+                                $data['scanTotal']
+                            }
+                        }],
                         backgroundColor: 'rgba(54, 162, 235, 0.7)',
                         stack: 'B',
                         order: 3
                     },
                     {
                         label: 'Non Op',
-                        data: [{{ $data['costTotal'] }}],
+                        data: [{
+                            {
+                                $data['costTotal']
+                            }
+                        }],
                         backgroundColor: 'rgba(255, 99, 132, 0.7)',
                         stack: 'B',
                         order: 4
                     }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: false
-                        },
-                        datalabels: {
-                            display: false
-                        }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
                     },
-                    scales: {
-                        x: {
-                            display: false,
-                            stacked: true
-                        },
-                        y: {
-                            display: true,
-                            stacked: true,
-                            beginAtZero: true,
-                            ticks: {
-                                font: {
-                                    size: 9
-                                }
+                    tooltip: {
+                        enabled: false
+                    },
+                    datalabels: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false,
+                        stacked: true
+                    },
+                    y: {
+                        display: true,
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: {
+                            font: {
+                                size: 9
                             }
                         }
                     }
                 }
-            });
+            }
+        });
         @endforeach
 
         // Live clock

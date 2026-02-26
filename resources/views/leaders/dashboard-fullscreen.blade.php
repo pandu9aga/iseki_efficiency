@@ -251,6 +251,7 @@
         const powerTotalCalculated = powers.reduce((sum, p) => sum + p.value, 0);
         const penangananTotal = penanganans.reduce((sum, p) => sum + p.value, 0);
         const reportNetHours = memberHours - powerTotalCalculated;
+        const chartNetHours = Math.max(0, reportNetHours); // untuk chart, jangan negatif
 
         // 🔹 Inisialisasi Chart
         const ctx = document.getElementById('stackedChart').getContext('2d');
@@ -272,7 +273,7 @@
                     },
                     {
                         label: 'Member Hours',
-                        data: [reportNetHours],
+                        data: [chartNetHours],
                         backgroundColor: 'rgba(75, 192, 192, 0.5)',
                         borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 1,
@@ -384,8 +385,8 @@
                                 type: 'line',
                                 xMin: -0.05,
                                 xMax: 0.05,
-                                yMin: reportNetHours + penangananTotal,
-                                yMax: reportNetHours + penangananTotal,
+                                yMin: Math.max(0, reportNetHours + penangananTotal),
+                                yMax: Math.max(0, reportNetHours + penangananTotal),
                                 borderColor: 'red',
                                 borderWidth: 2,
                                 borderDash: [6, 6]
@@ -393,7 +394,7 @@
                             totalOperationalText: {
                                 type: 'label',
                                 xValue: -0.2,
-                                yValue: reportNetHours + penangananTotal + 1,
+                                yValue: Math.max(0, reportNetHours + penangananTotal) + 1,
                                 backgroundColor: 'transparent',
                                 color: '#333',
                                 font: {
