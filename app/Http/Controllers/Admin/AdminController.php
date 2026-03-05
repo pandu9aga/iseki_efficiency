@@ -161,24 +161,31 @@ class AdminController extends Controller
             ];
         })->toArray();
 
+        // ✅ Pack data for JS to avoid Blade formatter errors (red lines in VS Code)
+        $dashboardJsData = [
+            'rawScans' => $scansForJs ?? [],
+            'rawCosts' => $costImpactList ?? [],
+            'rawPowers' => $powersForJs ?? [],
+            'rawPenanganans' => $penanganansForJs ?? [],
+            'memberHours' => (float) $memberHours,
+            'reportMembers' => (int) $reportMembers,
+            'powerTotal' => (float) $powerTotal,
+        ];
+
         return view('admins.dashboard', compact(
             'scans',
             'costs',
             'memberHours',
-            'memberHoursText',
             'reportMembers',
             'powers',
             'penanganans',
             'powerTotal',
             'dateString',
             'isToday',
-            'currentTotalMembers',
             'costImpactList',
-            'areaId',
             'areas',
-            'scansForJs',
-            'powersForJs',
-            'penanganansForJs'
+            'areaId',
+            'dashboardJsData'
         ));
     }
 

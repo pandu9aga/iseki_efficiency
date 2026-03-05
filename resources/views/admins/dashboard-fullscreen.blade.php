@@ -63,7 +63,7 @@
 
     <div class="fullscreen-container">
         <div class="d-flex justify-content-between align-items-center mb-1">
-            <h4>Dashboard Fullscreen — {{ $dateString }} <span id="liveClock"></span></h4>
+            <h4>Dashboard Fullscreen — {{ $dateString }} <span id="liveClock" data-istoday="{{ $isToday ? 'true' : 'false' }}"></span></h4>
             @if ($isToday)
             <span class="badge bg-info">Real-time</span>
             @endif
@@ -234,11 +234,25 @@
 
         // Live clock
         function updateClock() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
             const clockElement = document.getElementById('liveClock');
-            if (clockElement) {
+            if (!clockElement) return;
+
+            const isToday = clockElement.getAttribute('data-istoday') === 'true';
+
+            if (!isToday) {
+                clockElement.textContent = ' 17:00';
+                return;
+            }
+
+            const now = new Date();
+            let h = now.getHours();
+            let m = now.getMinutes();
+
+            if (h >= 17) {
+                clockElement.textContent = ' 17:00';
+            } else {
+                const hours = String(h).padStart(2, '0');
+                const minutes = String(m).padStart(2, '0');
                 clockElement.textContent = ` ${hours}:${minutes}`;
             }
         }

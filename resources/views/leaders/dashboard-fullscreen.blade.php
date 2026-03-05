@@ -105,7 +105,7 @@
 
                 <div class="header-actions mb-2 d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="mb-0">Diagram: <span class="text-primary">{{ $dateString }}</span>
+                        <h5 class="mb-0">Diagram: <span class="text-primary">{{ $dateString }} <span id="liveClock" data-istoday="{{ $isToday ? 'true' : 'false' }}"></span></span>
                             <small class="text-muted">| Area: {{ $area->Name_Area }}</small>
                         </h5>
                     </div>
@@ -214,6 +214,10 @@
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
 
+    </script>
+    <script id="dashboardDataJson" type="application/json">
+        @json($dashboardJsData)
+    </script>
     <script>
         // 🔁 Auto refresh setiap 10 detik (preserve current URL with area param)
         setTimeout(() => {
@@ -231,14 +235,15 @@
             return `${sign}${jam} jam ${menit} menit`;
         }
 
-        const rawScans = @json($scansForJs);
-        const rawCosts = @json($costsForJs);
-        const rawPowers = @json($powersForJs);
-        const rawPenanganans = @json($penanganansForJs);
+        const dashboardData = JSON.parse(document.getElementById('dashboardDataJson').textContent);
+        const rawScans = dashboardData.rawScans || [];
+        const rawCosts = dashboardData.rawCosts || [];
+        const rawPowers = dashboardData.rawPowers || [];
+        const rawPenanganans = dashboardData.rawPenanganans || [];
 
-        const memberHours = @json((float) $memberHours);
-        const reportMembers = @json((int) $reportMembers);
-        const powerTotal = @json((float) $powerTotal);
+        const memberHours = dashboardData.memberHours || 0;
+        const reportMembers = dashboardData.reportMembers || 0;
+        const powerTotal = dashboardData.powerTotal || 0;
 
         const scans = Array.isArray(rawScans) ? rawScans : [];
         const costs = Array.isArray(rawCosts) ? rawCosts : [];
@@ -455,6 +460,33 @@
 
         document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
         document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
+
+        // Live clock
+        function updateClock() {
+            const clockElement = document.getElementById('liveClock');
+            if (!clockElement) return;
+
+            const isToday = clockElement.getAttribute('data-istoday') === 'true';
+
+            if (!isToday) {
+                clockElement.textContent = ' 17:00';
+                return;
+            }
+
+            const now = new Date();
+            let h = now.getHours();
+            let m = now.getMinutes();
+
+            if (h >= 17) {
+                clockElement.textContent = ' 17:00';
+            } else {
+                const hours = String(h).padStart(2, '0');
+                const minutes = String(m).padStart(2, '0');
+                clockElement.textContent = ` ${hours}:${minutes}`;
+            }
+        }
+        setInterval(updateClock, 60000);
+        updateClock();
     </script>
 </body>
 

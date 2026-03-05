@@ -153,14 +153,20 @@
         return `${sign}${jam} jam ${menit} menit`;
     }
 
-    const rawScans = @json($scansForJs);
-    const rawCosts = @json($costsForJs);
-    const rawPowers = @json($powersForJs);
-    const rawPenanganans = @json($penanganansForJs);
-
-    const memberHours = @json((float) $memberHours);
-    const reportMembers = @json((int) $reportMembers);
-    const powerTotal = @json((float) $powerTotal);
+    <
+    script id = "dashboardDataJson"
+    type = "application/json" >
+        @json($dashboardJsData)
+</script>
+<script>
+    const dashboardData = JSON.parse(document.getElementById('dashboardDataJson').textContent);
+    const rawScans = dashboardData.rawScans || [];
+    const rawCosts = dashboardData.rawCosts || [];
+    const rawPowers = dashboardData.rawPowers || [];
+    const rawPenanganans = dashboardData.rawPenanganans || [];
+    const memberHours = dashboardData.memberHours || 0;
+    const reportMembers = dashboardData.reportMembers || 0;
+    const powerTotal = dashboardData.powerTotal || 0;
 
     const scans = Array.isArray(rawScans) ? rawScans : [];
     const costs = Array.isArray(rawCosts) ? rawCosts : [];

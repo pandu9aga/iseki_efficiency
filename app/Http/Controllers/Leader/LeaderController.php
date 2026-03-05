@@ -142,6 +142,17 @@ class LeaderController extends Controller
         // Compatibility for existing costImpactList usage if any (or just use costsForJs)
         $costImpactList = $costsForJs;
 
+        // ✅ Pack data for JS to avoid Blade formatter errors (red lines in VS Code)
+        $dashboardJsData = [
+            'rawScans' => $scansForJs ?? [],
+            'rawCosts' => $costsForJs ?? [],
+            'rawPowers' => $powersForJs ?? [],
+            'rawPenanganans' => $penanganansForJs ?? [],
+            'memberHours' => (float) $memberHours,
+            'reportMembers' => (int) $reportMembers,
+            'powerTotal' => (float) $powerTotal,
+        ];
+
         // Kirim data ke view
         return view('leaders.dashboard', compact(
             'scans',
@@ -156,10 +167,7 @@ class LeaderController extends Controller
             'costImpactList',
             'area', // Area Aktif
             'assignedAreas', // Daftar area untuk tabs
-            'scansForJs',
-            'costsForJs',
-            'powersForJs',
-            'penanganansForJs'
+            'dashboardJsData'
         ));
     }
     public function fullscreen(Request $request)
@@ -293,6 +301,17 @@ class LeaderController extends Controller
             ];
         })->toArray();
 
+        // ✅ Pack data for JS to avoid Blade formatter errors (red lines in VS Code)
+        $dashboardJsData = [
+            'rawScans' => $scansForJs ?? [],
+            'rawCosts' => $costsForJs ?? [],
+            'rawPowers' => $powersForJs ?? [],
+            'rawPenanganans' => $penanganansForJs ?? [],
+            'memberHours' => (float) $memberHours,
+            'reportMembers' => (int) $reportMembers,
+            'powerTotal' => (float) $powerTotal,
+        ];
+
         // Tampilkan view
         return view('leaders.dashboard-fullscreen', compact(
             'dateString',
@@ -306,10 +325,7 @@ class LeaderController extends Controller
             'scanTotal',
             'costTotal',
             'penangananTotal',
-            'scansForJs',
-            'costsForJs',
-            'powersForJs',
-            'penanganansForJs'
+            'dashboardJsData'
         ));
     }
 

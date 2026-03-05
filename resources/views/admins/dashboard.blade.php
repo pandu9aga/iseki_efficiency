@@ -159,15 +159,18 @@
         return `${sign}${jam} jam ${menit} menit`;
     }
 </script>
+<script id="dashboardDataJson" type="application/json">
+    @json($dashboardJsData)
+</script>
 <script>
-    // prettier-ignore
-    var rawScans = <?php echo json_encode($scansForJs); ?>;
-    var rawCosts = <?php echo json_encode($costImpactList); ?>;
-    var rawPowers = <?php echo json_encode($powersForJs); ?>;
-    var rawPenanganans = <?php echo json_encode($penanganansForJs); ?>;
-    var memberHours = <?php echo (float) $memberHours; ?>;
-    var reportMembers = <?php echo (int) $reportMembers; ?>;
-    var powerTotal = <?php echo (float) $powerTotal; ?>;
+    const dashboardData = JSON.parse(document.getElementById('dashboardDataJson').textContent);
+    var rawScans = dashboardData.rawScans || [];
+    var rawCosts = dashboardData.rawCosts || [];
+    var rawPowers = dashboardData.rawPowers || [];
+    var rawPenanganans = dashboardData.rawPenanganans || [];
+    var memberHours = dashboardData.memberHours || 0;
+    var reportMembers = dashboardData.reportMembers || 0;
+    var powerTotal = dashboardData.powerTotal || 0;
 </script>
 <script>
     const scans = Array.isArray(rawScans) ? rawScans : [];
