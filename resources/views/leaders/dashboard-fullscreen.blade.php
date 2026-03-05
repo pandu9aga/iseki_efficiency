@@ -214,7 +214,6 @@
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
 
-    </script>
     <script id="dashboardDataJson" type="application/json">
         @json($dashboardJsData)
     </script>

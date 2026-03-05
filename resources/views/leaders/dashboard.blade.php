@@ -152,11 +152,9 @@
         const menit = totalMinutes % 60;
         return `${sign}${jam} jam ${menit} menit`;
     }
-
-    <
-    script id = "dashboardDataJson"
-    type = "application/json" >
-        @json($dashboardJsData)
+</script>
+<script id="dashboardDataJson" type="application/json">
+    @json($dashboardJsData)
 </script>
 <script>
     const dashboardData = JSON.parse(document.getElementById('dashboardDataJson').textContent);
