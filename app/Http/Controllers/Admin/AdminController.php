@@ -261,7 +261,19 @@ class AdminController extends Controller
             ];
         }
 
-        return view('admins.dashboard-fullscreen', compact('dateString', 'isToday', 'areaData'));
+        // Build chart data as simple array for JSON (avoid Blade arrow syntax in JS)
+        $chartDataJson = [];
+        foreach ($areaData as $d) {
+            $chartDataJson[] = [
+                'id' => $d['area']->Id_Area,
+                'reportNetHours' => max(0, $d['reportNetHours']),
+                'penangananTotal' => $d['penangananTotal'],
+                'scanTotal' => $d['scanTotal'],
+                'costTotal' => $d['costTotal'],
+            ];
+        }
+
+        return view('admins.dashboard-fullscreen', compact('dateString', 'isToday', 'areaData', 'chartDataJson'));
     }
 
     private function formatHoursToText(float $totalHours): string

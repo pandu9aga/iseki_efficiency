@@ -86,13 +86,15 @@
                         <div class="efficiency-mini">
                             <div class="d-flex justify-content-between mb-1">
                                 <span>Selisih Jam:</span>
-                                <span class="efficiency-value" id="selisih-{{ $data['area']->Id_Area }}">
+                                <span class="efficiency-value"
+                                    id="selisih-{{ $data['area']->Id_Area }}">
                                     {{ number_format($data['selisihJam'], 2) }} jam
                                 </span>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
                                 <span>Nilai:</span>
-                                <span class="efficiency-value" id="rupiah-{{ $data['area']->Id_Area }}">
+                                <span class="efficiency-value"
+                                    id="rupiah-{{ $data['area']->Id_Area }}">
                                     Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
                                 </span>
                             </div>
@@ -108,7 +110,8 @@
                             @endphp
 
                             <div class="small mb-1">
-                                Operational Ratio: <strong>{{ number_format($persenOperasional, 1) }}%</strong>
+                                Operational Ratio:
+                                <strong>{{ number_format($persenOperasional, 1) }}%</strong>
                             </div>
                             <div class="progress mb-1">
                                 <div class="progress-bar bg-{{ $color }}"
@@ -116,10 +119,12 @@
                             </div>
 
                             <div class="small mb-1">
-                                Non-Operational: <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
+                                Non-Operational:
+                                <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
                             </div>
                             <div class="progress">
-                                <div class="progress-bar bg-info" style="width: {{ min(100, $persenNonOperasional) }}%">
+                                <div class="progress-bar bg-info"
+                                    style="width: {{ min(100, $persenNonOperasional) }}%">
                                 </div>
                             </div>
                         </div>
@@ -129,6 +134,11 @@
             @endforeach
         </div>
     </div>
+
+    {{-- Pass all chart data as JSON so JS formatter cannot break Blade syntax --}}
+    <script id="chartDataJson" type="application/json">
+        @json($chartDataJson)
+    </script>
 
     <!-- JS -->
     <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
@@ -146,102 +156,81 @@
             return `${sign}${jam}j ${menit}m`;
         }
 
-        @foreach($areaData as $data)
-        // Siapkan data untuk area {{ $data['area']->Id_Area }}
-        const ctx {
-                {
-                    $data['area'] - > Id_Area
-                }
-            } = document.getElementById('chart-{{ $data['
-                area ']->Id_Area }}')
-            .getContext('2d');
-        new Chart(ctx {
-            {
-                $data['area'] - > Id_Area
-            }
-        }, {
-            type: 'bar',
-            data: {
-                labels: [''],
-                datasets: [{
-                        label: 'Member Net',
-                        data: [{
-                            {
-                                max(0, $data['reportNetHours'])
-                            }
-                        }],
-                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                        stack: 'A',
-                        order: 1
-                    },
-                    {
-                        label: 'Handling',
-                        data: [{
-                            {
-                                $data['penangananTotal']
-                            }
-                        }],
-                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                        stack: 'A',
-                        order: 2
-                    },
-                    {
-                        label: 'Tractor',
-                        data: [{
-                            {
-                                $data['scanTotal']
-                            }
-                        }],
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        stack: 'B',
-                        order: 3
-                    },
-                    {
-                        label: 'Non Op',
-                        data: [{
-                            {
-                                $data['costTotal']
-                            }
-                        }],
-                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                        stack: 'B',
-                        order: 4
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        enabled: false
-                    },
-                    datalabels: {
-                        display: false
-                    }
+        // Read chart data from JSON script tag (formatter-safe)
+        const chartDataList = JSON.parse(document.getElementById('chartDataJson').textContent);
+
+        chartDataList.forEach(function(item) {
+            const canvasEl = document.getElementById('chart-' + item.id);
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [''],
+                    datasets: [{
+                            label: 'Member Net',
+                            data: [item.reportNetHours],
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            stack: 'A',
+                            order: 1
+                        },
+                        {
+                            label: 'Handling',
+                            data: [item.penangananTotal],
+                            backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                            stack: 'A',
+                            order: 2
+                        },
+                        {
+                            label: 'Tractor',
+                            data: [item.scanTotal],
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            stack: 'B',
+                            order: 3
+                        },
+                        {
+                            label: 'Non Op',
+                            data: [item.costTotal],
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            stack: 'B',
+                            order: 4
+                        }
+                    ]
                 },
-                scales: {
-                    x: {
-                        display: false,
-                        stacked: true
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        datalabels: {
+                            display: false
+                        }
                     },
-                    y: {
-                        display: true,
-                        stacked: true,
-                        beginAtZero: true,
-                        ticks: {
-                            font: {
-                                size: 9
+                    scales: {
+                        x: {
+                            display: false,
+                            stacked: true
+                        },
+                        y: {
+                            display: true,
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    size: 9
+                                }
                             }
                         }
                     }
                 }
-            }
+            });
         });
-        @endforeach
 
         // Live clock
         function updateClock() {
