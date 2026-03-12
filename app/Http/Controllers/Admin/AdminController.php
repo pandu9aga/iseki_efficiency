@@ -22,8 +22,6 @@ class AdminController extends Controller
 {
     public function index(Request $request)
     {
-
-        $dateString = $date->format('Y-m-d');          // untuk Report, Cost, Power, Scan (yg DATE)
         // ✅ Determine filter mode: month or date
         $isMonthFilter = $request->filled('month');
 
