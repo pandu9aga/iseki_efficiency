@@ -19,7 +19,7 @@
                     @foreach($assignedAreas as $a)
                     <li class="nav-item">
                         <a class="nav-link {{ $a->Id_Area == $area->Id_Area ? 'active' : '' }}"
-                            href="{{ route('leaders.dashboard', ['date' => $dateString, 'area' => $a->Id_Area]) }}">
+                            href="{{ route('leaders.dashboard', [$filterMode => $dateString, 'area' => $a->Id_Area]) }}">
                             {{ $a->Name_Area }}
                         </a>
                     </li>
@@ -32,27 +32,37 @@
                         <!-- Judul Area Otomatis -->
                         <h5 class="mb-3">Area: {{ $area->Name_Area }}</h5>
 
-                        <!-- Form Tanggal -->
-                        <form method="GET" class="mb-3">
-                            <!-- Maintain current area in form -->
+                        <!-- Form Tanggal / Bulan -->
+                        <form method="GET" class="mb-3" id="filterForm">
                             @if(request('area'))
                             <input type="hidden" name="area" value="{{ request('area') }}">
                             @endif
                             <div class="row g-3 align-items-center">
                                 <div class="col-auto">
-                                    <label for="date" class="col-form-label">Date:</label>
+                                    <label for="filterDateInput" class="col-form-label" id="filterDateLabel">
+                                        {{ $filterMode === 'month' ? 'Month:' : 'Date:' }}
+                                    </label>
                                 </div>
                                 <div class="col-auto">
-                                    <input type="date" id="date" name="date" class="form-control" value="{{ $dateString }}">
+                                    <input type="{{ $filterMode === 'month' ? 'month' : 'date' }}"
+                                        id="filterDateInput"
+                                        name="{{ $filterMode }}"
+                                        class="form-control"
+                                        value="{{ $dateString }}">
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" id="toggleDateType" class="btn btn-outline-secondary btn-sm">
+                                        {{ $filterMode === 'month' ? 'Date' : 'Month' }}
+                                    </button>
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-primary">Show</button>
                                 </div>
                                 <div class="col-auto">
-                                    <a href="{{ route('leaders.dashboard.export', ['date' => $dateString, 'area' => request('area')]) }}" class="btn btn-success">
+                                    <a href="{{ route('leaders.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-success">
                                         <i class="fas fa-file-excel"></i> Export Excel
                                     </a>
-                                    <a href="{{ route('leaders.dashboard.fullscreen', ['date' => $dateString, 'area' => request('area')]) }}" class="btn btn-info">
+                                    <a href="{{ route('leaders.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-info">
                                         Fullscreen View
                                     </a>
                                 </div>
@@ -376,5 +386,29 @@
 
     document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
     document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
+</script>
+<script>
+    // Toggle Date / Month filter
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('filterDateInput');
+        const toggleBtn = document.getElementById('toggleDateType');
+        const label = document.getElementById('filterDateLabel');
+
+        toggleBtn.addEventListener('click', function() {
+            if (input.type === 'date') {
+                input.type = 'month';
+                input.name = 'month';
+                input.value = '';
+                label.textContent = 'Month:';
+                toggleBtn.textContent = 'Date';
+            } else {
+                input.type = 'date';
+                input.name = 'date';
+                input.value = '';
+                label.textContent = 'Date:';
+                toggleBtn.textContent = 'Month';
+            }
+        });
+    });
 </script>
 @endsection

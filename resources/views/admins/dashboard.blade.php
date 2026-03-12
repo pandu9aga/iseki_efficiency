@@ -20,7 +20,7 @@
                             <!-- Tab All -->
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ !request()->filled('area') ? 'active' : '' }}"
-                                    href="{{ url()->current() }}?date={{ $dateString }}">
+                                    href="{{ url()->current() }}?{{ $filterMode }}={{ $dateString }}">
                                     All Areas
                                 </a>
                             </li>
@@ -29,36 +29,45 @@
                             @foreach ($areas as $area)
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ request('area') == $area->Id_Area ? 'active' : '' }}"
-                                    href="{{ url()->current() }}?date={{ $dateString }}&area={{ $area->Id_Area }}">
+                                    href="{{ url()->current() }}?{{ $filterMode }}={{ $dateString }}&area={{ $area->Id_Area }}">
                                     {{ $area->Name_Area }}
                                 </a>
                             </li>
                             @endforeach
                         </ul>
 
-                        <!-- Form Tanggal (selalu muncul di bawah tab) -->
-                        <form method="GET" class="mb-3">
+                        <!-- Form Tanggal / Bulan -->
+                        <form method="GET" class="mb-3" id="filterForm">
+                            @if(request()->filled('area'))
+                            <input type="hidden" name="area" value="{{ request('area') }}">
+                            @endif
                             <div class="row g-3 align-items-center">
                                 <div class="col-auto">
-                                    <label for="date" class="col-form-label">Date:</label>
+                                    <label for="filterDateInput" class="col-form-label" id="filterDateLabel">
+                                        {{ $filterMode === 'month' ? 'Month:' : 'Date:' }}
+                                    </label>
                                 </div>
                                 <div class="col-auto">
-                                    <input type="date" id="date" name="date" class="form-control"
+                                    <input type="{{ $filterMode === 'month' ? 'month' : 'date' }}"
+                                        id="filterDateInput"
+                                        name="{{ $filterMode }}"
+                                        class="form-control"
                                         value="{{ $dateString }}">
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" id="toggleDateType" class="btn btn-outline-secondary btn-sm">
+                                        {{ $filterMode === 'month' ? 'Date' : 'Month' }}
+                                    </button>
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-primary">Show</button>
                                 </div>
-                                @if(request()->filled('area'))
-                                <input type="hidden" name="area" value="{{ request('area') }}">
-                                @endif
-                                <!-- 🔸 TOMBOL EXPORT EXCEL 🔸 -->
                                 <div class="col-auto">
-                                    <a href="{{ route('admins.dashboard.export', ['date' => $dateString, 'area' => request('area')]) }}"
+                                    <a id="exportLink" href="{{ route('admins.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-success">
                                         <i class="fas fa-file-excel"></i> Export Excel
                                     </a>
-                                    <a href="{{ route('admins.dashboard.fullscreen', ['date' => $dateString, 'area' => request('area')]) }}"
+                                    <a id="fullscreenLink" href="{{ route('admins.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-info">Fullscreen View</a>
                                 </div>
                             </div>
@@ -382,5 +391,29 @@
 
     document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
     document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
+</script>
+<script>
+    // Toggle Date / Month filter
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('filterDateInput');
+        const toggleBtn = document.getElementById('toggleDateType');
+        const label = document.getElementById('filterDateLabel');
+
+        toggleBtn.addEventListener('click', function() {
+            if (input.type === 'date') {
+                input.type = 'month';
+                input.name = 'month';
+                input.value = '';
+                label.textContent = 'Month:';
+                toggleBtn.textContent = 'Date';
+            } else {
+                input.type = 'date';
+                input.name = 'date';
+                input.value = '';
+                label.textContent = 'Date:';
+                toggleBtn.textContent = 'Month';
+            }
+        });
+    });
 </script>
 @endsection

@@ -37,7 +37,6 @@ class LeaderController extends Controller
         // --- LOGIKA MULTI-AREA ---
         $assignedAreas = $user->areas;
 
-        // Fallback jika tidak ada areas di pivot, coba cek Id_Area lama
         if ($assignedAreas->isEmpty() && $user->Id_Area) {
             $assignedAreas = Area::where('Id_Area', $user->Id_Area)->get();
         }
@@ -54,7 +53,6 @@ class LeaderController extends Controller
             $activeArea = $assignedAreas->where('Id_Area', $activeAreaid)->first();
         }
 
-        // Jika tidak ada area dipilih atau id area tidak valid untuk user ini, default ke yang pertama
         if (!$activeArea) {
             $activeArea = $assignedAreas->first();
         }
@@ -62,55 +60,97 @@ class LeaderController extends Controller
         $area = $activeArea;
         $areaId = $area->Id_Area;
 
-        // 🔢 Tanggal
-        $date = $request->filled('date')
-            ? \Carbon\Carbon::parse($request->date)->startOfDay()
-            : \Carbon\Carbon::today();
+        // ✅ Determine filter mode: month or date
+        $isMonthFilter = $request->filled('month');
 
-        $dateString = $date->format('Y-m-d');
-        $productionDateYmd = $date->format('Ymd');
-        $isToday = $date->isToday();
-
-        // 🔍 Ambil data hanya untuk area user
-        $currentTotalMembers = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->where('Id_Area', $areaId)
-            ->distinct('Nik_Daily_Job')
-            ->count();
-
-        $scans = \App\Models\Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
-        $costs = \App\Models\Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
-        $powers = \App\Models\Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
-        $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
-
-        // Report
-        $report = \App\Models\Report::where('Day_Report', $dateString)
-            ->where('Id_Area', $areaId)
-            ->first();
-        $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
-
-        // Hitung jam member
-        if ($isToday) {
-            $now = \Carbon\Carbon::now();
-            $start = \Carbon\Carbon::today()->setTime(7, 0);
-            $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
-            if ($now->lt($start)) {
-                $memberHours = 0.0;
-            } elseif ($now->gt($endOfWork)) {
-                $memberHours = $reportMembers * 8.0;
-            } else {
-                $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-                if ($now->gt(\Carbon\Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
-                if ($now->gt(\Carbon\Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
-                if ($now->gt(\Carbon\Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
-                $totalHours = max(0, $totalHours);
-                $memberHours = $reportMembers * min($totalHours, 8.0);
-            }
+        if ($isMonthFilter) {
+            $monthParsed = \Carbon\Carbon::parse($request->month . '-01');
+            $startDate = $monthParsed->copy()->startOfMonth();
+            $endDate = $monthParsed->copy()->endOfMonth();
+            $dateString = $monthParsed->format('Y-m');
+            $isToday = false;
         } else {
-            $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
+            $date = $request->filled('date')
+                ? \Carbon\Carbon::parse($request->date)->startOfDay()
+                : \Carbon\Carbon::today();
+            $startDate = $date->copy();
+            $endDate = $date->copy();
+            $dateString = $date->format('Y-m-d');
+            $isToday = $date->isToday();
+        }
+
+        // ✅ Build date-aware queries
+        if ($isMonthFilter) {
+            $scans = \App\Models\Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->with('tractor')->get();
+            $costs = \App\Models\Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->get();
+            $powers = \App\Models\Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->with('member')->get();
+            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->get();
+        } else {
+            $scans = \App\Models\Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
+            $costs = \App\Models\Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
+            $powers = \App\Models\Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
+            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
+        }
+
+        // ✅ Hitung member & jam member
+        if ($isMonthFilter) {
+            $reportMembers = 0;
+            $memberHours = 0.0;
+            $daysCounted = 0;
+            $cursor = $startDate->copy();
+            while ($cursor->lte($endDate)) {
+                $dayStr = $cursor->format('Y-m-d');
+                $dayYmd = $cursor->format('Ymd');
+                $dayReport = \App\Models\Report::where('Day_Report', $dayStr)->where('Id_Area', $areaId)->first();
+                $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
+                    : \App\Models\DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
+                $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
+                if ($dayMembers > 0) $daysCounted++;
+                $reportMembers += $dayMembers;
+                $memberHours += $dayHours;
+                $cursor->addDay();
+            }
+            $reportMembers = $daysCounted > 0 ? (int) round($reportMembers / $daysCounted) : 0;
+        } else {
+            $productionDateYmd = $startDate->format('Ymd');
+            $currentTotalMembers = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                ->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
+
+            $report = \App\Models\Report::where('Day_Report', $dateString)->where('Id_Area', $areaId)->first();
+            $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
+
+            if ($isToday) {
+                $now = \Carbon\Carbon::now();
+                $start = \Carbon\Carbon::today()->setTime(7, 0);
+                $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
+                if ($now->lt($start)) {
+                    $memberHours = 0.0;
+                } elseif ($now->gt($endOfWork)) {
+                    $memberHours = $reportMembers * 8.0;
+                } else {
+                    $totalHours = $start->diffInRealSeconds($now) / 3600.0;
+                    if ($now->gt(\Carbon\Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                    if ($now->gt(\Carbon\Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                    if ($now->gt(\Carbon\Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+                    $totalHours = max(0, $totalHours);
+                    $memberHours = $reportMembers * min($totalHours, 8.0);
+                }
+            } else {
+                $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
+            }
         }
 
         $powerTotal = $powers->sum('Leave_Hour_Power');
-        // ✅ Siapkan data untuk JavaScript (Standardized)
+
+        // ✅ Siapkan data untuk JavaScript
         $scansForJs = $scans->map(function ($s) {
             return [
                 'label' => $s->tractor?->Name_Tractor ?? 'Unknown',
@@ -139,10 +179,8 @@ class LeaderController extends Controller
             ];
         })->toArray();
 
-        // Compatibility for existing costImpactList usage if any (or just use costsForJs)
         $costImpactList = $costsForJs;
 
-        // ✅ Pack data for JS to avoid Blade formatter errors (red lines in VS Code)
         $dashboardJsData = [
             'rawScans' => $scansForJs ?? [],
             'rawCosts' => $costsForJs ?? [],
@@ -153,7 +191,8 @@ class LeaderController extends Controller
             'powerTotal' => (float) $powerTotal,
         ];
 
-        // Kirim data ke view
+        $filterMode = $isMonthFilter ? 'month' : 'date';
+
         return view('leaders.dashboard', compact(
             'scans',
             'costs',
@@ -165,9 +204,10 @@ class LeaderController extends Controller
             'dateString',
             'isToday',
             'costImpactList',
-            'area', // Area Aktif
-            'assignedAreas', // Daftar area untuk tabs
-            'dashboardJsData'
+            'area',
+            'assignedAreas',
+            'dashboardJsData',
+            'filterMode'
         ));
     }
     public function fullscreen(Request $request)
@@ -218,52 +258,91 @@ class LeaderController extends Controller
         $area = $activeArea;
         $areaId = $area->Id_Area;
 
-        // 🔢 Lanjutkan logika seperti sebelumnya
-        $date = $request->filled('date')
-            ? \Carbon\Carbon::parse($request->date)->startOfDay()
-            : \Carbon\Carbon::today();
+        // ✅ Determine filter mode: month or date
+        $isMonthFilter = $request->filled('month');
 
-        $dateString = $date->format('Y-m-d');
-        $productionDateYmd = $date->format('Ymd');
-        $isToday = $date->isToday();
-
-        // Ambil data member aktif dari DailyJob untuk area ini
-        $currentTotalMembers = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->where('Id_Area', $areaId)
-            ->distinct('Nik_Daily_Job')
-            ->count();
-
-        // Ambil data lain
-        $scans = \App\Models\Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
-        $costs = \App\Models\Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
-        $powers = \App\Models\Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
-        $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
-
-        // Report
-        $report = \App\Models\Report::where('Day_Report', $dateString)
-            ->where('Id_Area', $areaId)
-            ->first();
-        $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
-
-        // Hitung jam member
-        if ($isToday) {
-            $now = \Carbon\Carbon::now();
-            $start = \Carbon\Carbon::today()->setTime(7, 0);
-            $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
-            if ($now->lt($start)) {
-                $memberHours = 0.0;
-            } elseif ($now->gt($endOfWork)) {
-                $memberHours = $reportMembers * 8.0;
-            } else {
-                $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-                if ($now->gt(\Carbon\Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
-                if ($now->gt(\Carbon\Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
-                if ($now->gt(\Carbon\Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
-                $totalHours = max(0, $totalHours);
-                $memberHours = $reportMembers * min($totalHours, 8.0);
-            }
+        if ($isMonthFilter) {
+            $monthParsed = \Carbon\Carbon::parse($request->month . '-01');
+            $startDate = $monthParsed->copy()->startOfMonth();
+            $endDate = $monthParsed->copy()->endOfMonth();
+            $dateString = $monthParsed->format('Y-m');
+            $isToday = false;
         } else {
-            $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
+            $date = $request->filled('date')
+                ? \Carbon\Carbon::parse($request->date)->startOfDay()
+                : \Carbon\Carbon::today();
+            $startDate = $date->copy();
+            $endDate = $date->copy();
+            $dateString = $date->format('Y-m-d');
+            $isToday = $date->isToday();
+        }
+
+        // ✅ Build date-aware queries
+        if ($isMonthFilter) {
+            $scans = \App\Models\Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->with('tractor')->get();
+            $costs = \App\Models\Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->get();
+            $powers = \App\Models\Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->with('member')->get();
+            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)->get();
+        } else {
+            $scans = \App\Models\Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
+            $costs = \App\Models\Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
+            $powers = \App\Models\Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
+            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
+        }
+
+        // ✅ Member hours
+        if ($isMonthFilter) {
+            $reportMembers = 0;
+            $memberHours = 0.0;
+            $daysCounted = 0;
+            $cursor = $startDate->copy();
+            while ($cursor->lte($endDate)) {
+                $dayStr = $cursor->format('Y-m-d');
+                $dayYmd = $cursor->format('Ymd');
+                $dayReport = \App\Models\Report::where('Day_Report', $dayStr)->where('Id_Area', $areaId)->first();
+                $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
+                    : \App\Models\DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
+                $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
+                if ($dayMembers > 0) $daysCounted++;
+                $reportMembers += $dayMembers;
+                $memberHours += $dayHours;
+                $cursor->addDay();
+            }
+            $reportMembers = $daysCounted > 0 ? (int) round($reportMembers / $daysCounted) : 0;
+        } else {
+            $productionDateYmd = $startDate->format('Ymd');
+            $currentTotalMembers = \App\Models\DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                ->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
+            $report = \App\Models\Report::where('Day_Report', $dateString)->where('Id_Area', $areaId)->first();
+            $reportMembers = $report ? (int) $report->Total_Member_Report : $currentTotalMembers;
+
+            if ($isToday) {
+                $now = \Carbon\Carbon::now();
+                $start = \Carbon\Carbon::today()->setTime(7, 0);
+                $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
+                if ($now->lt($start)) {
+                    $memberHours = 0.0;
+                } elseif ($now->gt($endOfWork)) {
+                    $memberHours = $reportMembers * 8.0;
+                } else {
+                    $totalHours = $start->diffInRealSeconds($now) / 3600.0;
+                    if ($now->gt(\Carbon\Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                    if ($now->gt(\Carbon\Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                    if ($now->gt(\Carbon\Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+                    $totalHours = max(0, $totalHours);
+                    $memberHours = $reportMembers * min($totalHours, 8.0);
+                }
+            } else {
+                $memberHours = $report ? (float) $report->Total_Hours_Report : ($reportMembers * 8.0);
+            }
         }
 
         $powerTotal = $powers->sum('Leave_Hour_Power');
@@ -272,36 +351,12 @@ class LeaderController extends Controller
         $penangananTotal = $penanganans->sum('Hour_Penanganan');
         $reportNetHours = $memberHours - $powerTotal;
 
-        // ✅ Siapkan data untuk JavaScript (hindari logika kompleks di view)
-        $scansForJs = $scans->map(function ($s) {
-            return [
-                'label' => $s->tractor?->Name_Tractor ?? 'Unknown',
-                'value' => (float) $s->Assigned_Hour_Scan
-            ];
-        })->toArray();
+        // ✅ Siapkan data untuk JavaScript
+        $scansForJs = $scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray();
+        $costsForJs = $costs->map(fn($c) => ['label' => $c->Keterangan_Cost ?? 'Unknown', 'value' => (float) $c->Non_Operational_Cost])->toArray();
+        $powersForJs = $powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray();
+        $penanganansForJs = $penanganans->map(fn($p) => ['label' => $p->Keterangan_Penanganan ?? 'Unknown', 'value' => (float) $p->Hour_Penanganan])->toArray();
 
-        $costsForJs = $costs->map(function ($c) {
-            return [
-                'label' => $c->Keterangan_Cost ?? 'Unknown',
-                'value' => (float) $c->Non_Operational_Cost
-            ];
-        })->toArray();
-
-        $powersForJs = $powers->map(function ($p) {
-            return [
-                'label' => $p->Keterangan_Power ?? 'Unknown',
-                'value' => (float) $p->Leave_Hour_Power
-            ];
-        })->toArray();
-
-        $penanganansForJs = $penanganans->map(function ($p) {
-            return [
-                'label' => $p->Keterangan_Penanganan ?? 'Unknown',
-                'value' => (float) $p->Hour_Penanganan
-            ];
-        })->toArray();
-
-        // ✅ Pack data for JS to avoid Blade formatter errors (red lines in VS Code)
         $dashboardJsData = [
             'rawScans' => $scansForJs ?? [],
             'rawCosts' => $costsForJs ?? [],
@@ -312,7 +367,8 @@ class LeaderController extends Controller
             'powerTotal' => (float) $powerTotal,
         ];
 
-        // Tampilkan view
+        $filterMode = $isMonthFilter ? 'month' : 'date';
+
         return view('leaders.dashboard-fullscreen', compact(
             'dateString',
             'isToday',
@@ -325,7 +381,8 @@ class LeaderController extends Controller
             'scanTotal',
             'costTotal',
             'penangananTotal',
-            'dashboardJsData'
+            'dashboardJsData',
+            'filterMode'
         ));
     }
 
@@ -343,49 +400,80 @@ class LeaderController extends Controller
 
     public function export(Request $request)
     {
-        $date = $request->filled('date')
-            ? Carbon::parse($request->date)->startOfDay()
-            : Carbon::today();
+        // ✅ Determine filter mode: month or date
+        $isMonthFilter = $request->filled('month');
 
-        $dateString = $date->format('Y-m-d');
-        $isToday = $date->isToday();
+        if ($isMonthFilter) {
+            $monthParsed = Carbon::parse($request->month . '-01');
+            $startDate = $monthParsed->copy()->startOfMonth();
+            $endDate = $monthParsed->copy()->endOfMonth();
+            $dateString = $monthParsed->format('Y-m');
+            $isToday = false;
+        } else {
+            $date = $request->filled('date')
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today();
+            $startDate = $date->copy();
+            $endDate = $date->copy();
+            $dateString = $date->format('Y-m-d');
+            $isToday = $date->isToday();
+        }
 
         // Ambil data
-        $scans = Scan::whereDate('Time_Scan', $dateString)->with('member', 'tractor')->get();
-        $costs = Cost::whereDate('Start_Cost', $dateString)->get();
-        $report = Report::where('Day_Report', $dateString)->first();
-        $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
+        if ($isMonthFilter) {
+            $scans = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))->with('member', 'tractor')->get();
+            $costs = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))->get();
+            $powers = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))->with('member')->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))->get();
 
-        $reportMembers = is_numeric($report?->Total_Member_Report) ? (int) $report->Total_Member_Report : 0;
-
-        if ($isToday) {
-            $now = Carbon::now();
-            $start = Carbon::today()->setTime(7, 0);
-            $endOfWork = Carbon::today()->setTime(16, 0);
-
-            if ($now->lt($start)) {
-                $memberHours = 0.0;
-            } elseif ($now->gt($endOfWork)) {
-                $memberHours = $reportMembers * 8.0;
-            } else {
-                $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-
-                if ($now->gt(Carbon::today()->setTime(10, 0))) {
-                    $totalHours -= 10 / 60;
-                }
-                if ($now->gt(Carbon::today()->setTime(12, 0))) {
-                    $totalHours -= 40 / 60;
-                }
-                if ($now->gt(Carbon::today()->setTime(15, 0))) {
-                    $totalHours -= 10 / 60;
-                }
-
-                $totalHours = max(0, $totalHours);
-                $memberHours = $reportMembers * min($totalHours, 8.0);
+            // Monthly member hours
+            $reportMembers = 0;
+            $memberHours = 0.0;
+            $daysCounted = 0;
+            $cursor = $startDate->copy();
+            while ($cursor->lte($endDate)) {
+                $dayStr = $cursor->format('Y-m-d');
+                $dayReport = Report::where('Day_Report', $dayStr)->first();
+                $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report : 0;
+                $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : 0;
+                if ($dayMembers > 0) $daysCounted++;
+                $reportMembers += $dayMembers;
+                $memberHours += $dayHours;
+                $cursor->addDay();
             }
+            $reportMembers = $daysCounted > 0 ? (int) round($reportMembers / $daysCounted) : 0;
         } else {
-            $memberHours = $report ? (float) $report->Total_Hours_Report : 0.0;
+            $scans = Scan::whereDate('Time_Scan', $dateString)->with('member', 'tractor')->get();
+            $costs = Cost::whereDate('Start_Cost', $dateString)->get();
+            $report = Report::where('Day_Report', $dateString)->first();
+            $powers = Power::whereDate('Start_Power', $dateString)->with('member')->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->get();
+
+            $reportMembers = is_numeric($report?->Total_Member_Report) ? (int) $report->Total_Member_Report : 0;
+
+            if ($isToday) {
+                $now = Carbon::now();
+                $start = Carbon::today()->setTime(7, 0);
+                $endOfWork = Carbon::today()->setTime(16, 0);
+                if ($now->lt($start)) {
+                    $memberHours = 0.0;
+                } elseif ($now->gt($endOfWork)) {
+                    $memberHours = $reportMembers * 8.0;
+                } else {
+                    $totalHours = $start->diffInRealSeconds($now) / 3600.0;
+                    if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                    if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                    if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+                    $totalHours = max(0, $totalHours);
+                    $memberHours = $reportMembers * min($totalHours, 8.0);
+                }
+            } else {
+                $memberHours = $report ? (float) $report->Total_Hours_Report : 0.0;
+            }
         }
 
         // --- HITUNG KOMPONEN UTAMA ---

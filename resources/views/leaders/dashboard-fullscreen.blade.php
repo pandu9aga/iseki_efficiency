@@ -121,7 +121,7 @@
                             @endforeach
                         </div>
                         @endif
-                        <a href="{{ route('leaders.dashboard', ['date' => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
+                        <a href="{{ route('leaders.dashboard', [$filterMode => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
                     </div>
                 </div>
 
