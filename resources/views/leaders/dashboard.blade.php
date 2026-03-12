@@ -200,8 +200,8 @@
             datasets: [{
                     label: 'Handling',
                     data: [penangananTotal],
-                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                    borderColor: 'rgba(255, 159, 64, 1)',
+                    backgroundColor: 'rgba(255, 188, 121, 0.9)',
+                    borderColor: 'rgba(255, 188, 121, 1)',
                     borderWidth: 1,
                     stack: 'group1',
                     order: 3,
@@ -209,8 +209,8 @@
                 {
                     label: 'Member Hours',
                     data: [chartNetHours],
-                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(129, 211, 211, 0.7)',
+                    borderColor: 'rgba(129, 211, 211, 1)',
                     borderWidth: 1,
                     stack: 'group1',
                     order: 1,
@@ -218,8 +218,8 @@
                 {
                     label: 'Tractor',
                     data: [scanTotal],
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(114, 190, 241, 0.9)',
+                    borderColor: 'rgba(114, 190, 241, 1)',
                     borderWidth: 1,
                     stack: 'group2',
                     order: 4,
@@ -227,8 +227,8 @@
                 {
                     label: 'Non Operational',
                     data: [costTotal],
-                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 146, 169, 0.9)',
+                    borderColor: 'rgba(255, 146, 169, 1)',
                     borderWidth: 1,
                     stack: 'group2',
                     order: 5,

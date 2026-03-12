@@ -205,8 +205,8 @@
             datasets: [{
                     label: 'Handling',
                     data: [penangananTotal],
-                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                    borderColor: 'rgba(255, 159, 64, 1)',
+                    backgroundColor: 'rgba(255, 222, 173, 1)', // Peach (dari Non Op)
+                    borderColor: 'rgba(230, 175, 95, 1)',
                     borderWidth: 1,
                     stack: 'group1',
                     order: 3,
@@ -214,8 +214,8 @@
                 {
                     label: 'Member Hours',
                     data: [chartNetHours],
-                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(173, 247, 236, 0.97)', // Mint (dari Tractor)
+                    borderColor: 'rgba(120, 210, 155, 1)',
                     borderWidth: 1,
                     stack: 'group1',
                     order: 1,
@@ -223,8 +223,8 @@
                 {
                     label: 'Tractor',
                     data: [scanTotal],
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(172, 222, 253, 1)', // Baby Blue (dari Member)
+                    borderColor: 'rgba(130, 185, 240, 1)',
                     borderWidth: 1,
                     stack: 'group2',
                     order: 4,
@@ -232,8 +232,8 @@
                 {
                     label: 'Non Operational',
                     data: [costTotal],
-                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(250, 176, 176, 1)', // Pink coral
+                    borderColor: 'rgba(255, 169, 169, 1)', // border coral tegas
                     borderWidth: 1,
                     stack: 'group2',
                     order: 5,
