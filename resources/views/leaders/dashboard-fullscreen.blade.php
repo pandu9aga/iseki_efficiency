@@ -99,13 +99,13 @@
                 <div class="alert alert-info d-flex align-items-center mb-3">
                     <i class="bi bi-clock me-2"></i>
                     <strong>Jam Operasional Real-Time:</strong>
-                    Total {{ $reportMembers }} Member (Start From 07.00)
+                    Total {{ $reportMembers }} Member (Start From 07.30)
                 </div>
                 @endif
 
                 <div class="header-actions mb-2 d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="mb-0">Diagram: <span class="text-primary">{{ $dateString }} <span id="liveClock" data-istoday="{{ $isToday ? 'true' : 'false' }}"></span></span>
+                        <h5 class="mb-0">Diagram: <span class="text-primary">{{ $dateString }}</span>
                             <small class="text-muted">| Area: {{ $area->Name_Area }}</small>
                         </h5>
                     </div>
@@ -121,7 +121,7 @@
                             @endforeach
                         </div>
                         @endif
-                        <a href="{{ route('leaders.dashboard', [$filterMode => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
+                        <a href="{{ route('leaders.dashboard', ['date' => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
                     </div>
                 </div>
 
@@ -214,6 +214,7 @@
     <script src="{{ asset('assets/js/chartjs-plugin-datalabels@2.js') }}"></script>
     <script src="{{ asset('assets/js/chartjs-plugin-annotation.min.js') }}"></script>
 
+    </script>
     <script id="dashboardDataJson" type="application/json">
         @json($dashboardJsData)
     </script>
@@ -269,8 +270,8 @@
                 datasets: [{
                         label: 'Handling',
                         data: [penangananTotal],
-                        backgroundColor: 'rgba(255, 188, 121, 0.9)',
-                        borderColor: 'rgba(255, 188, 121, 1)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                        borderColor: 'rgba(255, 159, 64, 1)',
                         borderWidth: 1,
                         stack: 'group1',
                         order: 3,
@@ -278,8 +279,8 @@
                     {
                         label: 'Member Hours',
                         data: [chartNetHours],
-                        backgroundColor: 'rgba(129, 211, 211, 0.7)',
-                        borderColor: 'rgba(129, 211, 211, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 1,
                         stack: 'group1',
                         order: 1,
@@ -287,8 +288,8 @@
                     {
                         label: 'Tractor',
                         data: [scanTotal],
-                        backgroundColor: 'rgba(114, 190, 241, 0.9)',
-                        borderColor: 'rgba(114, 190, 241, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 1,
                         stack: 'group2',
                         order: 4,
@@ -296,8 +297,8 @@
                     {
                         label: 'Non Operational',
                         data: [costTotal],
-                        backgroundColor: 'rgba(255, 146, 169, 0.9)',
-                        borderColor: 'rgba(255, 146, 169, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
                         borderWidth: 1,
                         stack: 'group2',
                         order: 5,
@@ -459,33 +460,6 @@
 
         document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
         document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
-
-        // Live clock
-        function updateClock() {
-            const clockElement = document.getElementById('liveClock');
-            if (!clockElement) return;
-
-            const isToday = clockElement.getAttribute('data-istoday') === 'true';
-
-            if (!isToday) {
-                clockElement.textContent = ' 17:00';
-                return;
-            }
-
-            const now = new Date();
-            let h = now.getHours();
-            let m = now.getMinutes();
-
-            if (h >= 17) {
-                clockElement.textContent = ' 17:00';
-            } else {
-                const hours = String(h).padStart(2, '0');
-                const minutes = String(m).padStart(2, '0');
-                clockElement.textContent = ` ${hours}:${minutes}`;
-            }
-        }
-        setInterval(updateClock, 60000);
-        updateClock();
     </script>
 </body>
 

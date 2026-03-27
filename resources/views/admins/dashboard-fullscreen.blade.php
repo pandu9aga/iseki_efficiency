@@ -171,28 +171,28 @@
                     datasets: [{
                             label: 'Member Net',
                             data: [item.reportNetHours],
-                            backgroundColor: 'rgba(129, 211, 211, 0.8)',
+                            backgroundColor: 'rgba(0, 200, 150, 0.95)',
                             stack: 'A',
                             order: 1
                         },
                         {
                             label: 'Handling',
                             data: [item.penangananTotal],
-                            backgroundColor: 'rgba(255, 188, 121, 0.9)',
+                            backgroundColor: 'rgba(255, 136, 0, 0.95)',
                             stack: 'A',
                             order: 2
                         },
                         {
                             label: 'Tractor',
                             data: [item.scanTotal],
-                            backgroundColor: 'rgba(114, 190, 241, 0.9)',
+                            backgroundColor: 'rgba(0, 123, 255, 0.95)',
                             stack: 'B',
                             order: 3
                         },
                         {
                             label: 'Non Op',
                             data: [item.costTotal],
-                            backgroundColor: 'rgba(255, 146, 169, 0.9)',
+                            backgroundColor: 'rgba(235, 30, 80, 0.95)',
                             stack: 'B',
                             order: 4
                         }

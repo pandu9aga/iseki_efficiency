@@ -79,7 +79,7 @@
                 <div class="alert alert-info d-flex align-items-center">
                     <i class="bi bi-clock me-2"></i>
                     <strong>Jam Operasional Real-Time:</strong>
-                    Total {{ $reportMembers }} Member (Start From 07.00)
+                    Total {{ $reportMembers }} Member (Start From 07.30)
                 </div>
                 @endif
 
@@ -205,8 +205,8 @@
             datasets: [{
                     label: 'Handling',
                     data: [penangananTotal],
-                    backgroundColor: 'rgba(255, 222, 173, 1)', // Peach (dari Non Op)
-                    borderColor: 'rgba(230, 175, 95, 1)',
+                    backgroundColor: 'rgba(255, 203, 106, 1)',
+                    borderColor: 'rgba(255, 115, 0, 1)',
                     borderWidth: 1,
                     stack: 'group1',
                     order: 3,
@@ -214,8 +214,8 @@
                 {
                     label: 'Member Hours',
                     data: [chartNetHours],
-                    backgroundColor: 'rgba(173, 247, 236, 0.97)', // Mint (dari Tractor)
-                    borderColor: 'rgba(120, 210, 155, 1)',
+                    backgroundColor: 'rgba(174, 255, 233, 0.95)',
+                    borderColor: 'rgba(72, 187, 152, 1)',
                     borderWidth: 1,
                     stack: 'group1',
                     order: 1,
@@ -223,8 +223,8 @@
                 {
                     label: 'Tractor',
                     data: [scanTotal],
-                    backgroundColor: 'rgba(172, 222, 253, 1)', // Baby Blue (dari Member)
-                    borderColor: 'rgba(130, 185, 240, 1)',
+                    backgroundColor: 'rgba(169, 234, 255, 1)',
+                    borderColor: 'rgba(57, 120, 197, 1)',
                     borderWidth: 1,
                     stack: 'group2',
                     order: 4,
@@ -232,8 +232,8 @@
                 {
                     label: 'Non Operational',
                     data: [costTotal],
-                    backgroundColor: 'rgba(250, 176, 176, 1)', // Pink coral
-                    borderColor: 'rgba(255, 169, 169, 1)', // border coral tegas
+                    backgroundColor: 'rgba(255, 174, 191, 0.97)',
+                    borderColor: 'rgba(232, 56, 94, 1)',
                     borderWidth: 1,
                     stack: 'group2',
                     order: 5,

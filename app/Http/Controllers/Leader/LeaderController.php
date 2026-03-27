@@ -129,7 +129,7 @@ class LeaderController extends Controller
 
             if ($isToday) {
                 $now = \Carbon\Carbon::now();
-                $start = \Carbon\Carbon::today()->setTime(7, 0);
+                $start = \Carbon\Carbon::today()->setTime(7, 30);
                 $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
@@ -326,7 +326,7 @@ class LeaderController extends Controller
 
             if ($isToday) {
                 $now = \Carbon\Carbon::now();
-                $start = \Carbon\Carbon::today()->setTime(7, 0);
+                $start = \Carbon\Carbon::today()->setTime(7, 30);
                 $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
@@ -457,7 +457,7 @@ class LeaderController extends Controller
 
             if ($isToday) {
                 $now = Carbon::now();
-                $start = Carbon::today()->setTime(7, 0);
+                $start = Carbon::today()->setTime(7, 30);
                 $endOfWork = Carbon::today()->setTime(16, 0);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
