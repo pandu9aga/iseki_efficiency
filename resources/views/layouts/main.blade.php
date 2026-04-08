@@ -19,6 +19,15 @@
     <link rel="shortcut icon" href="assets/images/icon.png" type="image/x-icon">
     @yield('style')
     
+
+    <!-- Dynamic Favicon -->
+    <script src="/iseki_pro_app/js/dynamic-favicon.js"></script>
+    <script>document.addEventListener("DOMContentLoaded", function() { setDynamicFavicon("monitoring", "Efficiency"); });</script>
+
+    <!-- Dynamic Favicon Assets -->
+    <link rel="stylesheet" href="/iseki_pro_app/css/icon.css">
+    <script src="/iseki_pro_app/js/dynamic-favicon.js"></script>
+    <script>document.addEventListener("DOMContentLoaded", function() { setDynamicFavicon("monitoring", "Efficiency"); });</script>
 </head>
 
 <body>
