@@ -23,6 +23,8 @@ use App\Http\Controllers\Leader\LeaderDailyPlanningController;
 use App\Http\Controllers\Member\DashboardMemberController;
 use App\Http\Controllers\Member\MemberScanController;
 use App\Http\Controllers\Member\MemberReportController;
+use App\Http\Controllers\ReplacementController;
+use App\Http\Controllers\AssistanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +37,31 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [MainController::class, 'login'])->name('login');
     Route::post('/login-member', [MainController::class, 'login_member'])->name('login.member');
     Route::post('/login-area', [MainController::class, 'login_area'])->name('login.area');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Replacements & Assistances Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware('web')->group(function () {
+    Route::prefix('replacements')->name('replacements.')->group(function () {
+        Route::get('/start', [ReplacementController::class, 'start'])->name('start');
+        Route::post('/verify-nik', [ReplacementController::class, 'verifyNik'])->name('verifyNik')->middleware('throttle:20,1');
+        Route::post('/start', [ReplacementController::class, 'storeStart'])->name('storeStart');
+        Route::get('/scan', [ReplacementController::class, 'scan'])->name('scan');
+        Route::post('/scan', [ReplacementController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
+        Route::post('/finish', [ReplacementController::class, 'finish'])->name('finish');
+    });
+
+    Route::prefix('assistances')->name('assistances.')->group(function () {
+        Route::get('/start', [AssistanceController::class, 'start'])->name('start');
+        Route::post('/verify-nik', [AssistanceController::class, 'verifyNik'])->name('verifyNik')->middleware('throttle:20,1');
+        Route::post('/start', [AssistanceController::class, 'storeStart'])->name('storeStart');
+        Route::get('/scan', [AssistanceController::class, 'scan'])->name('scan');
+        Route::post('/scan', [AssistanceController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
+        Route::post('/finish', [AssistanceController::class, 'finish'])->name('finish');
+    });
 });
 
 /*
@@ -124,6 +151,11 @@ Route::middleware(['web'])->prefix('leaders')->name('leaders.')->group(function 
         Route::get('/', [LeaderDailyPlanningController::class, 'create'])->name('create');
         Route::post('/', [LeaderDailyPlanningController::class, 'store'])->name('store');
     });
+
+    Route::prefix('monitoring')->name('monitoring.')->group(function () {
+        Route::get('/replacements', [\App\Http\Controllers\Leader\MonitorController::class, 'replacements'])->name('replacements');
+        Route::get('/assistances', [\App\Http\Controllers\Leader\MonitorController::class, 'assistances'])->name('assistances');
+    });
 });
 
 /*
@@ -200,5 +232,10 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
     Route::prefix('planning')->name('planning.')->group(function () {
         Route::get('/', [AdminDailyPlanningController::class, 'create'])->name('create');
         Route::post('/', [AdminDailyPlanningController::class, 'store'])->name('store');
+    });
+
+    Route::prefix('monitoring')->name('monitoring.')->group(function () {
+        Route::get('/replacements', [\App\Http\Controllers\Admin\MonitorController::class, 'replacements'])->name('replacements');
+        Route::get('/assistances', [\App\Http\Controllers\Admin\MonitorController::class, 'assistances'])->name('assistances');
     });
 });

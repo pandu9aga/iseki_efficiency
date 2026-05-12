@@ -54,8 +54,6 @@
                                             <tr>
                                                 <th>Job</th>
                                                 <th>Member</th>
-                                                <th>Type</th>
-                                                <th>Replace Member (Jika Pengganti)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -73,36 +71,6 @@
                                                         @foreach ($allMembers as $member)
                                                         <option value="{{ $member->id }}"
                                                             @if ($plan && $plan['member_id']==$member->id) selected @endif>
-                                                            {{ $member->nama }} ({{ $member->nik }})
-                                                        </option>
-                                                        @endforeach
-                                                    </select>
-                                                </td>
-                                                <td>
-                                                    <select
-                                                        name="assignments[{{ $job->Id_Job_Member }}][type]"
-                                                        class="form-select type-select"
-                                                        onchange="toggleReplaceField(this)">
-                                                        <option value="asli"
-                                                            @if ($plan && $plan['type']=='asli' ) selected @endif>
-                                                            Asli
-                                                        </option>
-                                                        <option value="pengganti"
-                                                            @if ($plan && $plan['type']=='pengganti' ) selected @endif>
-                                                            Pengganti
-                                                        </option>
-                                                    </select>
-                                                </td>
-                                                <td>
-                                                    <select
-                                                        name="assignments[{{ $job->Id_Job_Member }}][replace_nik]"
-                                                        class="form-select replace-member-select"
-                                                        style="display: {{ $plan && $plan['type'] == 'pengganti' ? 'block' : 'none' }};">
-                                                        <option value="">-- Pilih Member yang
-                                                            Menggantikan --</option>
-                                                        @foreach ($allMembers as $member)
-                                                        <option value="{{ $member->nik }}"
-                                                            @if ($plan && $plan['replace_nik']==$member->nik) selected @endif>
                                                             {{ $member->nama }} ({{ $member->nik }})
                                                         </option>
                                                         @endforeach
@@ -149,16 +117,6 @@
         window.location.href = url;
     }
 
-    function toggleReplaceField(typeSelect) {
-        const row = typeSelect.closest('tr');
-        const select = row.querySelector('.replace-member-select');
-        if (typeSelect.value === 'pengganti') {
-            select.style.display = 'block';
-        } else {
-            select.style.display = 'none';
-            select.value = '';
-        }
-    }
 
     document.addEventListener('DOMContentLoaded', function() {
         // Aktifkan tab berdasarkan parameter URL atau sessionStorage
@@ -186,8 +144,6 @@
             });
         });
 
-        // Atur tampilan awal replace field
-        document.querySelectorAll('.type-select').forEach(toggleReplaceField);
 
         // Inisialisasi TomSelect
         const initTomSelect = (selector, placeholder) => {
@@ -203,33 +159,8 @@
         };
 
         initTomSelect('.tom-select-member', '-- Pilih atau Cari Member --');
-        initTomSelect('.replace-member-select', '-- Pilih Member yang Digantikan --');
 
-        // Validasi form
-        const form = document.getElementById('planningForm');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                let hasError = false;
-                document.querySelectorAll('.type-select').forEach(select => {
-                    const row = select.closest('tr');
-                    const memberSelect = row.querySelector('[name$="[member_id]"]');
-                    const replaceSelect = row.querySelector('.replace-member-select');
 
-                    if (memberSelect?.value && select.value === 'pengganti' && !replaceSelect
-                        ?.value) {
-                        hasError = true;
-                        replaceSelect?.classList.add('is-invalid');
-                    } else {
-                        replaceSelect?.classList.remove('is-invalid');
-                    }
-                });
-
-                if (hasError) {
-                    e.preventDefault();
-                    alert('Silakan pilih member yang digantikan untuk tipe "Pengganti".');
-                }
-            });
-        }
     });
 </script>
 @endsection

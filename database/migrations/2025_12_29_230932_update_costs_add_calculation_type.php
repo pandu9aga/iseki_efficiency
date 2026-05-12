@@ -12,18 +12,22 @@ return new class extends Migration
     public function up()
     {
         Schema::table('costs', function (Blueprint $table) {
-            $table->enum('calculation_type', ['all', 'partial'])->default('all')->after('Keterangan_Cost');
+            if (!Schema::hasColumn('costs', 'calculation_type')) {
+                $table->enum('calculation_type', ['all', 'partial'])->default('all')->after('Keterangan_Cost');
+            }
         });
 
         // Tabel pivot untuk partial cost
-        Schema::create('cost_member', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('Id_Cost');
-            $table->unsignedBigInteger('member_id'); // id dari tabel employees
-            $table->timestamps();
+        if (!Schema::hasTable('cost_member')) {
+            Schema::create('cost_member', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('Id_Cost');
+                $table->unsignedBigInteger('member_id'); // id dari tabel employees
+                $table->timestamps();
 
-            $table->foreign('Id_Cost')->references('Id_Cost')->on('costs')->onDelete('cascade');
-            $table->foreign('member_id')->references('id')->on('employees'); // pastikan nama tabel sesuai
-        });
+                $table->foreign('Id_Cost')->references('Id_Cost')->on('costs')->onDelete('cascade');
+                $table->foreign('member_id')->references('id')->on('employees'); // pastikan nama tabel sesuai
+            });
+        }
     }
 };

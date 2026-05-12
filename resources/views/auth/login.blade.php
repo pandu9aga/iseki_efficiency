@@ -206,6 +206,17 @@
                 <button type="submit" class="btn-login">Login</button>
             </form>
         </div>
+
+        <hr style="border: none; border-top: 1px solid #ffd8e8; margin: 30px 0;">
+
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <a href="{{ route('replacements.start') }}" class="btn-action" style="text-decoration: none; text-align: center; display: block; width: 100%; padding: 16px; background: #fff0f5; color: #d81b60; border: 2px solid #f7b5ca; border-radius: 12px; font-weight: 700; font-size: 18px; transition: all 0.25s ease;">
+                🔄 Pergantian
+            </a>
+            <a href="{{ route('assistances.start') }}" class="btn-action" style="text-decoration: none; text-align: center; display: block; width: 100%; padding: 16px; background: #fff0f5; color: #d81b60; border: 2px solid #f7b5ca; border-radius: 12px; font-weight: 700; font-size: 18px; transition: all 0.25s ease;">
+                🤝 Perbantuan
+            </a>
+        </div>
     </div>
 </body>
 

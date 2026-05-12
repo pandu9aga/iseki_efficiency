@@ -182,16 +182,16 @@
             {{-- PERMISSION --}}
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Permission</h5>
+                    <h5 class="card-title mb-0">Absensi</h5>
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                         data-bs-target="#addPowerModal{{ $area->Id_Area }}">
-                        Add Permission
+                        Add Absensi
                     </button>
                 </div>
                 <div class="card-body">
                     @php $areaPowers = $powers->where('Id_Area', $area->Id_Area); @endphp
                     @if ($areaPowers->isEmpty())
-                    <p class="text-muted">No permission data.</p>
+                    <p class="text-muted">No absensi data.</p>
                     @else
                     <div class="table-responsive">
                         <table class="table table-sm">
@@ -242,16 +242,16 @@
             {{-- TIME HANDLING --}}
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Time Handling</h5>
+                    <h5 class="card-title mb-0">Perbantuan</h5>
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                         data-bs-target="#addPenangananModal{{ $area->Id_Area }}">
-                        Add Handling
+                        Add Perbantuan
                     </button>
                 </div>
                 <div class="card-body">
                     @php $areaPenanganans = $penanganans->where('Id_Area', $area->Id_Area); @endphp
                     @if ($areaPenanganans->isEmpty())
-                    <p class="text-muted">No handling data.</p>
+                    <p class="text-muted">No perbantuan data.</p>
                     @else
                     <div class="table-responsive">
                         <table class="table table-sm">
@@ -450,7 +450,7 @@
             <input type="hidden" name="Leave_Hour_Power">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add Permission - {{ $area->Name_Area }}</h5>
+                    <h5 class="modal-title">Add Absensi - {{ $area->Name_Area }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -515,7 +515,7 @@
 
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add Handling - {{ $area->Name_Area }}</h5>
+                    <h5 class="modal-title">Add Perbantuan - {{ $area->Name_Area }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -777,7 +777,7 @@ $menitPower = round(($power->Leave_Hour_Power - $jamPower) * 60);
             <input type="hidden" name="Leave_Hour_Power">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Permission - {{ $powerArea->Name_Area }}</h5>
+                    <h5 class="modal-title">Edit Absensi - {{ $powerArea->Name_Area }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -880,7 +880,7 @@ $isNegative = $p->Hour_Penanganan < 0;
 
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Edit Handling - {{ $penangananArea->Name_Area }}</h5>
+                        <h5 class="modal-title">Edit Perbantuan - {{ $penangananArea->Name_Area }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">

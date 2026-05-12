@@ -12,7 +12,9 @@ return new class extends Migration
     public function up()
     {
         Schema::table('costs', function (Blueprint $table) {
-            $table->json('applied_members')->nullable()->comment('Array of selected nik or "all"');
+            if (!Schema::hasColumn('costs', 'applied_members')) {
+                $table->json('applied_members')->nullable()->comment('Array of selected nik or "all"');
+            }
         });
     }
 

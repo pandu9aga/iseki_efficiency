@@ -9,11 +9,13 @@ return new class extends Migration
     public function up()
     {
         Schema::table('scans', function (Blueprint $table) {
-            $table->unsignedInteger('Id_Daily_Job')->nullable()->after('Assigned_Hour_Scan');
-            $table->foreign('Id_Daily_Job')
-                ->references('Id_Daily_Job')
-                ->on('daily_jobs')
-                ->onDelete('set null');
+            if (!Schema::hasColumn('scans', 'Id_Daily_Job')) {
+                $table->unsignedInteger('Id_Daily_Job')->nullable()->after('Assigned_Hour_Scan');
+                $table->foreign('Id_Daily_Job')
+                    ->references('Id_Daily_Job')
+                    ->on('daily_jobs')
+                    ->onDelete('set null');
+            }
         });
     }
 

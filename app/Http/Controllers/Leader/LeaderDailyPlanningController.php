@@ -99,8 +99,6 @@ class LeaderDailyPlanningController extends Controller
             'area_id' => 'required|exists:areas,Id_Area',
             'assignments' => 'nullable|array',
             'assignments.*.member_id' => 'nullable|integer|exists:rifa.employees,id',
-            'assignments.*.type' => 'nullable|in:asli,pengganti',
-            'assignments.*.replace_nik' => 'nullable|string|max:20',
         ]);
 
         $productionDateRaw = $request->input('production_date');
@@ -161,14 +159,8 @@ class LeaderDailyPlanningController extends Controller
                 continue;
             }
 
-            $type = ($data['type'] ?? 'asli') === 'pengganti' ? 'pengganti' : 'asli';
-            $replaceNik = trim($data['replace_nik'] ?? '');
+            $type = 'asli';
             $replaceNikFinal = null;
-
-            if ($type === 'pengganti' && $replaceNik) {
-                $replaceMember = Member::where('nik', $replaceNik)->first();
-                $replaceNikFinal = $replaceMember?->nik;
-            }
 
             $validAssignments[] = [
                 'nik' => $member->nik,

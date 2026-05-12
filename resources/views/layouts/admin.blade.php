@@ -82,6 +82,20 @@
                             </a>
                         </li>
 
+                        <li class="sidebar-title">Monitoring</li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('admins.monitoring.replacements') }}" class='sidebar-link'>
+                                <i class="bi bi-arrow-left-right"></i>
+                                <span>Pergantian</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('admins.monitoring.assistances') }}" class='sidebar-link'>
+                                <i class="bi bi-people"></i>
+                                <span>Perbantuan</span>
+                            </a>
+                        </li>
+
                         <li class="sidebar-title">Navigation</li>
                         <li class="sidebar-item">
                             <a href="{{ route('admins.members.index') }}"class='sidebar-link'> <i

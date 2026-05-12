@@ -44,17 +44,20 @@ class AdminDailyPlanningController extends Controller
         if ($existingPlans->isNotEmpty()) {
             $planMap = $this->buildPlanMap($existingPlans);
         } else {
-            // Cari rencana terakhir sebelum tanggal ini (dalam format YYYYMMDD)
-            $lastPlanDate = DailyJob::where('Production_Date_Plan', '<', $productionDateForQuery)
-                ->max('Production_Date_Plan');
+            // 🔥 Cari rencana terakhir PER AREA (sama seperti logika Leader)
+            // Supaya admin dapat data member terakhir yang diinput leader di tiap area
+            $planMap = [];
+            foreach ($areas as $a) {
+                $lastPlanDate = DailyJob::where('Id_Area', $a->Id_Area)
+                    ->max('Production_Date_Plan');
 
-            if ($lastPlanDate) {
-                $lastPlans = DailyJob::with('member')
-                    ->where('Production_Date_Plan', $lastPlanDate)
-                    ->get();
-                $planMap = $this->buildPlanMap($lastPlans);
-            } else {
-                $planMap = [];
+                if ($lastPlanDate) {
+                    $lastPlans = DailyJob::with('member')
+                        ->where('Production_Date_Plan', $lastPlanDate)
+                        ->where('Id_Area', $a->Id_Area)
+                        ->get();
+                    $planMap = array_merge($planMap, $this->buildPlanMap($lastPlans));
+                }
             }
         }
 
@@ -92,8 +95,6 @@ class AdminDailyPlanningController extends Controller
             'production_date' => 'required|date',
             'assignments' => 'nullable|array',
             'assignments.*.member_id' => 'nullable|integer|exists:rifa.employees,id',
-            'assignments.*.type' => 'nullable|in:asli,pengganti',
-            'assignments.*.replace_nik' => 'nullable|string|max:20',
         ]);
 
         $productionDateRaw = $request->input('production_date');
@@ -127,14 +128,8 @@ class AdminDailyPlanningController extends Controller
                 $firstAreaId = $jobMember->Id_Area;
             }
 
-            $type = ($data['type'] ?? 'asli') === 'pengganti' ? 'pengganti' : 'asli';
-            $replaceNik = trim($data['replace_nik'] ?? '');
-
+            $type = 'asli';
             $replaceNikFinal = null;
-            if ($type === 'pengganti' && $replaceNik) {
-                $replaceMember = Member::where('nik', $replaceNik)->first();
-                $replaceNikFinal = $replaceMember?->nik;
-            }
 
             $sequence = 'SEQ_' . $jobId . '_' . now()->format('Ymd') . '_' . Str::random(5);
 
