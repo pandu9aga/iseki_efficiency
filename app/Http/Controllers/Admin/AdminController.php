@@ -3,20 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Carbon\Carbon;
-use App\Models\Report;
-use App\Models\DailyJob;
 use App\Models\Cost;
-use App\Models\Power;
+use App\Models\DailyJob;
 use App\Models\Penanganan;
+use App\Models\Power;
+use App\Models\Report;
 use App\Models\Scan;
-use App\Models\Area;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AdminController extends Controller
 {
@@ -26,7 +24,7 @@ class AdminController extends Controller
         $isMonthFilter = $request->filled('month');
 
         if ($isMonthFilter) {
-            $monthParsed = Carbon::parse($request->month . '-01');
+            $monthParsed = Carbon::parse($request->month.'-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
@@ -116,7 +114,9 @@ class AdminController extends Controller
                     }
                 }
 
-                if ($dayMembers > 0) $daysCounted++;
+                if ($dayMembers > 0) {
+                    $daysCounted++;
+                }
                 $reportMembers += $dayMembers;
                 $memberHours += $dayHours;
                 $cursor->addDay();
@@ -159,9 +159,15 @@ class AdminController extends Controller
                     $memberHours = $reportMembers * 8.0;
                 } else {
                     $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-                    if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
-                    if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
-                    if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+                    if ($now->gt(Carbon::today()->setTime(10, 0))) {
+                        $totalHours -= 10 / 60;
+                    }
+                    if ($now->gt(Carbon::today()->setTime(12, 0))) {
+                        $totalHours -= 40 / 60;
+                    }
+                    if ($now->gt(Carbon::today()->setTime(15, 0))) {
+                        $totalHours -= 10 / 60;
+                    }
                     $totalHours = max(0, $totalHours);
                     $memberHours = $reportMembers * min($totalHours, 8.0);
                 }
@@ -192,21 +198,21 @@ class AdminController extends Controller
         $scansForJs = $scans->map(function ($s) {
             return [
                 'label' => $s->tractor?->Name_Tractor ?? 'Unknown',
-                'value' => (float) $s->Assigned_Hour_Scan
+                'value' => (float) $s->Assigned_Hour_Scan * (1 - 0.078),
             ];
         })->toArray();
 
         $powersForJs = $powers->map(function ($p) {
             return [
                 'label' => $p->Keterangan_Power ?? 'Unknown',
-                'value' => (float) $p->Leave_Hour_Power
+                'value' => (float) $p->Leave_Hour_Power,
             ];
         })->toArray();
 
         $penanganansForJs = $penanganans->map(function ($p) {
             return [
                 'label' => $p->Keterangan_Penanganan ?? 'Unknown',
-                'value' => (float) $p->Hour_Penanganan
+                'value' => (float) $p->Hour_Penanganan,
             ];
         })->toArray();
 
@@ -246,7 +252,7 @@ class AdminController extends Controller
         $isMonthFilter = $request->filled('month');
 
         if ($isMonthFilter) {
-            $monthParsed = Carbon::parse($request->month . '-01');
+            $monthParsed = Carbon::parse($request->month.'-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
@@ -294,7 +300,9 @@ class AdminController extends Controller
                     $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
                         : DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
                     $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
-                    if ($dayMembers > 0) $daysCounted++;
+                    if ($dayMembers > 0) {
+                        $daysCounted++;
+                    }
                     $reportMembers += $dayMembers;
                     $memberHours += $dayHours;
                     $cursor->addDay();
@@ -323,9 +331,15 @@ class AdminController extends Controller
                         $memberHours = $reportMembers * 8.0;
                     } else {
                         $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-                        if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
-                        if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
-                        if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+                        if ($now->gt(Carbon::today()->setTime(10, 0))) {
+                            $totalHours -= 10 / 60;
+                        }
+                        if ($now->gt(Carbon::today()->setTime(12, 0))) {
+                            $totalHours -= 40 / 60;
+                        }
+                        if ($now->gt(Carbon::today()->setTime(15, 0))) {
+                            $totalHours -= 10 / 60;
+                        }
                         $totalHours = max(0, $totalHours);
                         $memberHours = $reportMembers * min($totalHours, 8.0);
                     }
@@ -365,7 +379,7 @@ class AdminController extends Controller
                 'id' => $d['area']->Id_Area,
                 'reportNetHours' => max(0, $d['reportNetHours']),
                 'penangananTotal' => $d['penangananTotal'],
-                'scanTotal' => $d['scanTotal'],
+                'scanTotal' => $d['scanTotal'] * (1 - 0.078),
                 'costTotal' => $d['costTotal'],
             ];
         }
@@ -377,13 +391,16 @@ class AdminController extends Controller
 
     private function formatHoursToText(float $totalHours): string
     {
-        if ($totalHours <= 0) return '0 jam 0 menit';
+        if ($totalHours <= 0) {
+            return '0 jam 0 menit';
+        }
         $hours = floor($totalHours);
         $minutes = round(($totalHours - $hours) * 60);
         if ($minutes >= 60) {
             $hours += floor($minutes / 60);
             $minutes = $minutes % 60;
         }
+
         return "{$hours} jam {$minutes} menit";
     }
 
@@ -393,7 +410,7 @@ class AdminController extends Controller
         $isMonthFilter = $request->filled('month');
 
         if ($isMonthFilter) {
-            $monthParsed = Carbon::parse($request->month . '-01');
+            $monthParsed = Carbon::parse($request->month.'-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
@@ -468,7 +485,9 @@ class AdminController extends Controller
                         }
                     }
                 }
-                if ($dayMembers > 0) $daysCounted++;
+                if ($dayMembers > 0) {
+                    $daysCounted++;
+                }
                 $reportMembers += $dayMembers;
                 $memberHours += $dayHours;
                 $cursor->addDay();
@@ -516,9 +535,15 @@ class AdminController extends Controller
                     $memberHours = $reportMembers * 8.0;
                 } else {
                     $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-                    if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
-                    if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
-                    if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+                    if ($now->gt(Carbon::today()->setTime(10, 0))) {
+                        $totalHours -= 10 / 60;
+                    }
+                    if ($now->gt(Carbon::today()->setTime(12, 0))) {
+                        $totalHours -= 40 / 60;
+                    }
+                    if ($now->gt(Carbon::today()->setTime(15, 0))) {
+                        $totalHours -= 10 / 60;
+                    }
                     $totalHours = max(0, $totalHours);
                     $memberHours = $reportMembers * min($totalHours, 8.0);
                 }
@@ -577,12 +602,12 @@ class AdminController extends Controller
             } elseif (str_contains($descLower, 'lembur mente') || str_contains($desc, 'メンテ残業')) {
                 $handlingValues['lembur_mente'] += $hours;
                 $matched = true;
-            } elseif (str_contains($descLower, 'lembur') && !str_contains($descLower, 'mente')) {
+            } elseif (str_contains($descLower, 'lembur') && ! str_contains($descLower, 'mente')) {
                 $handlingValues['lembur_produksi'] += $hours;
                 $matched = true;
             }
 
-            if (!$matched) {
+            if (! $matched) {
                 $manualEntries[] = ['label' => $desc, 'hours' => $hours];
             }
         }
@@ -611,7 +636,7 @@ class AdminController extends Controller
         array_unshift($penangananItems, $penghematanJam);
 
         // --- Konversi ke Man ---
-        $hoursToMan = fn(float $h): float => $h / 8;
+        $hoursToMan = fn (float $h): float => $h / 8;
 
         // ✅ Perbaikan: manBebanProduksi dihitung dari bebanProduksiTotal, bukan scanTotal
         $manBebanProduksi = $hoursToMan($bebanProduksiTotal);
@@ -641,7 +666,7 @@ class AdminController extends Controller
         $nonOperationalPersen = $bebanProduksiTotal > 0 ? ($nonOperationalTotal / $bebanProduksiTotal) * 100 : 0;
 
         // --- EXCEL ---
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Operational Performance');
 
@@ -695,8 +720,8 @@ class AdminController extends Controller
             $man = $manPenangananItems[$i];
 
             if ($i == 5) {
-                $hoursDisplay = $hours < 0 ? "▲" . abs($hours) : $hours;
-                $manDisplay = $man < 0 ? "▲" . abs($man) : $man;
+                $hoursDisplay = $hours < 0 ? '▲'.abs($hours) : $hours;
+                $manDisplay = $man < 0 ? '▲'.abs($man) : $man;
                 $this->writeRowColored($sheet, $row++, $label, $hoursDisplay, $manDisplay, 'FFFF0000');
             } else {
                 $bg = $i == 0 ? 'FF00FF00' : null;
@@ -723,15 +748,15 @@ class AdminController extends Controller
         $sheet->getStyle("B$row")->getFont()->setBold(true)->setSize(16);
         $row++;
 
-        $sheet->getStyle('B8:C' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0.0000');
+        $sheet->getStyle('B8:C'.($row - 1))->getNumberFormat()->setFormatCode('#,##0.0000');
 
         $sheet->getColumnDimension('A')->setWidth(40);
         $sheet->getColumnDimension('B')->setWidth(15);
         $sheet->getColumnDimension('C')->setWidth(15);
-        $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
-        $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle('A1:C'.($row - 1))->getAlignment()->setVertical('center');
+        $sheet->getStyle('A1:C'.($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $fileName = 'Operational_Performance_' . $dateString . '.xlsx';
+        $fileName = 'Operational_Performance_'.$dateString.'.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), $fileName);
         $writer->save($tempFile);
@@ -781,8 +806,8 @@ class AdminController extends Controller
     // 🔸 Perbaikan: ubah $man dari `int` jadi `float`
     private function writeDifferenceRow($sheet, int $row, string $label, float $hours, float $man): void
     {
-        $hoursDisplay = $hours < 0 ? "▲" . abs($hours) : $hours;
-        $manDisplay = $man < 0 ? "▲" . abs($man) : $man;
+        $hoursDisplay = $hours < 0 ? '▲'.abs($hours) : $hours;
+        $manDisplay = $man < 0 ? '▲'.abs($man) : $man;
         $color = $hours < 0 ? 'FF0000FF' : 'FF000000';
 
         $sheet->setCellValue("A$row", $label);

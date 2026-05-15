@@ -154,7 +154,7 @@ class LeaderController extends Controller
         $scansForJs = $scans->map(function ($s) {
             return [
                 'label' => $s->tractor?->Name_Tractor ?? 'Unknown',
-                'value' => (float) $s->Assigned_Hour_Scan
+                'value' => (float) $s->Assigned_Hour_Scan * (1 - 0.078),
             ];
         })->toArray();
 
@@ -352,7 +352,7 @@ class LeaderController extends Controller
         $reportNetHours = $memberHours - $powerTotal;
 
         // ✅ Siapkan data untuk JavaScript
-        $scansForJs = $scans->map(fn($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan])->toArray();
+        $scansForJs = $scans->map(fn ($s) => ['label' => $s->tractor?->Name_Tractor ?? 'Unknown', 'value' => (float) $s->Assigned_Hour_Scan * (1 - 0.078)])->toArray();
         $costsForJs = $costs->map(fn($c) => ['label' => $c->Keterangan_Cost ?? 'Unknown', 'value' => (float) $c->Non_Operational_Cost])->toArray();
         $powersForJs = $powers->map(fn($p) => ['label' => $p->Keterangan_Power ?? 'Unknown', 'value' => (float) $p->Leave_Hour_Power])->toArray();
         $penanganansForJs = $penanganans->map(fn($p) => ['label' => $p->Keterangan_Penanganan ?? 'Unknown', 'value' => (float) $p->Hour_Penanganan])->toArray();
