@@ -129,6 +129,12 @@
                                 <span>Area</span>
                             </a>
                         </li>
+                        <li class="sidebar-item">
+                            <a href="{{ route('admins.workdays.index') }}" class='sidebar-link'>
+                                <i class="bi bi-calendar-check"></i>
+                                <span>Work Day</span>
+                            </a>
+                        </li>
                         <li class="sidebar-title">Account</li>
                         <li class="sidebar-item">
                             <a href="{{ route('logout') }}" class='sidebar-link'>

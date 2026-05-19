@@ -164,10 +164,7 @@
             <!-- Item akan ditambahkan lewat JS -->
         </ul>
 
-        <form method="POST" action="{{ route('replacements.finish') }}">
-            @csrf
-            <button type="submit" class="btn-finish">Selesai & Keluar</button>
-        </form>
+        <a href="{{ route('replacements.inputDuration') }}" class="btn-finish" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Selesai Scan</a>
     </div>
 
     <script>

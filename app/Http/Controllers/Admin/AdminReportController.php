@@ -81,6 +81,9 @@ class AdminReportController extends Controller
         // ✅ Tambahkan ini: ambil semua member untuk modal "Add Handling"
         $allMembers = Member::with('area')->get();
 
+        // ✅ Map NIK => nama untuk tampilan popover cost
+        $allNiks = Member::pluck('nama', 'nik')->toArray();
+
         return view('admins.reports.index', compact(
             'dateString',
             'areaReports',
@@ -95,7 +98,8 @@ class AdminReportController extends Controller
             'scans',
             'areas',
             'memberMap',
-            'allMembers' // ← sekarang sudah didefinisikan!
+            'allMembers',
+            'allNiks'
         ));
     }
 
@@ -203,8 +207,9 @@ class AdminReportController extends Controller
         $selectedNiks = $request->input('selected_members', []);
 
         if (empty($selectedNiks)) {
-            $appliedNiks = 'all';
-            $memberCount = count($allActiveNiks);
+            // Simpan semua NIK aktif sebagai array (bukan string 'all')
+            $appliedNiks = array_values($allActiveNiks);
+            $memberCount = count($appliedNiks);
         } else {
             $appliedNiks = array_values(array_intersect($selectedNiks, $allActiveNiks));
             $memberCount = count($appliedNiks);
@@ -290,8 +295,9 @@ class AdminReportController extends Controller
         $selectedNiks = $request->input('selected_members', []);
 
         if (empty($selectedNiks)) {
-            $appliedNiks = 'all';
-            $memberCount = count($allActiveNiks);
+            // Simpan semua NIK aktif sebagai array (bukan string 'all')
+            $appliedNiks = array_values($allActiveNiks);
+            $memberCount = count($appliedNiks);
         } else {
             $appliedNiks = array_values(array_intersect($selectedNiks, $allActiveNiks));
             $memberCount = count($appliedNiks);

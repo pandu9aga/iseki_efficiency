@@ -24,7 +24,7 @@ class AdminController extends Controller
         $isMonthFilter = $request->filled('month');
 
         if ($isMonthFilter) {
-            $monthParsed = Carbon::parse($request->month.'-01');
+            $monthParsed = Carbon::parse($request->month . '-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
@@ -252,7 +252,7 @@ class AdminController extends Controller
         $isMonthFilter = $request->filled('month');
 
         if ($isMonthFilter) {
-            $monthParsed = Carbon::parse($request->month.'-01');
+            $monthParsed = Carbon::parse($request->month . '-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
@@ -410,7 +410,7 @@ class AdminController extends Controller
         $isMonthFilter = $request->filled('month');
 
         if ($isMonthFilter) {
-            $monthParsed = Carbon::parse($request->month.'-01');
+            $monthParsed = Carbon::parse($request->month . '-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
@@ -485,9 +485,7 @@ class AdminController extends Controller
                         }
                     }
                 }
-                if ($dayMembers > 0) {
-                    $daysCounted++;
-                }
+                if ($dayMembers > 0) $daysCounted++;
                 $reportMembers += $dayMembers;
                 $memberHours += $dayHours;
                 $cursor->addDay();
@@ -535,15 +533,9 @@ class AdminController extends Controller
                     $memberHours = $reportMembers * 8.0;
                 } else {
                     $totalHours = $start->diffInRealSeconds($now) / 3600.0;
-                    if ($now->gt(Carbon::today()->setTime(10, 0))) {
-                        $totalHours -= 10 / 60;
-                    }
-                    if ($now->gt(Carbon::today()->setTime(12, 0))) {
-                        $totalHours -= 40 / 60;
-                    }
-                    if ($now->gt(Carbon::today()->setTime(15, 0))) {
-                        $totalHours -= 10 / 60;
-                    }
+                    if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+                    if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+                    if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
                     $totalHours = max(0, $totalHours);
                     $memberHours = $reportMembers * min($totalHours, 8.0);
                 }
@@ -556,9 +548,10 @@ class AdminController extends Controller
         $scanTotal = $scans->sum('Assigned_Hour_Scan');
         $nonOperationalTotal = $costs->sum('Non_Operational_Cost');
 
-        // ✅ Perbaikan utama sesuai permintaan:
-        $kaizenTotal = $scanTotal; // Kaizen = scan total
-        $bebanProduksiTotal = $scanTotal + ($scanTotal * 0.078); // Beban = scan + 7.8%
+        // B9: Beban Produksi = nilai scan traktor murni (tanpa tambahan 7.8%)
+        $bebanProduksiTotal = $scanTotal;
+        // B11: Kaizen = B9 × 0.078 (ditampilkan sebagai negatif di Excel)
+        $kaizenTotal = $scanTotal * 0.078;
 
         $absensiTotal = $powers->sum('Leave_Hour_Power');
         $powerNetTotal = $memberHours - $absensiTotal;
@@ -602,12 +595,12 @@ class AdminController extends Controller
             } elseif (str_contains($descLower, 'lembur mente') || str_contains($desc, 'メンテ残業')) {
                 $handlingValues['lembur_mente'] += $hours;
                 $matched = true;
-            } elseif (str_contains($descLower, 'lembur') && ! str_contains($descLower, 'mente')) {
+            } elseif (str_contains($descLower, 'lembur') && !str_contains($descLower, 'mente')) {
                 $handlingValues['lembur_produksi'] += $hours;
                 $matched = true;
             }
 
-            if (! $matched) {
+            if (!$matched) {
                 $manualEntries[] = ['label' => $desc, 'hours' => $hours];
             }
         }
@@ -626,62 +619,73 @@ class AdminController extends Controller
             $penangananCategories[] = [$entry['label'], $entry['hours']];
         }
 
+        // --- HITUNG PENANGANAN & PENGHEMATAN (LOGIKA PERSAMAAN) ---
         $penangananItems = array_column($penangananCategories, 1);
+        $penangananSumWithoutPenghematan = array_sum($penangananItems); // SUM(B21:B27)
+
+        // B13: Total Beban = SUM(B9:B12) = BebanProduksi + NonOp + (-Kaizen) + PartTitipan
+        $totalBebanAkhir = $bebanProduksiTotal + $nonOperationalTotal - $kaizenTotal;
+
+        // B18: Selisih A = Power Net (B17) - Total Beban (B13)
+        $selisihA = $powerNetTotal - $totalBebanAkhir;
+
+        // B20: Penghematan — logika persamaan agar B29 = 0
+        // B28 = SUM(B20:B27), B29 = B18 + B28
+        // Agar B29 = 0 → B20 = -(B18 + SUM(B21:B27))
+        // Jika hasil negatif → B20 positif, jika positif → B20 negatif
+        $penghematanJam = - ($selisihA + $penangananSumWithoutPenghematan);
+
+        // Sisipkan penghematan di posisi pertama (B20)
+        array_unshift($penangananCategories, ['Penghematan Jam Bulan ini / 今月の工数低減', $penghematanJam]);
+
+        // Rebuild items setelah prepend penghematan
+        $penangananItems = array_column($penangananCategories, 1);
+        // B28: Total = SUM(B20:B27)
         $penangananTotal = array_sum($penangananItems);
 
-        // Penghematan: sesuaikan dengan logika baru (NonOp tetap dihitung di sini untuk penghematan)
-        $penghematanJam = ($scanTotal + $nonOperationalTotal) - ($powerNetTotal + $penangananTotal);
+        // B29: Selisih B = B18 + B28 (seharusnya selalu = 0)
+        $selisihB = $selisihA + $penangananTotal;
 
-        array_unshift($penangananCategories, ['Penghematan Jam Bulan ini / 今月の工数低減', $penghematanJam]);
-        array_unshift($penangananItems, $penghematanJam);
+        // --- Konversi ke Man (÷8) ---
+        $hoursToMan = fn(float $h): float => $h / 8;
 
-        // --- Konversi ke Man ---
-        $hoursToMan = fn (float $h): float => $h / 8;
-
-        // ✅ Perbaikan: manBebanProduksi dihitung dari bebanProduksiTotal, bukan scanTotal
         $manBebanProduksi = $hoursToMan($bebanProduksiTotal);
         $manNonOperational = $hoursToMan($nonOperationalTotal);
         $manKaizen = $hoursToMan($kaizenTotal);
-        // ✅ Total beban = bebanProduksiTotal + nonOperational (jika tetap ingin tampilkan total gabungan)
-        // Tapi sesuai permintaan: "beban produksi = scan + 7.8%", maka total beban = bebanProduksiTotal saja?
-        // Namun di Excel, kamu tetap tampilkan NonOp terpisah → total beban = bebanProduksiTotal + nonOperationalTotal
-        $manTotalBeban = $manBebanProduksi + $manNonOperational; // ✅ sesuaikan
+        $manTotalBeban = $hoursToMan($totalBebanAkhir);
 
         $manAbsensi = $hoursToMan($absensiTotal);
         $manPowerNet = $memberHours / 8 - $manAbsensi;
-        $manPenghematan = $hoursToMan($penghematanJam);
+
+        $manSelisihA = $hoursToMan($selisihA);
 
         $manPenangananItems = array_map($hoursToMan, $penangananItems);
         $manPenangananTotal = array_sum($manPenangananItems);
 
-        // Selisih: gunakan bebanProduksiTotal yang benar
-        $selisihA = $powerNetTotal - $bebanProduksiTotal;
-        $manSelisihA = $manPowerNet - $manBebanProduksi; // ✅ bandingkan dengan beban produksi saja
-        $selisihB = $selisihA + $penangananTotal;
-        $manSelisihB = $manSelisihA + $manPenangananTotal;
+        $manSelisihB = $hoursToMan($selisihB);
 
-        // Efisiensi: berdasarkan bebanProduksiTotal
-        $efisiensiPersen = $bebanProduksiTotal > 0 ? (($bebanProduksiTotal - $powerNetTotal) / $bebanProduksiTotal) * 100 : 0;
-        // NonOp persen: opsional, bisa dihitung terhadap bebanProduksiTotal
-        $nonOperationalPersen = $bebanProduksiTotal > 0 ? ($nonOperationalTotal / $bebanProduksiTotal) * 100 : 0;
+        // Efisiensi: berdasarkan totalBebanAkhir (B13)
+        $efisiensiPersen = $totalBebanAkhir > 0 ? (($totalBebanAkhir - $powerNetTotal) / $totalBebanAkhir) * 100 : 0;
+        $nonOperationalPersen = $totalBebanAkhir > 0 ? ($nonOperationalTotal / $totalBebanAkhir) * 100 : 0;
 
         // --- EXCEL ---
-        $spreadsheet = new Spreadsheet;
+        $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Operational Performance');
 
-        $sheet->setCellValue('A1', '2025 OPERATIONAL PERFORMANCE');
-        $sheet->setCellValue('A2', '2025年の操業実績');
+        $exportYear = Carbon::parse($dateString)->format('Y');
+        $sheet->setCellValue('A1', $exportYear . ' OPERATIONAL PERFORMANCE');
+        $sheet->setCellValue('A2', $exportYear . '年の操業実績');
         $sheet->mergeCells('A1:C1');
         $sheet->mergeCells('A2:C2');
         $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal('center');
 
-        $sheet->setCellValue('A4', 'Tanggal');
-        $sheet->setCellValue('B4', $dateString);
-        $sheet->mergeCells('A4:B4');
-        $sheet->getStyle('A4:B4')->getFont()->setBold(true);
-        $sheet->getStyle('A4:B4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->setCellValue('A4', 'Tanggal / 日付');
+        $sheet->setCellValue('B4', Carbon::parse($dateString)->format('d F Y'));
+        $sheet->mergeCells('B4:C4');
+        $sheet->getStyle('A4:C4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         $sheet->getRowDimension(4)->setRowHeight(20);
 
         $sheet->setCellValue('A7', 'Item・内容');
@@ -692,71 +696,562 @@ class AdminController extends Controller
 
         $row = 8;
 
-        // Beban
-        $this->writeSectionHeader($sheet, $row++, 'Beban・負荷');
-        // ✅ Tampilkan bebanProduksiTotal, bukan scanTotal
-        $this->writeRow($sheet, $row++, 'Beban Produksi・生産負荷', $bebanProduksiTotal, $manBebanProduksi);
-        $this->writeRow($sheet, $row++, 'Non operational・生産外負荷', $nonOperationalTotal, $manNonOperational);
-        // Kaizen tetap = scanTotal, tapi ditampilkan negatif (pengurang)
-        $this->writeRowColored($sheet, $row++, 'Kaizen・過年度工数低減 (7.8%)', -$kaizenTotal, -$manKaizen, 'FF0000FF');
-        $this->writeRow($sheet, $row++, 'Part Titipan・補修部品', 0, 0);
-        // ✅ Total beban = bebanProduksiTotal + nonOperationalTotal (karena Kaizen hanya label, bukan pengurang)
-        $totalBebanAkhir = $bebanProduksiTotal + $nonOperationalTotal;
-        $this->writeTotalRow($sheet, $row++, 'Total・計', $totalBebanAkhir, $manBebanProduksi + $manNonOperational, 'FFF0E0C0');
+        // ====== BEBAN (row 8-13) ======
+        $this->writeSectionHeader($sheet, $row++, 'Beban・負荷');              // row 8: header
+        $r_bebanProduksi = $row;                                              // row 9
+        $sheet->setCellValue("A$row", 'Beban Produksi・生産負荷');
+        $sheet->setCellValue("B$row", $bebanProduksiTotal);
+        $sheet->setCellValue("C$row", "=B$row/8");
+        $row++;
 
-        // Power
-        $this->writeSectionHeader($sheet, $row++, 'Power・能力');
-        $this->writeRow($sheet, $row++, 'Man Power・能力', $memberHours, $memberHours / 8);
-        $this->writeRowColored($sheet, $row++, 'Absensi・欠勤 (max 3%)', -$absensiTotal, -$manAbsensi, 'FF0000FF');
-        $this->writeTotalRow($sheet, $row++, 'Total・計', $powerNetTotal, $manPowerNet, 'FFE0E0F0');
-        $this->writeDifferenceRow($sheet, $row++, 'Selisih A (Power-Beban)', $selisihA, $manSelisihA);
+        $r_nonOp = $row;                                                     // row 10
+        $sheet->setCellValue("A$row", 'Non operational・生産外負荷');
+        $sheet->setCellValue("B$row", $nonOperationalTotal);
+        $sheet->setCellValue("C$row", "=B$row/8");
+        $row++;
 
-        // Penanganan
-        $this->writeSectionHeader($sheet, $row++, 'Penanganan・対策');
+        $r_kaizen = $row;                                                    // row 11
+        $sheet->setCellValue("A$row", 'Kaizen・過年度工数低減 (7.8%)');
+        $sheet->setCellValue("B$row", "=-B{$r_bebanProduksi}*0.078");
+        $sheet->setCellValue("C$row", "=B$row/8");
+        $sheet->getStyle("B$row:C$row")->getFont()->getColor()->setARGB('FF0000FF');
+        $row++;
+
+        $r_partTitipan = $row;                                               // row 12
+        $sheet->setCellValue("A$row", 'Part Titipan・補修部品');
+        $sheet->setCellValue("B$row", 0);
+        $sheet->setCellValue("C$row", 0);
+        $row++;
+
+        $r_totalBeban = $row;                                                // row 13
+        $sheet->setCellValue("A$row", 'Total・計');
+        $sheet->setCellValue("B$row", "=SUM(B{$r_bebanProduksi}:B{$r_partTitipan})");
+        $sheet->setCellValue("C$row", "=SUM(C{$r_bebanProduksi}:C{$r_partTitipan})");
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        $sheet->getStyle("A$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // ====== POWER (row 14-18) ======
+        $this->writeSectionHeader($sheet, $row++, 'Power・能力');              // row 14: header
+
+        $r_manPower = $row;                                                  // row 15
+        $sheet->setCellValue("A$row", 'Man Power・能力');
+        $sheet->setCellValue("B$row", $memberHours);
+        $sheet->setCellValue("C$row", "=B$row/8");
+        $row++;
+
+        $r_absensi = $row;                                                   // row 16
+        $sheet->setCellValue("A$row", 'Absensi・欠勤 (max 3%)');
+        $sheet->setCellValue("B$row", -$absensiTotal);
+        $sheet->setCellValue("C$row", "=B$row/8");
+        $sheet->getStyle("B$row:C$row")->getFont()->getColor()->setARGB('FF0000FF');
+        $row++;
+
+        $r_totalPower = $row;                                                // row 17
+        $sheet->setCellValue("A$row", 'Total・計');
+        $sheet->setCellValue("B$row", "=SUM(B{$r_manPower}:B{$r_absensi})");
+        $sheet->setCellValue("C$row", "=SUM(C{$r_manPower}:C{$r_absensi})");
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0F0');
+        $sheet->getStyle("A$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        $r_selisihA = $row;                                                  // row 18
+        $sheet->setCellValue("A$row", 'Selisih A (Power-Beban)');
+        $sheet->setCellValue("B$row", "=B{$r_totalPower}-B{$r_totalBeban}");
+        $sheet->setCellValue("C$row", "=C{$r_totalPower}-C{$r_totalBeban}");
+        $sheet->getStyle("B$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // ====== PENANGANAN (row 19+) ======
+        $this->writeSectionHeader($sheet, $row++, 'Penanganan・対策');         // row 19: header
+
+        // Penghematan (row 20) — diisi formula di akhir
+        $r_penghematan = $row;
+        $sheet->setCellValue("A$row", $penangananCategories[0][0]);
+        // B & C akan diisi formula setelah semua item ditulis
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF00FF00');
+        $row++;
+
+        // Item penanganan lainnya (row 21+)
+        $r_firstItem = $row;
         $totalPenangananRows = count($penangananCategories);
-        for ($i = 0; $i < $totalPenangananRows; $i++) {
+        for ($i = 1; $i < $totalPenangananRows; $i++) {
             $label = $penangananCategories[$i][0];
             $hours = $penangananCategories[$i][1];
-            $man = $manPenangananItems[$i];
 
             if ($i == 5) {
-                $hoursDisplay = $hours < 0 ? '▲'.abs($hours) : $hours;
-                $manDisplay = $man < 0 ? '▲'.abs($man) : $man;
-                $this->writeRowColored($sheet, $row++, $label, $hoursDisplay, $manDisplay, 'FFFF0000');
+                // Perbantuan area lain — tampilkan ▲ jika negatif
+                $sheet->setCellValue("A$row", $label);
+                $sheet->setCellValue("B$row", $hours);
+                $sheet->setCellValue("C$row", "=B$row/8");
+                $sheet->getStyle("B$row:C$row")->getFont()->getColor()->setARGB('FFFF0000');
             } else {
-                $bg = $i == 0 ? 'FF00FF00' : null;
-                $this->writeRowWithBackground($sheet, $row++, $label, $hours, $man, $bg);
+                $sheet->setCellValue("A$row", $label);
+                $sheet->setCellValue("B$row", $hours);
+                $sheet->setCellValue("C$row", "=B$row/8");
             }
+            $row++;
         }
+        $r_lastItem = $row - 1;
 
-        $this->writeTotalRow($sheet, $row++, 'Total・計', $penangananTotal, $manPenangananTotal, 'FFF0E0C0');
-        $this->writeDifferenceRow($sheet, $row++, 'Selisih B (Selisih A + Penanganan)', $selisihB, $manSelisihB);
+        // Formula Penghematan (B20): agar Selisih B = 0 → B20 = -(B18 + SUM(B21:B_lastItem))
+        $sheet->setCellValue("B{$r_penghematan}", "=-(B{$r_selisihA}+SUM(B{$r_firstItem}:B{$r_lastItem}))");
+        $sheet->setCellValue("C{$r_penghematan}", "=B{$r_penghematan}/8");
 
-        // Efisiensi
+        // Total Penanganan
+        $r_totalPenanganan = $row;
+        $sheet->setCellValue("A$row", 'Total・計');
+        $sheet->setCellValue("B$row", "=SUM(B{$r_penghematan}:B{$r_lastItem})");
+        $sheet->setCellValue("C$row", "=SUM(C{$r_penghematan}:C{$r_lastItem})");
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        $sheet->getStyle("A$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // Selisih B = Selisih A + Total Penanganan (seharusnya 0)
+        $r_selisihB = $row;
+        $sheet->setCellValue("A$row", 'Selisih B (Selisih A + Penanganan)');
+        $sheet->setCellValue("B$row", "=B{$r_selisihA}+B{$r_totalPenanganan}");
+        $sheet->setCellValue("C$row", "=C{$r_selisihA}+C{$r_totalPenanganan}");
+        $sheet->getStyle("B$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // ====== EFISIENSI ======
         $row += 2;
-        $sheet->setCellValue("A$row", "Presentase Efisiensi\n工数低減率");
-        $sheet->getStyle("A$row")->getAlignment()->setWrapText(true);
-        $sheet->setCellValue("B$row", $efisiensiPersen / 100);
-        $sheet->getStyle("B$row")->getNumberFormat()->setFormatCode('0.0000%');
-        $sheet->getStyle("B$row")->getFont()->setBold(true)->setSize(16);
-        $row++;
 
-        $sheet->setCellValue("A$row", "Presentase Non Operational\n非稼働工数率");
-        $sheet->getStyle("A$row")->getAlignment()->setWrapText(true);
-        $sheet->setCellValue("B$row", $nonOperationalPersen / 100);
-        $sheet->getStyle("B$row")->getNumberFormat()->setFormatCode('0.0000%');
-        $sheet->getStyle("B$row")->getFont()->setBold(true)->setSize(16);
-        $row++;
+        // Terapkan format angka bulat untuk semua data di atas (sebelum baris persentase)
+        $sheet->getStyle('B8:C' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
 
-        $sheet->getStyle('B8:C'.($row - 1))->getNumberFormat()->setFormatCode('#,##0.0000');
+        $r_efisiensi = 33;
+        $r_nonOpPersen = 34;
+
+        // B33: Presentase Efisiensi
+        $sheet->setCellValue("A$r_efisiensi", "Presentase Efisiensi\n工数低減率");
+        $sheet->getStyle("A$r_efisiensi")->getAlignment()->setWrapText(true);
+        $sheet->setCellValue("B$r_efisiensi", "=B38/B37");
+        $sheet->mergeCells("B33:C33");
+        $sheet->getStyle("B33")->getAlignment()->setHorizontal('right');
+        $sheet->getStyle("B$r_efisiensi")->getNumberFormat()->setFormatCode('0%');
+        $sheet->getStyle("B$r_efisiensi")->getFont()->setBold(true)->setSize(16);
+
+        // B34: Presentase Non Operational
+        $sheet->setCellValue("A$r_nonOpPersen", "Presentase Non Operational\n非稼働工数率");
+        $sheet->getStyle("A$r_nonOpPersen")->getAlignment()->setWrapText(true);
+        $sheet->setCellValue("B$r_nonOpPersen", "=B40/B39");
+        $sheet->mergeCells("B34:C34");
+        $sheet->getStyle("B34")->getAlignment()->setHorizontal('right');
+        $sheet->getStyle("B$r_nonOpPersen")->getNumberFormat()->setFormatCode('0%');
+        $sheet->getStyle("B$r_nonOpPersen")->getFont()->setBold(true)->setSize(16);
+
+        // --- BARIS PERHITUNGAN KHUSUS (HARDCODED ROW 37-40) ---
+        // A37 Beban
+        $sheet->setCellValue("A37", "Beban");
+        $sheet->setCellValue("B37", "=SUM(C{$r_bebanProduksi}:C{$r_partTitipan})");
+
+        // A38 Penghematan (hilangkan C38 sesuai request)
+        $sheet->setCellValue("A38", "Penghematan");
+        $sheet->setCellValue("B38", "=C{$r_penghematan}");
+
+        // A39 Power
+        $p1_start = $r_firstItem;
+        $p1_end = $r_firstItem + 3;
+        $p2_start = $r_firstItem + 5;
+        $p2_end = $r_lastItem;
+        $sheet->setCellValue("A39", "Power");
+        $sheet->setCellValue("B39", "=SUM(C{$p1_start}:C{$p1_end},C{$p2_start}:C{$p2_end})+C{$r_manPower}");
+
+        // A40 Non Operational
+        $sheet->setCellValue("A40", "Non Operational");
+        $sheet->setCellValue("B40", "=C{$r_nonOp}");
+
+        $sheet->getStyle('B37:B40')->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->mergeCells('B37:C37');
+        $sheet->mergeCells('B38:C38');
+        $sheet->mergeCells('B39:C39');
+        $sheet->mergeCells('B40:C40');
+        $sheet->getStyle('B37:B40')->getAlignment()->setHorizontal('right');
+
+        // Pastikan row tracker berada setelah baris 40 agar layout garis border cover semuanya
+        $row = 41;
 
         $sheet->getColumnDimension('A')->setWidth(40);
         $sheet->getColumnDimension('B')->setWidth(15);
         $sheet->getColumnDimension('C')->setWidth(15);
-        $sheet->getStyle('A1:C'.($row - 1))->getAlignment()->setVertical('center');
-        $sheet->getStyle('A1:C'.($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
+        $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $fileName = 'Operational_Performance_'.$dateString.'.xlsx';
+        $fileName = 'Operational_Performance_' . $dateString . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), $fileName);
+        $writer->save($tempFile);
+
+        return Response::download($tempFile, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function exportMonthly(Request $request)
+    {
+        $monthInput = $request->get('month', Carbon::now()->format('Y-m'));
+        $monthParsed = Carbon::parse($monthInput . '-01');
+        $startDate = $monthParsed->copy()->startOfMonth();
+        $endDate = $monthParsed->copy()->endOfMonth();
+        $dateString = $monthParsed->format('Y-m');
+        $monthKey = $monthParsed->format('Y-m');
+
+        $areaId = $request->query('area');
+        $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
+
+        // Ambil hari kerja dari work_days
+        $workDay = \App\Models\WorkDay::where('Moth_Work_Day', $monthKey)->first();
+        $totalWorkDays = $workDay ? (int) $workDay->Total_Work_Day : 0;
+
+        if ($totalWorkDays <= 0) {
+            return back()->with('error', "Hari kerja bulan {$monthKey} belum diisi. Silakan isi di menu Work Day terlebih dahulu.");
+        }
+
+        // === DATA QUERIES ===
+        $scanQuery = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))->with('member', 'tractor');
+        $costQuery = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'));
+        $powerQuery = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))->with('member');
+        $penanganansQuery = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'));
+
+        if ($areaId) {
+            $scanQuery->where('Id_Area', $areaId);
+            $costQuery->where('Id_Area', $areaId);
+            $powerQuery->where('Id_Area', $areaId);
+            $penanganansQuery->where('Id_Area', $areaId);
+        }
+
+        $scans = $scanQuery->get();
+        $costs = $costQuery->get();
+        $powers = $powerQuery->get();
+        $penanganans = $penanganansQuery->get();
+
+        // === MEMBER HOURS (monthly sum) ===
+        $reportMembers = 0;
+        $memberHours = 0.0;
+        $daysCounted = 0;
+        $cursor = $startDate->copy();
+        while ($cursor->lte($endDate)) {
+            $dayStr = $cursor->format('Y-m-d');
+            $dayYmd = $cursor->format('Ymd');
+            $dayReports = Report::where('Day_Report', $dayStr)->get()->keyBy('Id_Area');
+            if ($areaId) {
+                $dayReport = $dayReports->get($areaId);
+                $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
+                    : DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
+                $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
+            } else {
+                $dayMembers = 0;
+                $dayHours = 0;
+                foreach ($areas as $area) {
+                    $areaReport = $dayReports->get($area->Id_Area);
+                    if ($areaReport) {
+                        $dayMembers += (int) $areaReport->Total_Member_Report;
+                        $dayHours += (float) $areaReport->Total_Hours_Report;
+                    } else {
+                        $ac = DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $area->Id_Area)->distinct('Nik_Daily_Job')->count();
+                        $dayMembers += $ac;
+                        $dayHours += ($ac * 8.0);
+                    }
+                }
+            }
+            if ($dayMembers > 0) $daysCounted++;
+            $reportMembers += $dayMembers;
+            $memberHours += $dayHours;
+            $cursor->addDay();
+        }
+
+        // === HITUNG KOMPONEN ===
+        $scanTotal = $scans->sum('Assigned_Hour_Scan');
+        $nonOperationalTotal = $costs->sum('Non_Operational_Cost');
+        $bebanProduksiTotal = $scanTotal;
+        $absensiTotal = $powers->sum('Leave_Hour_Power');
+
+        // === PENANGANAN ===
+        $fixedLabels = [
+            'fix_back_up' => 'Fix Back Up Proses / 工程の応援',
+            'back_up_absensi' => 'Back Up Absensi / 欠勤応援',
+            'bantuan_pic' => 'Bantuan ke PIC Absensi / 欠勤対応の応援',
+            'irregular' => 'Back Up Line Stop / Irregular / イレギュラー対応',
+            'area_lain' => 'Perbantuan area lain / 他部署応援 【－】',
+            'lembur_produksi' => 'Lembur Produksi / 生産残業',
+            'lembur_mente' => 'Lembur Mente / メンテ残業',
+        ];
+        $handlingValues = array_fill_keys(array_keys($fixedLabels), 0.0);
+        $manualEntries = [];
+
+        foreach ($penanganans as $p) {
+            $desc = $p->Keterangan_Penanganan;
+            $hours = (float) $p->Hour_Penanganan;
+            $descLower = strtolower($desc);
+            $matched = false;
+
+            if (str_contains($descLower, 'fix back up proses') || str_contains($desc, '工程の応援')) {
+                $handlingValues['fix_back_up'] += $hours;
+                $matched = true;
+            } elseif (str_contains($descLower, 'back up absensi') || str_contains($desc, '欠勤応援')) {
+                $handlingValues['back_up_absensi'] += $hours;
+                $matched = true;
+            } elseif (str_contains($descLower, 'bantuan ke pic absensi') || str_contains($desc, '欠勤対応の応援')) {
+                $handlingValues['bantuan_pic'] += $hours;
+                $matched = true;
+            } elseif (str_contains($descLower, 'back up line stop') || str_contains($desc, 'イレギュラー対応')) {
+                $handlingValues['irregular'] += $hours;
+                $matched = true;
+            } elseif (str_contains($descLower, 'perbantuan area lain') || str_contains($desc, '他部署応援')) {
+                $handlingValues['area_lain'] += $hours;
+                $matched = true;
+            } elseif (str_contains($descLower, 'lembur mente') || str_contains($desc, 'メンテ残業')) {
+                $handlingValues['lembur_mente'] += $hours;
+                $matched = true;
+            } elseif (str_contains($descLower, 'lembur') && !str_contains($descLower, 'mente')) {
+                $handlingValues['lembur_produksi'] += $hours;
+                $matched = true;
+            }
+            if (!$matched) {
+                $manualEntries[] = ['label' => $desc, 'hours' => $hours];
+            }
+        }
+
+        $penangananCategories = [
+            [$fixedLabels['fix_back_up'], $handlingValues['fix_back_up']],
+            [$fixedLabels['back_up_absensi'], $handlingValues['back_up_absensi']],
+            [$fixedLabels['bantuan_pic'], $handlingValues['bantuan_pic']],
+            [$fixedLabels['irregular'], $handlingValues['irregular']],
+            [$fixedLabels['area_lain'], $handlingValues['area_lain']],
+            [$fixedLabels['lembur_produksi'], $handlingValues['lembur_produksi']],
+            [$fixedLabels['lembur_mente'], $handlingValues['lembur_mente']],
+        ];
+        foreach ($manualEntries as $entry) {
+            $penangananCategories[] = [$entry['label'], $entry['hours']];
+        }
+
+        // Prepend Penghematan placeholder (value set via formula later)
+        array_unshift($penangananCategories, ['Penghematan Jam Bulan ini / 今月の工数低減', 0]);
+
+        // ============ EXCEL ============
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Monthly Performance');
+
+        $exportYear = $monthParsed->format('Y');
+        $exportMonthName = $monthParsed->format('F Y');
+        $sheet->setCellValue('A1', $exportYear . ' MONTHLY OPERATIONAL PERFORMANCE');
+        $sheet->setCellValue('A2', $exportYear . '年の月次操業実績');
+        $sheet->mergeCells('A1:C1');
+        $sheet->mergeCells('A2:C2');
+        $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal('center');
+
+        $sheet->setCellValue('A4', 'Bulan / 月');
+        $sheet->setCellValue('B4', $exportMonthName);
+        $sheet->mergeCells('B4:C4');
+        $sheet->getStyle('A4:C4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        // B5: Hari Kerja — dipakai sebagai referensi formula Man
+        $sheet->setCellValue('A5', 'Hari Kerja / 稼働日数');
+        $sheet->setCellValue('B5', $totalWorkDays);
+        $sheet->mergeCells('B5:C5');
+        $sheet->getStyle('B5')->getAlignment()->setHorizontal('left');
+        $sheet->getStyle('A5:C5')->getFont()->setBold(true);
+        $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getRowDimension(4)->setRowHeight(20);
+        $sheet->getRowDimension(5)->setRowHeight(20);
+
+        // Man formula: =B_row/8/$B$5 (jam ÷ 8 ÷ hari kerja)
+        $manFormula = function (int $r): string {
+            return "=B{$r}/8/\$B\$5";
+        };
+
+        $sheet->setCellValue('A7', 'Item・内容');
+        $sheet->setCellValue('B7', 'Hour・時間');
+        $sheet->setCellValue('C7', 'Man・人数');
+        $sheet->getStyle('A7:C7')->getFont()->setBold(true);
+        $sheet->getStyle('A7:C7')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEEEEE');
+
+        $row = 8;
+
+        // ====== BEBAN ======
+        $this->writeSectionHeader($sheet, $row++, 'Beban・負荷');
+
+        $r_bebanProduksi = $row;
+        $sheet->setCellValue("A$row", 'Beban Produksi・生産負荷');
+        $sheet->setCellValue("B$row", $bebanProduksiTotal);
+        $sheet->setCellValue("C$row", $manFormula($row));
+        $row++;
+
+        $r_nonOp = $row;
+        $sheet->setCellValue("A$row", 'Non operational・生産外負荷');
+        $sheet->setCellValue("B$row", $nonOperationalTotal);
+        $sheet->setCellValue("C$row", $manFormula($row));
+        $row++;
+
+        $r_kaizen = $row;
+        $sheet->setCellValue("A$row", 'Kaizen・過年度工数低減 (7.8%)');
+        $sheet->setCellValue("B$row", "=-B{$r_bebanProduksi}*0.078");
+        $sheet->setCellValue("C$row", $manFormula($row));
+        $sheet->getStyle("B$row:C$row")->getFont()->getColor()->setARGB('FF0000FF');
+        $row++;
+
+        $r_partTitipan = $row;
+        $sheet->setCellValue("A$row", 'Part Titipan・補修部品');
+        $sheet->setCellValue("B$row", 0);
+        $sheet->setCellValue("C$row", 0);
+        $row++;
+
+        $r_totalBeban = $row;
+        $sheet->setCellValue("A$row", 'Total・計');
+        $sheet->setCellValue("B$row", "=SUM(B{$r_bebanProduksi}:B{$r_partTitipan})");
+        $sheet->setCellValue("C$row", "=SUM(C{$r_bebanProduksi}:C{$r_partTitipan})");
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        $sheet->getStyle("A$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // ====== POWER ======
+        $this->writeSectionHeader($sheet, $row++, 'Power・能力');
+
+        $r_manPower = $row;
+        $sheet->setCellValue("A$row", 'Man Power・能力');
+        $sheet->setCellValue("B$row", $memberHours);
+        $sheet->setCellValue("C$row", $manFormula($row));
+        $row++;
+
+        $r_absensi = $row;
+        $sheet->setCellValue("A$row", 'Absensi・欠勤 (max 3%)');
+        $sheet->setCellValue("B$row", -$absensiTotal);
+        $sheet->setCellValue("C$row", $manFormula($row));
+        $sheet->getStyle("B$row:C$row")->getFont()->getColor()->setARGB('FF0000FF');
+        $row++;
+
+        $r_totalPower = $row;
+        $sheet->setCellValue("A$row", 'Total・計');
+        $sheet->setCellValue("B$row", "=SUM(B{$r_manPower}:B{$r_absensi})");
+        $sheet->setCellValue("C$row", "=SUM(C{$r_manPower}:C{$r_absensi})");
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE0E0F0');
+        $sheet->getStyle("A$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        $r_selisihA = $row;
+        $sheet->setCellValue("A$row", 'Selisih A (Power-Beban)');
+        $sheet->setCellValue("B$row", "=B{$r_totalPower}-B{$r_totalBeban}");
+        $sheet->setCellValue("C$row", "=C{$r_totalPower}-C{$r_totalBeban}");
+        $sheet->getStyle("B$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // ====== PENANGANAN ======
+        $this->writeSectionHeader($sheet, $row++, 'Penanganan・対策');
+
+        // Penghematan (formula diisi belakangan)
+        $r_penghematan = $row;
+        $sheet->setCellValue("A$row", $penangananCategories[0][0]);
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF00FF00');
+        $row++;
+
+        $r_firstItem = $row;
+        $totalPenangananRows = count($penangananCategories);
+        for ($i = 1; $i < $totalPenangananRows; $i++) {
+            $label = $penangananCategories[$i][0];
+            $hours = $penangananCategories[$i][1];
+            $sheet->setCellValue("A$row", $label);
+            $sheet->setCellValue("B$row", $hours);
+            $sheet->setCellValue("C$row", $manFormula($row));
+            if ($i == 5) {
+                $sheet->getStyle("B$row:C$row")->getFont()->getColor()->setARGB('FFFF0000');
+            }
+            $row++;
+        }
+        $r_lastItem = $row - 1;
+
+        // Formula Penghematan
+        $sheet->setCellValue("B{$r_penghematan}", "=-(B{$r_selisihA}+SUM(B{$r_firstItem}:B{$r_lastItem}))");
+        $sheet->setCellValue("C{$r_penghematan}", $manFormula($r_penghematan));
+
+        // Total Penanganan
+        $r_totalPenanganan = $row;
+        $sheet->setCellValue("A$row", 'Total・計');
+        $sheet->setCellValue("B$row", "=SUM(B{$r_penghematan}:B{$r_lastItem})");
+        $sheet->setCellValue("C$row", "=SUM(C{$r_penghematan}:C{$r_lastItem})");
+        $sheet->getStyle("A$row:C$row")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        $sheet->getStyle("A$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // Selisih B
+        $r_selisihB = $row;
+        $sheet->setCellValue("A$row", 'Selisih B (Selisih A + Penanganan)');
+        $sheet->setCellValue("B$row", "=B{$r_selisihA}+B{$r_totalPenanganan}");
+        $sheet->setCellValue("C$row", "=C{$r_selisihA}+C{$r_totalPenanganan}");
+        $sheet->getStyle("B$row:C$row")->getFont()->setBold(true);
+        $row++;
+
+        // ====== EFISIENSI ======
+        $row += 2;
+        $sheet->getStyle('B9:C' . ($row - 1))->getNumberFormat()->setFormatCode('0');
+
+        $r_efisiensi = 33;
+        $r_nonOpPersen = 34;
+
+        // B33: Presentase Efisiensi
+        $sheet->setCellValue("A$r_efisiensi", "Presentase Efisiensi\n工数低減率");
+        $sheet->getStyle("A$r_efisiensi")->getAlignment()->setWrapText(true);
+        $sheet->setCellValue("B$r_efisiensi", "=B38/B37");
+        $sheet->mergeCells("B$r_efisiensi:C$r_efisiensi");
+        $sheet->getStyle("B$r_efisiensi")->getAlignment()->setHorizontal('right');
+        $sheet->getStyle("B$r_efisiensi")->getNumberFormat()->setFormatCode('0%');
+        $sheet->getStyle("B$r_efisiensi")->getFont()->setBold(true)->setSize(16);
+
+        // B34: Presentase Non Operational
+        $sheet->setCellValue("A$r_nonOpPersen", "Presentase Non Operational\n非稼働工数率");
+        $sheet->getStyle("A$r_nonOpPersen")->getAlignment()->setWrapText(true);
+        $sheet->setCellValue("B$r_nonOpPersen", "=B40/B39");
+        $sheet->mergeCells("B$r_nonOpPersen:C$r_nonOpPersen");
+        $sheet->getStyle("B$r_nonOpPersen")->getAlignment()->setHorizontal('right');
+        $sheet->getStyle("B$r_nonOpPersen")->getNumberFormat()->setFormatCode('0%');
+        $sheet->getStyle("B$r_nonOpPersen")->getFont()->setBold(true)->setSize(16);
+
+        // --- BARIS PERHITUNGAN KHUSUS (HARDCODED ROW 37-40) ---
+        // A37 Beban
+        $sheet->setCellValue("A37", "Beban");
+        $sheet->setCellValue("B37", "=SUM(C{$r_bebanProduksi}:C{$r_partTitipan})");
+
+        // A38 Penghematan (hilangkan C38 sesuai request)
+        $sheet->setCellValue("A38", "Penghematan");
+        $sheet->setCellValue("B38", "=C{$r_penghematan}");
+
+        // A39 Power
+        $p1_start = $r_firstItem;
+        $p1_end = $r_firstItem + 3;
+        $p2_start = $r_firstItem + 5;
+        $p2_end = $r_lastItem;
+        $sheet->setCellValue("A39", "Power");
+        $sheet->setCellValue("B39", "=SUM(C{$p1_start}:C{$p1_end},C{$p2_start}:C{$p2_end})+C{$r_manPower}");
+
+        // A40 Non Operational
+        $sheet->setCellValue("A40", "Non Operational");
+        $sheet->setCellValue("B40", "=C{$r_nonOp}");
+
+        $sheet->getStyle('B37:B40')->getNumberFormat()->setFormatCode('0');
+        $sheet->mergeCells('B37:C37');
+        $sheet->mergeCells('B38:C38');
+        $sheet->mergeCells('B39:C39');
+        $sheet->mergeCells('B40:C40');
+        $sheet->getStyle('B37:B40')->getAlignment()->setHorizontal('right');
+
+        // Pastikan row tracker berada setelah baris 40 agar layout garis border cover semuanya
+        $row = 41;
+
+        $sheet->getColumnDimension('A')->setWidth(40);
+        $sheet->getColumnDimension('B')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
+        $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        $fileName = 'Monthly_Performance_' . $dateString . '.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), $fileName);
         $writer->save($tempFile);
@@ -806,8 +1301,8 @@ class AdminController extends Controller
     // 🔸 Perbaikan: ubah $man dari `int` jadi `float`
     private function writeDifferenceRow($sheet, int $row, string $label, float $hours, float $man): void
     {
-        $hoursDisplay = $hours < 0 ? '▲'.abs($hours) : $hours;
-        $manDisplay = $man < 0 ? '▲'.abs($man) : $man;
+        $hoursDisplay = $hours < 0 ? "▲" . abs($hours) : $hours;
+        $manDisplay = $man < 0 ? "▲" . abs($man) : $man;
         $color = $hours < 0 ? 'FF0000FF' : 'FF000000';
 
         $sheet->setCellValue("A$row", $label);

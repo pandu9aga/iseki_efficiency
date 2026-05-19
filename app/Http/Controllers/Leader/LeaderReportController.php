@@ -125,6 +125,9 @@ class LeaderReportController extends Controller
         // View uses $areas for modals loop.
         $areas = $assignedAreas;
 
+        // ✅ Map NIK => nama untuk tampilan popover cost
+        $allNiks = Member::pluck('nama', 'nik')->toArray();
+
         return view('leaders.reports.index', compact(
             'dateString',
             'areaReports',
@@ -138,6 +141,7 @@ class LeaderReportController extends Controller
             'area', // The active area
             'memberMap',
             'allMembers',
+            'allNiks',
             'assignedAreas', // For the new tabs
             'areas'
         ));
@@ -259,8 +263,9 @@ class LeaderReportController extends Controller
         $selectedNiks = $request->input('selected_members', []);
 
         if (empty($selectedNiks)) {
-            $appliedNiks = 'all';
-            $memberCount = count($allActiveNiks);
+            // Simpan semua NIK aktif sebagai array (bukan string 'all')
+            $appliedNiks = array_values($allActiveNiks);
+            $memberCount = count($appliedNiks);
         } else {
             $appliedNiks = array_values(array_intersect($selectedNiks, $allActiveNiks));
             $memberCount = count($appliedNiks);
@@ -357,8 +362,9 @@ class LeaderReportController extends Controller
         $selectedNiks = $request->input('selected_members', []);
 
         if (empty($selectedNiks)) {
-            $appliedNiks = 'all';
-            $memberCount = count($allActiveNiks);
+            // Simpan semua NIK aktif sebagai array (bukan string 'all')
+            $appliedNiks = array_values($allActiveNiks);
+            $memberCount = count($appliedNiks);
         } else {
             $appliedNiks = array_values(array_intersect($selectedNiks, $allActiveNiks));
             $memberCount = count($appliedNiks);

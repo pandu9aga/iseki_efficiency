@@ -216,7 +216,51 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Keluar dari proses scan dan bersihkan sesi
+     * Tampilkan halaman input total jam perbantuan (dalam menit)
+     */
+    public function inputDuration()
+    {
+        if (!session()->has('assistance_nik') || !session()->has('assistance_daily_job_id')) {
+            return redirect()->route('assistances.start')
+                ->with('error', 'Sesi berakhir atau data belum lengkap. Silakan mulai kembali.');
+        }
+
+        $dailyJobId = session('assistance_daily_job_id');
+        $dailyJob = DailyJob::with('member')->find($dailyJobId);
+
+        return view('assistances.input_duration', compact('dailyJob'));
+    }
+
+    /**
+     * Simpan durasi (menit) dan selesaikan sesi
+     */
+    public function storeDuration(Request $request)
+    {
+        if (!session()->has('assistance_nik') || !session()->has('assistance_daily_job_id')) {
+            return redirect()->route('assistances.start')->with('error', 'Sesi berakhir.');
+        }
+
+        $request->validate([
+            'total_minutes' => 'required|integer|min:1'
+        ]);
+
+        $nik = session('assistance_nik');
+        $dailyJobId = session('assistance_daily_job_id');
+        
+        if ($request->total_minutes > 0) {
+            \App\Models\AssistanceDuration::create([
+                'NIK_Assistance' => $nik,
+                'Id_Daily_Job' => $dailyJobId,
+                'Total_Minutes' => $request->total_minutes,
+            ]);
+        }
+
+        session()->forget(['assistance_nik', 'assistance_daily_job_id']);
+        return redirect()->route('login.form')->with('success', 'Proses perbantuan selesai dan durasi berhasil disimpan.');
+    }
+
+    /**
+     * Keluar dari proses scan dan bersihkan sesi (opsional jika lewati)
      */
     public function finish()
     {

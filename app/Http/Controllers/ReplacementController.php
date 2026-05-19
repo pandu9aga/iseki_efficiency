@@ -216,7 +216,51 @@ class ReplacementController extends Controller
     }
 
     /**
-     * Keluar dari proses scan dan bersihkan sesi
+     * Tampilkan halaman input total jam pergantian (dalam menit)
+     */
+    public function inputDuration()
+    {
+        if (!session()->has('replacement_nik') || !session()->has('replacement_daily_job_id')) {
+            return redirect()->route('replacements.start')
+                ->with('error', 'Sesi berakhir atau data belum lengkap. Silakan mulai kembali.');
+        }
+
+        $dailyJobId = session('replacement_daily_job_id');
+        $dailyJob = DailyJob::with('member')->find($dailyJobId);
+
+        return view('replacements.input_duration', compact('dailyJob'));
+    }
+
+    /**
+     * Simpan durasi (menit) dan selesaikan sesi
+     */
+    public function storeDuration(Request $request)
+    {
+        if (!session()->has('replacement_nik') || !session()->has('replacement_daily_job_id')) {
+            return redirect()->route('replacements.start')->with('error', 'Sesi berakhir.');
+        }
+
+        $request->validate([
+            'total_minutes' => 'required|integer|min:1'
+        ]);
+
+        $nik = session('replacement_nik');
+        $dailyJobId = session('replacement_daily_job_id');
+        
+        if ($request->total_minutes > 0) {
+            \App\Models\ReplacementDuration::create([
+                'NIK_Replacement' => $nik,
+                'Id_Daily_Job' => $dailyJobId,
+                'Total_Minutes' => $request->total_minutes,
+            ]);
+        }
+
+        session()->forget(['replacement_nik', 'replacement_daily_job_id']);
+        return redirect()->route('login.form')->with('success', 'Proses pergantian selesai dan durasi berhasil disimpan.');
+    }
+
+    /**
+     * Keluar dari proses scan dan bersihkan sesi (opsional jika lewati)
      */
     public function finish()
     {

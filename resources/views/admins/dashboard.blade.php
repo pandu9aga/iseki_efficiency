@@ -63,9 +63,15 @@
                                     <button type="submit" class="btn btn-primary">Show</button>
                                 </div>
                                 <div class="col-auto">
-                                    <a id="exportLink" href="{{ route('admins.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}"
+                                    @if($filterMode === 'month')
+                                    <a id="exportLink" href="{{ route('admins.dashboard.export-monthly', ['month' => $dateString, 'area' => request('area')]) }}"
+                                        class="btn btn-warning">
+                                        <i class="bi bi-file-earmark-spreadsheet"></i> Export Bulanan
+                                    </a>
+                                    @endif
+                                    <a id="exportLinkDaily" href="{{ route('admins.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-success">
-                                        <i class="fas fa-file-excel"></i> Export Excel
+                                        <i class="bi bi-file-earmark-excel"></i> Export Excel
                                     </a>
                                     <a id="fullscreenLink" href="{{ route('admins.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-info">Fullscreen View</a>
@@ -74,6 +80,13 @@
                         </form>
                     </div>
                 </div>
+
+                @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                @endif
 
                 @if ($isToday)
                 <div class="alert alert-info d-flex align-items-center">

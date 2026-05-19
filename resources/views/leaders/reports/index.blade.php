@@ -127,7 +127,15 @@
                                         $applied = $cost->applied_members;
                                         $memberCount = 0;
                                         $infoText = 'Unknown';
-                                        if ($applied === null || $applied === 'all') {
+                                        if (is_array($applied) && !empty($applied)) {
+                                        $memberCount = count($applied);
+                                        $names = array_map(
+                                        fn($nik) => $allNiks[$nik] ?? $nik,
+                                        $applied,
+                                        );
+                                        $infoText = 'Applied to:<br>' . implode('<br>', $names);
+                                        } elseif ($applied === null || $applied === 'all') {
+                                        // Backward compatibility untuk data lama
                                         $memberCount = \App\Models\DailyJob::where(
                                         'Production_Date_Plan',
                                         \Carbon\Carbon::parse($cost->Start_Cost)->format('Ymd'),
@@ -136,13 +144,6 @@
                                         ->distinct('Nik_Daily_Job')
                                         ->count();
                                         $infoText = "Applied to all active members ($memberCount)";
-                                        } elseif (is_array($applied)) {
-                                        $memberCount = count($applied);
-                                        $names = array_map(
-                                        fn($nik) => $allNiks[$nik] ?? $nik,
-                                        $applied,
-                                        );
-                                        $infoText = 'Applied to:<br>' . implode('<br>', $names);
                                         }
                                         $costPerPerson = $memberCount > 0 ? $cost->Non_Operational_Cost / $memberCount : 0;
                                         $jamMenitPerPerson = \App\Helpers\Formatter::decimalToJamMenit($costPerPerson);

@@ -1,0 +1,1 @@
+[{"Table":"work_days","Create Table":"CREATE TABLE `work_days` (\n  `Id_Work_Day` int(11) NOT NULL AUTO_INCREMENT,\n  `Moth_Work_Day` varchar(11) NOT NULL,\n  `Total_Work_Day` int(11) NOT NULL,\n  PRIMARY KEY (`Id_Work_Day`)\n) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"}]

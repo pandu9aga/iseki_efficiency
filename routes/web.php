@@ -51,6 +51,8 @@ Route::middleware('web')->group(function () {
         Route::post('/start', [ReplacementController::class, 'storeStart'])->name('storeStart');
         Route::get('/scan', [ReplacementController::class, 'scan'])->name('scan');
         Route::post('/scan', [ReplacementController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
+        Route::get('/input-duration', [ReplacementController::class, 'inputDuration'])->name('inputDuration');
+        Route::post('/store-duration', [ReplacementController::class, 'storeDuration'])->name('storeDuration');
         Route::post('/finish', [ReplacementController::class, 'finish'])->name('finish');
     });
 
@@ -60,6 +62,8 @@ Route::middleware('web')->group(function () {
         Route::post('/start', [AssistanceController::class, 'storeStart'])->name('storeStart');
         Route::get('/scan', [AssistanceController::class, 'scan'])->name('scan');
         Route::post('/scan', [AssistanceController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
+        Route::get('/input-duration', [AssistanceController::class, 'inputDuration'])->name('inputDuration');
+        Route::post('/store-duration', [AssistanceController::class, 'storeDuration'])->name('storeDuration');
         Route::post('/finish', [AssistanceController::class, 'finish'])->name('finish');
     });
 });
@@ -167,6 +171,7 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
     Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
     Route::get('/dashboard-fullscreen', [AdminController::class, 'fullscreen'])->name('dashboard.fullscreen');
     Route::get('/dashboard/export', [AdminController::class, 'export'])->name('dashboard.export');
+    Route::get('/dashboard/export-monthly', [AdminController::class, 'exportMonthly'])->name('dashboard.export-monthly');
 
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [AdminUserController::class, 'index'])->name('index');
@@ -237,5 +242,10 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
     Route::prefix('monitoring')->name('monitoring.')->group(function () {
         Route::get('/replacements', [\App\Http\Controllers\Admin\MonitorController::class, 'replacements'])->name('replacements');
         Route::get('/assistances', [\App\Http\Controllers\Admin\MonitorController::class, 'assistances'])->name('assistances');
+    });
+
+    Route::prefix('workdays')->name('workdays.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\WorkDayController::class, 'index'])->name('index');
+        Route::post('/bulk-update', [\App\Http\Controllers\Admin\WorkDayController::class, 'bulkUpdate'])->name('bulk-update');
     });
 });
