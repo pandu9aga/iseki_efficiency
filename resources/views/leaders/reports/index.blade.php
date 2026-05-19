@@ -618,14 +618,7 @@
                             <option value="perbantuan_area_lain">Perbantuan area lain / 他部署応援 【－】</option>
                             <option value="lembur_produksi">Lembur Produksi / 生産残業</option>
                             <option value="lembur_mente">Lembur Mente / メンテ残業</option>
-                            <option value="lain_lain">Lain-lain (Manual)</option>
                         </select>
-                    </div>
-
-                    <!-- Deskripsi Manual -->
-                    <div class="mb-3" id="manualPenangananDesc{{ $area->Id_Area }}" style="display:none;">
-                        <label>Deskripsi Manual</label>
-                        <textarea name="Keterangan_Penanganan" class="form-control"></textarea>
                     </div>
 
                     <!-- Start Time -->
@@ -976,14 +969,7 @@ $isNegative = $p->Hour_Penanganan < 0;
                                 <option value="perbantuan_area_lain" {{ $kategori === 'perbantuan_area_lain' ? 'selected' : '' }}>Perbantuan area lain / 他部署応援 【－】</option>
                                 <option value="lembur_produksi" {{ $kategori === 'lembur_produksi' ? 'selected' : '' }}>Lembur Produksi / 生産残業</option>
                                 <option value="lembur_mente" {{ $kategori === 'lembur_mente' ? 'selected' : '' }}>Lembur Mente / メンテ残業</option>
-                                <option value="lain_lain" {{ $kategori === 'lain_lain' ? 'selected' : '' }}>Lain-lain (Manual)</option>
                             </select>
-                        </div>
-
-                        <!-- Deskripsi Manual -->
-                        <div class="mb-3" id="editManualPenangananDesc{{ $p->Id_Penanganan }}" style="display:{{ $kategori === 'lain_lain' ? 'block' : 'none' }};">
-                            <label>Deskripsi Manual</label>
-                            <textarea name="Keterangan_Penanganan" class="form-control">{{ $p->Keterangan_Penanganan }}</textarea>
                         </div>
 
                         <!-- Start Time -->

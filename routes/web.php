@@ -53,7 +53,7 @@ Route::middleware('web')->group(function () {
         Route::post('/scan', [ReplacementController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
         Route::get('/input-duration', [ReplacementController::class, 'inputDuration'])->name('inputDuration');
         Route::post('/store-duration', [ReplacementController::class, 'storeDuration'])->name('storeDuration');
-        Route::post('/finish', [ReplacementController::class, 'finish'])->name('finish');
+        Route::get('/finish', [ReplacementController::class, 'finish'])->name('finish');
     });
 
     Route::prefix('assistances')->name('assistances.')->group(function () {
@@ -64,7 +64,7 @@ Route::middleware('web')->group(function () {
         Route::post('/scan', [AssistanceController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
         Route::get('/input-duration', [AssistanceController::class, 'inputDuration'])->name('inputDuration');
         Route::post('/store-duration', [AssistanceController::class, 'storeDuration'])->name('storeDuration');
-        Route::post('/finish', [AssistanceController::class, 'finish'])->name('finish');
+        Route::get('/finish', [AssistanceController::class, 'finish'])->name('finish');
     });
 });
 
@@ -158,7 +158,9 @@ Route::middleware(['web'])->prefix('leaders')->name('leaders.')->group(function 
 
     Route::prefix('monitoring')->name('monitoring.')->group(function () {
         Route::get('/replacements', [\App\Http\Controllers\Leader\MonitorController::class, 'replacements'])->name('replacements');
+        Route::get('/replacements/export', [\App\Http\Controllers\Leader\MonitorController::class, 'exportReplacements'])->name('replacements.export');
         Route::get('/assistances', [\App\Http\Controllers\Leader\MonitorController::class, 'assistances'])->name('assistances');
+        Route::get('/assistances/export', [\App\Http\Controllers\Leader\MonitorController::class, 'exportAssistances'])->name('assistances.export');
     });
 });
 
@@ -241,11 +243,19 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
 
     Route::prefix('monitoring')->name('monitoring.')->group(function () {
         Route::get('/replacements', [\App\Http\Controllers\Admin\MonitorController::class, 'replacements'])->name('replacements');
+        Route::get('/replacements/export', [\App\Http\Controllers\Admin\MonitorController::class, 'exportReplacements'])->name('replacements.export');
         Route::get('/assistances', [\App\Http\Controllers\Admin\MonitorController::class, 'assistances'])->name('assistances');
+        Route::get('/assistances/export', [\App\Http\Controllers\Admin\MonitorController::class, 'exportAssistances'])->name('assistances.export');
     });
 
     Route::prefix('workdays')->name('workdays.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\WorkDayController::class, 'index'])->name('index');
         Route::post('/bulk-update', [\App\Http\Controllers\Admin\WorkDayController::class, 'bulkUpdate'])->name('bulk-update');
+    });
+
+    // AI Diagnostic Analytics
+    Route::prefix('ai-insight')->name('ai-insight.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AiInsightController::class, 'index'])->name('index');
+        Route::get('/analyze', [\App\Http\Controllers\Admin\AiInsightController::class, 'analyze'])->name('analyze');
     });
 });

@@ -40,9 +40,23 @@
                             <input type="month" name="filter_month" class="form-control" value="{{ $filterMonth }}">
                         </div>
                         <div class="col-auto">
+                            <label class="form-label fw-bold mb-1">Member Perbantuan</label>
+                            <select name="member_nik" class="form-select">
+                                <option value="">Semua Member</option>
+                                @foreach($members as $m)
+                                    <option value="{{ $m->nik }}" {{ $selectedMemberNik === $m->nik ? 'selected' : '' }}>
+                                        {{ $m->nama }} ({{ $m->nik }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-auto">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-funnel"></i> Tampilkan
                             </button>
+                            <a href="{{ route('leaders.monitoring.assistances.export', request()->all()) }}" class="btn btn-success">
+                                <i class="bi bi-file-earmark-excel"></i> Download Excel
+                            </a>
                         </div>
                     </div>
                 </form>
@@ -55,74 +69,7 @@
                     <span class="badge bg-light-info fs-6">Total: {{ $assistances->count() }} data</span>
                 </div>
 
-                {{-- DURASI PERBANTUAN SUMMARY --}}
-                @if($durationSummary->count() > 0)
-                <div class="card mb-3 border border-success">
-                    <div class="card-header py-2 bg-light-success">
-                        <h6 class="mb-0"><i class="bi bi-clock-history"></i> Ringkasan Durasi Perbantuan</h6>
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>No</th>
-                                    <th>Member Pembantu</th>
-                                    <th>PIC Dibantu</th>
-                                    <th>Jumlah Sesi</th>
-                                    <th>Total Durasi</th>
-                                    <th>Detail</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($durationSummary as $idx => $dur)
-                                <tr>
-                                    <td>{{ $idx + 1 }}</td>
-                                    <td><strong>{{ $dur['nama_pembantu'] }}</strong></td>
-                                    <td>{{ $dur['nama_pic'] }}</td>
-                                    <td><span class="badge bg-info">{{ $dur['jumlah_sesi'] }} sesi</span></td>
-                                    <td>
-                                        <span class="badge bg-success fs-6">
-                                            {{ $dur['jam'] > 0 ? $dur['jam'] . ' jam ' : '' }}{{ $dur['menit'] }} menit
-                                        </span>
-                                        <small class="text-muted ms-1">({{ $dur['total_minutes'] }} menit)</small>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-success" type="button" data-bs-toggle="collapse" data-bs-target="#detailAssistL{{ $idx }}">
-                                            <i class="bi bi-eye"></i> Rincian
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr class="collapse" id="detailAssistL{{ $idx }}">
-                                    <td colspan="6" class="p-0">
-                                        <div class="bg-light p-2 ms-4 me-4 mb-2 mt-1 rounded border">
-                                            <small class="fw-bold text-muted">Rincian per Sesi:</small>
-                                            <table class="table table-sm table-bordered mb-0 mt-1" style="font-size: 0.85rem;">
-                                                <thead>
-                                                    <tr class="table-secondary">
-                                                        <th>Sesi</th>
-                                                        <th>Durasi</th>
-                                                        <th>Waktu Input</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach($dur['sessions'] as $ses)
-                                                    <tr>
-                                                        <td>Sesi {{ $ses['sesi'] }}</td>
-                                                        <td><strong>{{ $ses['menit'] }} menit</strong></td>
-                                                        <td>{{ $ses['waktu'] }}</td>
-                                                    </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                @endif
+
 
                 <table class="table table-striped" id="monitorTable">
                     <thead>

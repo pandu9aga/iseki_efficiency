@@ -821,57 +821,62 @@ class AdminController extends Controller
         // Terapkan format angka bulat untuk semua data di atas (sebelum baris persentase)
         $sheet->getStyle('B8:C' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
 
-        $r_efisiensi = 33;
-        $r_nonOpPersen = 34;
+        $r_efisiensi = $row;
+        $r_nonOpPersen = $row + 1;
+        
+        $r_bebanBottom = $row + 3;
+        $r_penghematanBottom = $row + 4;
+        $r_powerBottom = $row + 5;
+        $r_nonOpBottom = $row + 6;
 
-        // B33: Presentase Efisiensi
-        $sheet->setCellValue("A$r_efisiensi", "Presentase Efisiensi\n工数低減率");
+        // B33 (Dinamo): Presentase Efisiensi
+        $sheet->setCellValue("A$r_efisiensi", "Presentase Efisiensi\n工数低减率");
         $sheet->getStyle("A$r_efisiensi")->getAlignment()->setWrapText(true);
-        $sheet->setCellValue("B$r_efisiensi", "=B38/B37");
-        $sheet->mergeCells("B33:C33");
-        $sheet->getStyle("B33")->getAlignment()->setHorizontal('right');
+        $sheet->setCellValue("B$r_efisiensi", "=B{$r_penghematanBottom}/B{$r_bebanBottom}");
+        $sheet->mergeCells("B{$r_efisiensi}:C{$r_efisiensi}");
+        $sheet->getStyle("B$r_efisiensi")->getAlignment()->setHorizontal('right');
         $sheet->getStyle("B$r_efisiensi")->getNumberFormat()->setFormatCode('0%');
         $sheet->getStyle("B$r_efisiensi")->getFont()->setBold(true)->setSize(16);
 
-        // B34: Presentase Non Operational
+        // B34 (Dinamo): Presentase Non Operational
         $sheet->setCellValue("A$r_nonOpPersen", "Presentase Non Operational\n非稼働工数率");
         $sheet->getStyle("A$r_nonOpPersen")->getAlignment()->setWrapText(true);
-        $sheet->setCellValue("B$r_nonOpPersen", "=B40/B39");
-        $sheet->mergeCells("B34:C34");
-        $sheet->getStyle("B34")->getAlignment()->setHorizontal('right');
+        $sheet->setCellValue("B$r_nonOpPersen", "=B{$r_nonOpBottom}/B{$r_powerBottom}");
+        $sheet->mergeCells("B{$r_nonOpPersen}:C{$r_nonOpPersen}");
+        $sheet->getStyle("B$r_nonOpPersen")->getAlignment()->setHorizontal('right');
         $sheet->getStyle("B$r_nonOpPersen")->getNumberFormat()->setFormatCode('0%');
         $sheet->getStyle("B$r_nonOpPersen")->getFont()->setBold(true)->setSize(16);
 
-        // --- BARIS PERHITUNGAN KHUSUS (HARDCODED ROW 37-40) ---
+        // --- BARIS PERHITUNGAN KHUSUS (DINAMIS ROW) ---
         // A37 Beban
-        $sheet->setCellValue("A37", "Beban");
-        $sheet->setCellValue("B37", "=SUM(C{$r_bebanProduksi}:C{$r_partTitipan})");
+        $sheet->setCellValue("A{$r_bebanBottom}", "Beban");
+        $sheet->setCellValue("B{$r_bebanBottom}", "=C{$r_bebanProduksi}+C{$r_kaizen}+C{$r_partTitipan}");
 
         // A38 Penghematan (hilangkan C38 sesuai request)
-        $sheet->setCellValue("A38", "Penghematan");
-        $sheet->setCellValue("B38", "=C{$r_penghematan}");
+        $sheet->setCellValue("A{$r_penghematanBottom}", "Penghematan");
+        $sheet->setCellValue("B{$r_penghematanBottom}", "=C{$r_penghematan}");
 
         // A39 Power
         $p1_start = $r_firstItem;
         $p1_end = $r_firstItem + 3;
         $p2_start = $r_firstItem + 5;
         $p2_end = $r_lastItem;
-        $sheet->setCellValue("A39", "Power");
-        $sheet->setCellValue("B39", "=SUM(C{$p1_start}:C{$p1_end},C{$p2_start}:C{$p2_end})+C{$r_manPower}");
+        $sheet->setCellValue("A{$r_powerBottom}", "Power");
+        $sheet->setCellValue("B{$r_powerBottom}", "=SUM(C{$p1_start}:C{$p1_end},C{$p2_start}:C{$p2_end})+C{$r_manPower}");
 
         // A40 Non Operational
-        $sheet->setCellValue("A40", "Non Operational");
-        $sheet->setCellValue("B40", "=C{$r_nonOp}");
+        $sheet->setCellValue("A{$r_nonOpBottom}", "Non Operational");
+        $sheet->setCellValue("B{$r_nonOpBottom}", "=C{$r_nonOp}");
 
-        $sheet->getStyle('B37:B40')->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->mergeCells('B37:C37');
-        $sheet->mergeCells('B38:C38');
-        $sheet->mergeCells('B39:C39');
-        $sheet->mergeCells('B40:C40');
-        $sheet->getStyle('B37:B40')->getAlignment()->setHorizontal('right');
+        $sheet->getStyle("B{$r_bebanBottom}:B{$r_nonOpBottom}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->mergeCells("B{$r_bebanBottom}:C{$r_bebanBottom}");
+        $sheet->mergeCells("B{$r_penghematanBottom}:C{$r_penghematanBottom}");
+        $sheet->mergeCells("B{$r_powerBottom}:C{$r_powerBottom}");
+        $sheet->mergeCells("B{$r_nonOpBottom}:C{$r_nonOpBottom}");
+        $sheet->getStyle("B{$r_bebanBottom}:B{$r_nonOpBottom}")->getAlignment()->setHorizontal('right');
 
-        // Pastikan row tracker berada setelah baris 40 agar layout garis border cover semuanya
-        $row = 41;
+        // Pastikan row tracker berada setelah baris terakhir agar layout garis border cover semuanya
+        $row = $r_nonOpBottom + 1;
 
         $sheet->getColumnDimension('A')->setWidth(40);
         $sheet->getColumnDimension('B')->setWidth(15);
@@ -1193,57 +1198,62 @@ class AdminController extends Controller
         $row += 2;
         $sheet->getStyle('B9:C' . ($row - 1))->getNumberFormat()->setFormatCode('0');
 
-        $r_efisiensi = 33;
-        $r_nonOpPersen = 34;
+        $r_efisiensi = $row;
+        $r_nonOpPersen = $row + 1;
+        
+        $r_bebanBottom = $row + 3;
+        $r_penghematanBottom = $row + 4;
+        $r_powerBottom = $row + 5;
+        $r_nonOpBottom = $row + 6;
 
-        // B33: Presentase Efisiensi
-        $sheet->setCellValue("A$r_efisiensi", "Presentase Efisiensi\n工数低減率");
+        // B33 (Dinamo): Presentase Efisiensi
+        $sheet->setCellValue("A$r_efisiensi", "Presentase Efisiensi\n工数低减率");
         $sheet->getStyle("A$r_efisiensi")->getAlignment()->setWrapText(true);
-        $sheet->setCellValue("B$r_efisiensi", "=B38/B37");
-        $sheet->mergeCells("B$r_efisiensi:C$r_efisiensi");
+        $sheet->setCellValue("B$r_efisiensi", "=B{$r_penghematanBottom}/B{$r_bebanBottom}");
+        $sheet->mergeCells("B{$r_efisiensi}:C{$r_efisiensi}");
         $sheet->getStyle("B$r_efisiensi")->getAlignment()->setHorizontal('right');
         $sheet->getStyle("B$r_efisiensi")->getNumberFormat()->setFormatCode('0%');
         $sheet->getStyle("B$r_efisiensi")->getFont()->setBold(true)->setSize(16);
 
-        // B34: Presentase Non Operational
+        // B34 (Dinamo): Presentase Non Operational
         $sheet->setCellValue("A$r_nonOpPersen", "Presentase Non Operational\n非稼働工数率");
         $sheet->getStyle("A$r_nonOpPersen")->getAlignment()->setWrapText(true);
-        $sheet->setCellValue("B$r_nonOpPersen", "=B40/B39");
-        $sheet->mergeCells("B$r_nonOpPersen:C$r_nonOpPersen");
+        $sheet->setCellValue("B$r_nonOpPersen", "=B{$r_nonOpBottom}/B{$r_powerBottom}");
+        $sheet->mergeCells("B{$r_nonOpPersen}:C{$r_nonOpPersen}");
         $sheet->getStyle("B$r_nonOpPersen")->getAlignment()->setHorizontal('right');
         $sheet->getStyle("B$r_nonOpPersen")->getNumberFormat()->setFormatCode('0%');
         $sheet->getStyle("B$r_nonOpPersen")->getFont()->setBold(true)->setSize(16);
 
-        // --- BARIS PERHITUNGAN KHUSUS (HARDCODED ROW 37-40) ---
+        // --- BARIS PERHITUNGAN KHUSUS (DINAMIS ROW) ---
         // A37 Beban
-        $sheet->setCellValue("A37", "Beban");
-        $sheet->setCellValue("B37", "=SUM(C{$r_bebanProduksi}:C{$r_partTitipan})");
+        $sheet->setCellValue("A{$r_bebanBottom}", "Beban");
+        $sheet->setCellValue("B{$r_bebanBottom}", "=C{$r_bebanProduksi}+C{$r_kaizen}+C{$r_partTitipan}");
 
         // A38 Penghematan (hilangkan C38 sesuai request)
-        $sheet->setCellValue("A38", "Penghematan");
-        $sheet->setCellValue("B38", "=C{$r_penghematan}");
+        $sheet->setCellValue("A{$r_penghematanBottom}", "Penghematan");
+        $sheet->setCellValue("B{$r_penghematanBottom}", "=C{$r_penghematan}");
 
         // A39 Power
         $p1_start = $r_firstItem;
         $p1_end = $r_firstItem + 3;
         $p2_start = $r_firstItem + 5;
         $p2_end = $r_lastItem;
-        $sheet->setCellValue("A39", "Power");
-        $sheet->setCellValue("B39", "=SUM(C{$p1_start}:C{$p1_end},C{$p2_start}:C{$p2_end})+C{$r_manPower}");
+        $sheet->setCellValue("A{$r_powerBottom}", "Power");
+        $sheet->setCellValue("B{$r_powerBottom}", "=SUM(C{$p1_start}:C{$p1_end},C{$p2_start}:C{$p2_end})+C{$r_manPower}");
 
         // A40 Non Operational
-        $sheet->setCellValue("A40", "Non Operational");
-        $sheet->setCellValue("B40", "=C{$r_nonOp}");
+        $sheet->setCellValue("A{$r_nonOpBottom}", "Non Operational");
+        $sheet->setCellValue("B{$r_nonOpBottom}", "=C{$r_nonOp}");
 
-        $sheet->getStyle('B37:B40')->getNumberFormat()->setFormatCode('0');
-        $sheet->mergeCells('B37:C37');
-        $sheet->mergeCells('B38:C38');
-        $sheet->mergeCells('B39:C39');
-        $sheet->mergeCells('B40:C40');
-        $sheet->getStyle('B37:B40')->getAlignment()->setHorizontal('right');
+        $sheet->getStyle("B{$r_bebanBottom}:B{$r_nonOpBottom}")->getNumberFormat()->setFormatCode('0');
+        $sheet->mergeCells("B{$r_bebanBottom}:C{$r_bebanBottom}");
+        $sheet->mergeCells("B{$r_penghematanBottom}:C{$r_penghematanBottom}");
+        $sheet->mergeCells("B{$r_powerBottom}:C{$r_powerBottom}");
+        $sheet->mergeCells("B{$r_nonOpBottom}:C{$r_nonOpBottom}");
+        $sheet->getStyle("B{$r_bebanBottom}:B{$r_nonOpBottom}")->getAlignment()->setHorizontal('right');
 
-        // Pastikan row tracker berada setelah baris 40 agar layout garis border cover semuanya
-        $row = 41;
+        // Pastikan row tracker berada setelah baris terakhir agar layout garis border cover semuanya
+        $row = $r_nonOpBottom + 1;
 
         $sheet->getColumnDimension('A')->setWidth(40);
         $sheet->getColumnDimension('B')->setWidth(15);

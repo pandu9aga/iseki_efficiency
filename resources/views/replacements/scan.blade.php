@@ -164,7 +164,7 @@
             <!-- Item akan ditambahkan lewat JS -->
         </ul>
 
-        <a href="{{ route('replacements.inputDuration') }}" class="btn-finish" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Selesai Scan</a>
+        <a href="{{ route('replacements.finish') }}" class="btn-finish" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Selesai Scan</a>
     </div>
 
     <script>
