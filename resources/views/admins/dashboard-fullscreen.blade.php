@@ -87,8 +87,40 @@
                         <div class="area-title">{{ $data['area']->Name_Area }}</div>
 
                         <!-- Chart Mini -->
-                        <div class="chart-mini mb-1">
+                        <div class="chart-mini mb-2">
                             <canvas id="chart-{{ $data['area']->Id_Area }}"></canvas>
+                        </div>
+
+                        <!-- Rincian Jam Kerja (Legend) -->
+                        <div class="row g-1 mb-2 text-center" style="font-size: 0.72rem;">
+                            <!-- Atas Kiri: Handling -->
+                            <div class="col-6">
+                                <div class="p-1 rounded" style="background-color: rgba(255, 136, 0, 0.08); border: 1px solid rgba(255, 136, 0, 0.25);">
+                                    <span class="fw-bold" style="color: #d47000;">Handling</span>
+                                    <div class="fw-bold text-dark">{{ number_format($data['penangananTotal'], 2) }} j</div>
+                                </div>
+                            </div>
+                            <!-- Atas Kanan: Non Op -->
+                            <div class="col-6">
+                                <div class="p-1 rounded" style="background-color: rgba(235, 30, 80, 0.08); border: 1px solid rgba(235, 30, 80, 0.25);">
+                                    <span class="fw-bold" style="color: #c90e3a;">Non Op</span>
+                                    <div class="fw-bold text-dark">{{ number_format($data['costTotal'], 2) }} j</div>
+                                </div>
+                            </div>
+                            <!-- Bawah Kiri: Member Net -->
+                            <div class="col-6">
+                                <div class="p-1 rounded" style="background-color: rgba(0, 200, 150, 0.08); border: 1px solid rgba(0, 200, 150, 0.25);">
+                                    <span class="fw-bold" style="color: #008f6c;">Member Net</span>
+                                    <div class="fw-bold text-dark">{{ number_format($data['reportNetHours'], 2) }} j</div>
+                                </div>
+                            </div>
+                            <!-- Bawah Kanan: Tractor (92.2%) -->
+                            <div class="col-6">
+                                <div class="p-1 rounded" style="background-color: rgba(0, 123, 255, 0.08); border: 1px solid rgba(0, 123, 255, 0.25);">
+                                    <span class="fw-bold" style="color: #005ccb;">Tractor (92.2%)</span>
+                                    <div class="fw-bold text-dark">{{ number_format($data['scanTotal'], 2) }} j</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Efisiensi Mini -->
@@ -112,9 +144,9 @@
                             $kategori1 = $data['reportNetHours'] + $data['penangananTotal'];
                             $kategori2 = $data['scanTotal'] + $data['costTotal'];
                             $persenOperasional =
-                            $kategori2 != 0 ? (($kategori2 - $kategori1) / $kategori2) * 100 : 0;
+                            $kategori2 != 0 ? (($kategori2 - $data['reportNetHours']) / $kategori2) * 100 : 0;
                             $persenNonOperasional =
-                            $kategori1 != 0 ? ($data['costTotal'] / $kategori1) * 100 : 0;
+                            $kategori2 != 0 ? ($data['costTotal'] / $kategori2) * 100 : 0;
                             $color = $data['nilaiRupiah'] >= 0 ? 'success' : 'danger';
                             @endphp
 

@@ -378,8 +378,8 @@
     const kategori2 = scanTotal + costTotal;
     const selisihJam = kategori2 - kategori1;
     const nilaiRupiah = selisihJam * 60000;
-    const persenOperasional = kategori2 !== 0 ? (selisihJam / kategori2) * 100 : 0;
-    const persenNonOperasional = kategori1 !== 0 ? (costTotal / kategori1) * 100 : 0;
+    const persenOperasional = kategori2 !== 0 ? ((kategori2 - reportNetHours) / kategori2) * 100 : 0;
+    const persenNonOperasional = kategori2 !== 0 ? (costTotal / kategori2) * 100 : 0;
 
     function formatRupiahWithSign(angka) {
         const sign = angka < 0 ? '-' : '';

@@ -348,7 +348,7 @@ class AdminController extends Controller
                 }
             }
 
-            $scanTotal = $scans->sum('Assigned_Hour_Scan');
+            $scanTotal = $scans->sum('Assigned_Hour_Scan') * (1 - 0.078);
             $costTotal = $costs->sum('Non_Operational_Cost');
             $penangananTotal = $penanganans->sum('Hour_Penanganan');
             $powerTotal = $powers->sum('Leave_Hour_Power');
@@ -379,7 +379,7 @@ class AdminController extends Controller
                 'id' => $d['area']->Id_Area,
                 'reportNetHours' => max(0, $d['reportNetHours']),
                 'penangananTotal' => $d['penangananTotal'],
-                'scanTotal' => $d['scanTotal'] * (1 - 0.078),
+                'scanTotal' => $d['scanTotal'],
                 'costTotal' => $d['costTotal'],
             ];
         }
