@@ -95,29 +95,29 @@
                         <div class="row g-1 mb-2 text-center" style="font-size: 0.72rem;">
                             <!-- Atas Kiri: Handling -->
                             <div class="col-6">
-                                <div class="p-1 rounded" style="background-color: rgba(255, 136, 0, 0.08); border: 1px solid rgba(255, 136, 0, 0.25);">
-                                    <span class="fw-bold" style="color: #d47000;">Handling</span>
+                                <div class="p-1 rounded" style="background-color: rgba(251, 146, 60, 0.08); border: 1px solid rgba(251, 146, 60, 0.3);">
+                                    <span class="fw-bold" style="color: #c2410c;">Handling</span>
                                     <div class="fw-bold text-dark">{{ number_format($data['penangananTotal'], 2) }} j</div>
                                 </div>
                             </div>
                             <!-- Atas Kanan: Non Op -->
                             <div class="col-6">
-                                <div class="p-1 rounded" style="background-color: rgba(235, 30, 80, 0.08); border: 1px solid rgba(235, 30, 80, 0.25);">
-                                    <span class="fw-bold" style="color: #c90e3a;">Non Op</span>
+                                <div class="p-1 rounded" style="background-color: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.3);">
+                                    <span class="fw-bold" style="color: #be123c;">Non Op</span>
                                     <div class="fw-bold text-dark">{{ number_format($data['costTotal'], 2) }} j</div>
                                 </div>
                             </div>
                             <!-- Bawah Kiri: Member Net -->
                             <div class="col-6">
-                                <div class="p-1 rounded" style="background-color: rgba(0, 200, 150, 0.08); border: 1px solid rgba(0, 200, 150, 0.25);">
-                                    <span class="fw-bold" style="color: #008f6c;">Member Net</span>
+                                <div class="p-1 rounded" style="background-color: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.3);">
+                                    <span class="fw-bold" style="color: #047857;">Member Net</span>
                                     <div class="fw-bold text-dark">{{ number_format($data['reportNetHours'], 2) }} j</div>
                                 </div>
                             </div>
                             <!-- Bawah Kanan: Tractor (92.2%) -->
                             <div class="col-6">
-                                <div class="p-1 rounded" style="background-color: rgba(0, 123, 255, 0.08); border: 1px solid rgba(0, 123, 255, 0.25);">
-                                    <span class="fw-bold" style="color: #005ccb;">Tractor (92.2%)</span>
+                                <div class="p-1 rounded" style="background-color: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);">
+                                    <span class="fw-bold" style="color: #0369a1;">Tractor (92.2%)</span>
                                     <div class="fw-bold text-dark">{{ number_format($data['scanTotal'], 2) }} j</div>
                                 </div>
                             </div>
@@ -128,7 +128,7 @@
                             <div class="d-flex justify-content-between mb-1">
                                 <span>Selisih Jam:</span>
                                 <span class="efficiency-value fw-bold"
-                                    style="color: {{ $data['nilaiRupiah'] >= 0 ? '#008f6c' : '#c90e3a' }};"
+                                    style="color: {{ $data['nilaiRupiah'] >= 0 ? '#047857' : '#be123c' }};"
                                     id="selisih-{{ $data['area']->Id_Area }}">
                                     {{ number_format($data['selisihJam'], 2) }} jam
                                 </span>
@@ -136,7 +136,7 @@
                             <div class="d-flex justify-content-between mb-1">
                                 <span>Nilai:</span>
                                 <span class="efficiency-value fw-bold"
-                                    style="color: {{ $data['nilaiRupiah'] >= 0 ? '#008f6c' : '#c90e3a' }};"
+                                    style="color: {{ $data['nilaiRupiah'] >= 0 ? '#047857' : '#be123c' }};"
                                     id="rupiah-{{ $data['area']->Id_Area }}">
                                     {{ $data['nilaiRupiah'] >= 0 ? '+' : '-' }}Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
                                 </span>
@@ -157,7 +157,7 @@
                             </div>
                             <div class="progress mb-1">
                                 <div class="progress-bar"
-                                    style="width: {{ min(100, abs($persenOperasional)) }}%; background-color: {{ $data['nilaiRupiah'] >= 0 ? '#00c896' : '#eb1e50' }};"></div>
+                                    style="width: {{ min(100, abs($persenOperasional)) }}%; background-color: {{ $data['nilaiRupiah'] >= 0 ? '#34d399' : '#f43f5e' }};"></div>
                             </div>
 
                             <div class="small mb-1">
@@ -166,7 +166,7 @@
                             </div>
                             <div class="progress">
                                 <div class="progress-bar"
-                                    style="width: {{ min(100, $persenNonOperasional) }}%; background-color: #eb1e50;">
+                                    style="width: {{ min(100, $persenNonOperasional) }}%; background-color: #f43f5e;">
                                 </div>
                             </div>
                         </div>
@@ -213,28 +213,36 @@
                     datasets: [{
                             label: 'Member Net',
                             data: [item.reportNetHours],
-                            backgroundColor: 'rgba(0, 200, 150, 0.95)',
+                            backgroundColor: 'rgba(52, 211, 153, 0.80)',
+                            borderColor: 'rgba(52, 211, 153, 1)',
+                            borderWidth: 1.5,
                             stack: 'A',
                             order: 1
                         },
                         {
                             label: 'Handling',
                             data: [item.penangananTotal],
-                            backgroundColor: 'rgba(255, 136, 0, 0.95)',
+                            backgroundColor: 'rgba(251, 146, 60, 0.80)',
+                            borderColor: 'rgba(251, 146, 60, 1)',
+                            borderWidth: 1.5,
                             stack: 'A',
                             order: 2
                         },
                         {
                             label: 'Tractor',
                             data: [item.scanTotal],
-                            backgroundColor: 'rgba(0, 123, 255, 0.95)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.80)',
+                            borderColor: 'rgba(56, 189, 248, 1)',
+                            borderWidth: 1.5,
                             stack: 'B',
                             order: 3
                         },
                         {
                             label: 'Non Op',
                             data: [item.costTotal],
-                            backgroundColor: 'rgba(235, 30, 80, 0.95)',
+                            backgroundColor: 'rgba(244, 63, 94, 0.80)',
+                            borderColor: 'rgba(244, 63, 94, 1)',
+                            borderWidth: 1.5,
                             stack: 'B',
                             order: 4
                         }

@@ -287,36 +287,36 @@
                 datasets: [{
                         label: 'Handling',
                         data: [penangananTotal],
-                        backgroundColor: 'rgba(255, 136, 0, 0.95)',
-                        borderColor: 'rgba(255, 136, 0, 1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(251, 146, 60, 0.35)',
+                        borderColor: 'rgba(251, 146, 60, 1)',
+                        borderWidth: 1.5,
                         stack: 'group1',
                         order: 3,
                     },
                     {
                         label: 'Member Hours',
                         data: [chartNetHours],
-                        backgroundColor: 'rgba(0, 200, 150, 0.95)',
-                        borderColor: 'rgba(0, 200, 150, 1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(52, 211, 153, 0.35)',
+                        borderColor: 'rgba(52, 211, 153, 1)',
+                        borderWidth: 1.5,
                         stack: 'group1',
                         order: 1,
                     },
                     {
                         label: 'Tractor',
                         data: [scanTotal],
-                        backgroundColor: 'rgba(0, 123, 255, 0.95)',
-                        borderColor: 'rgba(0, 123, 255, 1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(56, 189, 248, 0.35)',
+                        borderColor: 'rgba(56, 189, 248, 1)',
+                        borderWidth: 1.5,
                         stack: 'group2',
                         order: 4,
                     },
                     {
                         label: 'Non Operational',
                         data: [costTotal],
-                        backgroundColor: 'rgba(235, 30, 80, 0.95)',
-                        borderColor: 'rgba(235, 30, 80, 1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(244, 63, 94, 0.35)',
+                        borderColor: 'rgba(244, 63, 94, 1)',
+                        borderWidth: 1.5,
                         stack: 'group2',
                         order: 5,
                     }
@@ -467,20 +467,20 @@
         document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(Math.round(nilaiRupiah));
 
         const mainCard = document.getElementById('mainCard');
-        mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#00c896' : '#eb1e50';
+        mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#34d399' : '#f43f5e';
 
         document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
         const absPersenOp = Math.abs(persenOperasional);
         const persenOpBar = document.getElementById('persenOperasionalBar');
         persenOpBar.style.width = Math.min(100, absPersenOp) + '%';
         persenOpBar.className = 'progress-bar';
-        persenOpBar.style.backgroundColor = nilaiRupiah >= 0 ? '#00c896' : '#eb1e50';
+        persenOpBar.style.backgroundColor = nilaiRupiah >= 0 ? '#34d399' : '#f43f5e';
 
         document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
         const persenNonOpBar = document.getElementById('persenNonOperasionalBar');
         persenNonOpBar.style.width = Math.min(100, persenNonOperasional) + '%';
         persenNonOpBar.className = 'progress-bar';
-        persenNonOpBar.style.backgroundColor = '#eb1e50';
+        persenNonOpBar.style.backgroundColor = '#f43f5e';
     </script>
 </body>
 
