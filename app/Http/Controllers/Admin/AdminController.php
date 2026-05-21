@@ -426,6 +426,7 @@ class AdminController extends Controller
         }
 
         $areaId = $request->query('area');
+        $area = $areaId ? \App\Models\Area::find($areaId) : null;
         $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
 
         if ($isMonthFilter) {
@@ -688,6 +689,13 @@ class AdminController extends Controller
         $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         $sheet->getRowDimension(4)->setRowHeight(20);
 
+        $sheet->setCellValue('A5', 'Area / 部署');
+        $sheet->setCellValue('B5', $area ? $area->Name_Area : 'ALL AREAS');
+        $sheet->mergeCells('B5:C5');
+        $sheet->getStyle('A5:C5')->getFont()->setBold(true);
+        $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getRowDimension(5)->setRowHeight(20);
+
         $sheet->setCellValue('A7', 'Item・内容');
         $sheet->setCellValue('B7', 'Hour・時間');
         $sheet->setCellValue('C7', 'Man・人数');
@@ -884,7 +892,8 @@ class AdminController extends Controller
         $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
         $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $fileName = 'Operational_Performance_' . $dateString . '.xlsx';
+        $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '';
+        $fileName = 'Operational_Performance' . $areaSuffix . '_' . $dateString . '.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), $fileName);
         $writer->save($tempFile);
@@ -904,6 +913,7 @@ class AdminController extends Controller
         $monthKey = $monthParsed->format('Y-m');
 
         $areaId = $request->query('area');
+        $area = $areaId ? \App\Models\Area::find($areaId) : null;
         $areas = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
 
         // Ambil hari kerja dari work_days
@@ -1068,6 +1078,14 @@ class AdminController extends Controller
         $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         $sheet->getRowDimension(4)->setRowHeight(20);
         $sheet->getRowDimension(5)->setRowHeight(20);
+
+        $sheet->setCellValue('A6', 'Area / 部署');
+        $sheet->setCellValue('B6', $area ? $area->Name_Area : 'ALL AREAS');
+        $sheet->mergeCells('B6:C6');
+        $sheet->getStyle('B6')->getAlignment()->setHorizontal('left');
+        $sheet->getStyle('A6:C6')->getFont()->setBold(true);
+        $sheet->getStyle('A6:C6')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getRowDimension(6)->setRowHeight(20);
 
         // Man formula: =B_row/8/$B$5 (jam ÷ 8 ÷ hari kerja)
         $manFormula = function (int $r): string {
@@ -1261,7 +1279,8 @@ class AdminController extends Controller
         $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
         $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $fileName = 'Monthly_Performance_' . $dateString . '.xlsx';
+        $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '';
+        $fileName = 'Monthly_Performance' . $areaSuffix . '_' . $dateString . '.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), $fileName);
         $writer->save($tempFile);

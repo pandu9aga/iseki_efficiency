@@ -48,11 +48,19 @@
                                     </label>
                                 </div>
                                 <div class="col-auto">
-                                    <input type="{{ $filterMode === 'month' ? 'month' : 'date' }}"
-                                        id="filterDateInput"
-                                        name="{{ $filterMode }}"
-                                        class="form-control"
-                                        value="{{ $dateString }}">
+                                    <div class="input-group">
+                                        <button type="button" id="prevDateBtn" class="btn btn-outline-primary">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </button>
+                                        <input type="{{ $filterMode === 'month' ? 'month' : 'date' }}"
+                                            id="filterDateInput"
+                                            name="{{ $filterMode }}"
+                                            class="form-control text-center fw-bold"
+                                            value="{{ $dateString }}">
+                                        <button type="button" id="nextDateBtn" class="btn btn-outline-primary">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="col-auto">
                                     <button type="button" id="toggleDateType" class="btn btn-outline-secondary btn-sm">
@@ -411,6 +419,9 @@
         const input = document.getElementById('filterDateInput');
         const toggleBtn = document.getElementById('toggleDateType');
         const label = document.getElementById('filterDateLabel');
+        const prevBtn = document.getElementById('prevDateBtn');
+        const nextBtn = document.getElementById('nextDateBtn');
+        const form = document.getElementById('filterForm');
 
         toggleBtn.addEventListener('click', function() {
             if (input.type === 'date') {
@@ -427,6 +438,50 @@
                 toggleBtn.textContent = 'Month';
             }
         });
+
+        if (prevBtn && nextBtn) {
+            prevBtn.addEventListener('click', function() {
+                if (!input.value) return;
+                if (input.type === 'date') {
+                    let parts = input.value.split('-');
+                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    d.setDate(d.getDate() - 1);
+                    let y = d.getFullYear();
+                    let m = String(d.getMonth() + 1).padStart(2, '0');
+                    let day = String(d.getDate()).padStart(2, '0');
+                    input.value = `${y}-${m}-${day}`;
+                } else if (input.type === 'month') {
+                    let parts = input.value.split('-');
+                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                    d.setMonth(d.getMonth() - 1);
+                    let y = d.getFullYear();
+                    let m = String(d.getMonth() + 1).padStart(2, '0');
+                    input.value = `${y}-${m}`;
+                }
+                form.submit();
+            });
+
+            nextBtn.addEventListener('click', function() {
+                if (!input.value) return;
+                if (input.type === 'date') {
+                    let parts = input.value.split('-');
+                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    d.setDate(d.getDate() + 1);
+                    let y = d.getFullYear();
+                    let m = String(d.getMonth() + 1).padStart(2, '0');
+                    let day = String(d.getDate()).padStart(2, '0');
+                    input.value = `${y}-${m}-${day}`;
+                } else if (input.type === 'month') {
+                    let parts = input.value.split('-');
+                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                    d.setMonth(d.getMonth() + 1);
+                    let y = d.getFullYear();
+                    let m = String(d.getMonth() + 1).padStart(2, '0');
+                    input.value = `${y}-${m}`;
+                }
+                form.submit();
+            });
+        }
     });
 </script>
 @endsection

@@ -88,12 +88,20 @@
 
     <!-- Dynamic Favicon -->
     <script src="/iseki_pro_app/js/dynamic-favicon.js"></script>
-    <script>document.addEventListener("DOMContentLoaded", function() { setDynamicFavicon("monitoring", "Efficiency"); });</script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            setDynamicFavicon("monitoring", "Efficiency");
+        });
+    </script>
 
     <!-- Dynamic Favicon Assets -->
     <link rel="stylesheet" href="/iseki_pro_app/css/icon.css">
     <script src="/iseki_pro_app/js/dynamic-favicon.js"></script>
-    <script>document.addEventListener("DOMContentLoaded", function() { setDynamicFavicon("monitoring", "Efficiency"); });</script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            setDynamicFavicon("monitoring", "Efficiency");
+        });
+    </script>
 </head>
 
 <body data-pc-preset="preset-1" data-pc-theme="light">
@@ -279,8 +287,8 @@
                 datasets: [{
                         label: 'Handling',
                         data: [penangananTotal],
-                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                        borderColor: 'rgba(255, 159, 64, 1)',
+                        backgroundColor: 'rgba(255, 136, 0, 0.95)',
+                        borderColor: 'rgba(255, 136, 0, 1)',
                         borderWidth: 1,
                         stack: 'group1',
                         order: 3,
@@ -288,8 +296,8 @@
                     {
                         label: 'Member Hours',
                         data: [chartNetHours],
-                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(0, 200, 150, 0.95)',
+                        borderColor: 'rgba(0, 200, 150, 1)',
                         borderWidth: 1,
                         stack: 'group1',
                         order: 1,
@@ -297,8 +305,8 @@
                     {
                         label: 'Tractor',
                         data: [scanTotal],
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(0, 123, 255, 0.95)',
+                        borderColor: 'rgba(0, 123, 255, 1)',
                         borderWidth: 1,
                         stack: 'group2',
                         order: 4,
@@ -306,8 +314,8 @@
                     {
                         label: 'Non Operational',
                         data: [costTotal],
-                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(235, 30, 80, 0.95)',
+                        borderColor: 'rgba(235, 30, 80, 1)',
                         borderWidth: 1,
                         stack: 'group2',
                         order: 5,
@@ -459,16 +467,20 @@
         document.getElementById('nilaiRupiah').textContent = formatRupiahWithSign(Math.round(nilaiRupiah));
 
         const mainCard = document.getElementById('mainCard');
-        mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#28a745' : '#dc3545';
+        mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#00c896' : '#eb1e50';
 
         document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
         const absPersenOp = Math.abs(persenOperasional);
         const persenOpBar = document.getElementById('persenOperasionalBar');
         persenOpBar.style.width = Math.min(100, absPersenOp) + '%';
-        persenOpBar.className = 'progress-bar ' + (nilaiRupiah >= 0 ? 'bg-success' : 'bg-danger');
+        persenOpBar.className = 'progress-bar';
+        persenOpBar.style.backgroundColor = nilaiRupiah >= 0 ? '#00c896' : '#eb1e50';
 
         document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
-        document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
+        const persenNonOpBar = document.getElementById('persenNonOperasionalBar');
+        persenNonOpBar.style.width = Math.min(100, persenNonOperasional) + '%';
+        persenNonOpBar.className = 'progress-bar';
+        persenNonOpBar.style.backgroundColor = '#eb1e50';
     </script>
 </body>
 

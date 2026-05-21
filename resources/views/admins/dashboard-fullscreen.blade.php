@@ -127,16 +127,18 @@
                         <div class="efficiency-mini">
                             <div class="d-flex justify-content-between mb-1">
                                 <span>Selisih Jam:</span>
-                                <span class="efficiency-value"
+                                <span class="efficiency-value fw-bold"
+                                    style="color: {{ $data['nilaiRupiah'] >= 0 ? '#008f6c' : '#c90e3a' }};"
                                     id="selisih-{{ $data['area']->Id_Area }}">
                                     {{ number_format($data['selisihJam'], 2) }} jam
                                 </span>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
                                 <span>Nilai:</span>
-                                <span class="efficiency-value"
+                                <span class="efficiency-value fw-bold"
+                                    style="color: {{ $data['nilaiRupiah'] >= 0 ? '#008f6c' : '#c90e3a' }};"
                                     id="rupiah-{{ $data['area']->Id_Area }}">
-                                    Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
+                                    {{ $data['nilaiRupiah'] >= 0 ? '+' : '-' }}Rp{{ number_format(abs($data['nilaiRupiah']), 0, ',', '.') }}
                                 </span>
                             </div>
 
@@ -147,7 +149,6 @@
                             $kategori2 != 0 ? (($kategori2 - $data['reportNetHours']) / $kategori2) * 100 : 0;
                             $persenNonOperasional =
                             $kategori2 != 0 ? ($data['costTotal'] / $kategori2) * 100 : 0;
-                            $color = $data['nilaiRupiah'] >= 0 ? 'success' : 'danger';
                             @endphp
 
                             <div class="small mb-1">
@@ -155,8 +156,8 @@
                                 <strong>{{ number_format($persenOperasional, 1) }}%</strong>
                             </div>
                             <div class="progress mb-1">
-                                <div class="progress-bar bg-{{ $color }}"
-                                    style="width: {{ min(100, abs($persenOperasional)) }}%"></div>
+                                <div class="progress-bar"
+                                    style="width: {{ min(100, abs($persenOperasional)) }}%; background-color: {{ $data['nilaiRupiah'] >= 0 ? '#00c896' : '#eb1e50' }};"></div>
                             </div>
 
                             <div class="small mb-1">
@@ -164,8 +165,8 @@
                                 <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
                             </div>
                             <div class="progress">
-                                <div class="progress-bar bg-info"
-                                    style="width: {{ min(100, $persenNonOperasional) }}%">
+                                <div class="progress-bar"
+                                    style="width: {{ min(100, $persenNonOperasional) }}%; background-color: #eb1e50;">
                                 </div>
                             </div>
                         </div>
