@@ -140,8 +140,9 @@ Route::middleware(['web'])->prefix('leaders')->name('leaders.')->group(function 
         Route::post('/penanganan', [LeaderReportController::class, 'storePenanganan'])->name('penanganan.store');
         Route::put('/penanganan/{penanganan}', [LeaderReportController::class, 'updatePenanganan'])->name('penanganan.update');
         Route::delete('/penanganan/{penanganan}', [LeaderReportController::class, 'destroyPenanganan'])->name('penanganan.destroy');
-        // ❌ HAPUS BARIS INI YANG SALAH:
-        // Route::delete('/scan/{scan}', [AdminReportController::class, 'destroyScan'])->name('scan.destroy');
+        
+        // ✅ Export Report Data Excel
+        Route::get('/export', [LeaderReportController::class, 'exportReport'])->name('export');
     });
 
     Route::prefix('jobs')->name('jobs.')->group(function () {
@@ -221,6 +222,9 @@ Route::middleware(['web'])->prefix('admins')->name('admins.')->group(function ()
 
         // ✅ TAMBAHKAN INI:
         Route::delete('/scan/{scan}', [AdminReportController::class, 'destroyScan'])->name('scan.destroy');
+
+        // ✅ Export Report Data Excel
+        Route::get('/export', [AdminReportController::class, 'exportReport'])->name('export');
     });
 
     Route::prefix('members')->name('members.')->group(function () {

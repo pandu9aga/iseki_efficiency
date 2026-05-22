@@ -14,6 +14,11 @@ use App\Models\Scan;
 use App\Models\DailyJob;
 use App\Models\Area;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Illuminate\Support\Facades\Response;
 
 class AdminReportController extends Controller
 {
@@ -590,5 +595,333 @@ class AdminReportController extends Controller
 
         $scan->delete();
         return redirect()->back()->with('success', 'Scan berhasil dihapus.');
+    }
+
+    public function exportReport(Request $request)
+    {
+        if (!session()->has('Id_User') || session('Id_Type_User') != 1) {
+            abort(403);
+        }
+
+        $isMonthFilter = $request->filled('month');
+        $areas = Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
+
+        if ($isMonthFilter) {
+            $monthParsed = Carbon::parse($request->month . '-01');
+            $startDate = $monthParsed->copy()->startOfMonth();
+            $endDate = $monthParsed->copy()->endOfMonth();
+            $dateString = $monthParsed->format('Y-m');
+            $dateLabel = $monthParsed->format('F Y');
+            $filePrefix = 'Monthly';
+        } else {
+            $date = $request->filled('date')
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today()->startOfDay();
+            $startDate = $date->copy();
+            $endDate = $date->copy();
+            $dateString = $date->format('Y-m-d');
+            $dateLabel = $date->format('d F Y');
+            $filePrefix = 'Daily';
+        }
+
+        // === FETCH DATA ===
+        $costs = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))
+            ->with('area')->get();
+        $powers = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))
+            ->with('member', 'area')->get();
+        $penanganans = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))
+            ->with('area')->get();
+        $scans = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
+            ->with('tractor')->get();
+
+        // === MEMBER NIK MAP ===
+        $allNiks = Member::pluck('nama', 'nik')->toArray();
+
+        // === BUILD SPREADSHEET ===
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle("{$filePrefix} Report");
+
+        // --- TITLE ---
+        $sheet->setCellValue('A1', strtoupper($filePrefix) . ' PRODUCTION REPORT DATA');
+        $sheet->mergeCells('A1:F1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
+
+        $sheet->setCellValue('A2', ($isMonthFilter ? 'Bulan' : 'Tanggal') . ': ' . $dateLabel);
+        $sheet->mergeCells('A2:F2');
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
+        $sheet->getStyle('A2')->getAlignment()->setHorizontal('center');
+
+        $row = 4;
+
+        // ============================================================
+        //  SECTION 1: NON OPERATIONAL COST
+        // ============================================================
+        $sec1Start = $row;
+        $sheet->setCellValue("A{$row}", 'NON OPERATIONAL COST');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF4472C4');
+        $sheet->getStyle("A{$row}")->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row++;
+
+        // Header
+        $headers = ['No', 'Area', 'Kategori', 'Jam (h)', 'Tanggal'];
+        foreach ($headers as $i => $h) {
+            $col = chr(65 + $i); // A-E
+            $sheet->setCellValue("{$col}{$row}", $h);
+        }
+        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9E2F3');
+        $headerRowCost = $row;
+        $row++;
+
+        $no = 1;
+        $costStartRow = $row;
+        foreach ($costs as $cost) {
+            $areaName = $cost->area ? $cost->area->Name_Area : '-';
+            $sheet->setCellValue("A{$row}", $no);
+            $sheet->setCellValue("B{$row}", $areaName);
+            $sheet->setCellValue("C{$row}", $cost->Keterangan_Cost ?? '-');
+            $sheet->setCellValue("D{$row}", round((float) $cost->Non_Operational_Cost, 2));
+            $sheet->setCellValue("E{$row}", Carbon::parse($cost->Start_Cost)->format('Y-m-d H:i'));
+            $no++;
+            $row++;
+        }
+        $costEndRow = $row - 1;
+
+        // Total
+        $sheet->setCellValue("A{$row}", '');
+        $sheet->setCellValue("B{$row}", '');
+        $sheet->setCellValue("C{$row}", 'TOTAL NON OPERATIONAL');
+        $sheet->getStyle("C{$row}")->getFont()->setBold(true);
+        if ($costStartRow <= $costEndRow) {
+            $sheet->setCellValue("D{$row}", "=SUM(D{$costStartRow}:D{$costEndRow})");
+        } else {
+            $sheet->setCellValue("D{$row}", 0);
+        }
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        
+        // Border Section 1
+        $sheet->getStyle("A{$sec1Start}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        
+        $row += 2;
+
+        // ============================================================
+        //  SECTION 2: ABSENSI
+        // ============================================================
+        $sec2Start = $row;
+        $sheet->setCellValue("A{$row}", 'ABSENSI / IZIN');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF70AD47');
+        $sheet->getStyle("A{$row}")->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row++;
+
+        $headers2 = ['No', 'Area', 'Kategori', 'Jam (h)', 'Tanggal'];
+        foreach ($headers2 as $i => $h) {
+            $col = chr(65 + $i);
+            $sheet->setCellValue("{$col}{$row}", $h);
+        }
+        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2EFDA');
+        $row++;
+
+        $no = 1;
+        $powerStartRow = $row;
+        foreach ($powers as $power) {
+            $areaName = $power->area ? $power->area->Name_Area : '-';
+            $sheet->setCellValue("A{$row}", $no);
+            $sheet->setCellValue("B{$row}", $areaName);
+            $sheet->setCellValue("C{$row}", $power->Keterangan_Power ?? '-');
+            $sheet->setCellValue("D{$row}", round((float) $power->Leave_Hour_Power, 2));
+            $sheet->setCellValue("E{$row}", Carbon::parse($power->Start_Power)->format('Y-m-d H:i'));
+            $no++;
+            $row++;
+        }
+        $powerEndRow = $row - 1;
+
+        // Total
+        $sheet->setCellValue("A{$row}", '');
+        $sheet->setCellValue("B{$row}", '');
+        $sheet->setCellValue("C{$row}", 'TOTAL ABSENSI');
+        $sheet->getStyle("C{$row}")->getFont()->setBold(true);
+        if ($powerStartRow <= $powerEndRow) {
+            $sheet->setCellValue("D{$row}", "=SUM(D{$powerStartRow}:D{$powerEndRow})");
+        } else {
+            $sheet->setCellValue("D{$row}", 0);
+        }
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        
+        // Border Section 2
+        $sheet->getStyle("A{$sec2Start}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        
+        $row += 2;
+
+        // ============================================================
+        //  SECTION 3: PERBANTUAN / PENANGANAN
+        // ============================================================
+        $sec3Start = $row;
+        $sheet->setCellValue("A{$row}", 'PERBANTUAN / PENANGANAN');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFED7D31');
+        $sheet->getStyle("A{$row}")->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row++;
+
+        $headers3 = ['No', 'Area', 'Kategori', 'Jam (h)', 'Tanggal'];
+        foreach ($headers3 as $i => $h) {
+            $col = chr(65 + $i);
+            $sheet->setCellValue("{$col}{$row}", $h);
+        }
+        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFCE4D6');
+        $row++;
+
+        $no = 1;
+        $penangananStartRow = $row;
+        foreach ($penanganans as $p) {
+            $areaName = $p->area ? $p->area->Name_Area : '-';
+            $sheet->setCellValue("A{$row}", $no);
+            $sheet->setCellValue("B{$row}", $areaName);
+            $sheet->setCellValue("C{$row}", $p->Keterangan_Penanganan ?? '-');
+            $sheet->setCellValue("D{$row}", round((float) $p->Hour_Penanganan, 2));
+            $sheet->setCellValue("E{$row}", Carbon::parse($p->Start_Penanganan)->format('Y-m-d H:i'));
+            $no++;
+            $row++;
+        }
+        $penangananEndRow = $row - 1;
+
+        // Total
+        $sheet->setCellValue("A{$row}", '');
+        $sheet->setCellValue("B{$row}", '');
+        $sheet->setCellValue("C{$row}", 'TOTAL PERBANTUAN');
+        $sheet->getStyle("C{$row}")->getFont()->setBold(true);
+        if ($penangananStartRow <= $penangananEndRow) {
+            $sheet->setCellValue("D{$row}", "=SUM(D{$penangananStartRow}:D{$penangananEndRow})");
+        } else {
+            $sheet->setCellValue("D{$row}", 0);
+        }
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+        
+        // Border Section 3
+        $sheet->getStyle("A{$sec3Start}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        
+        $row += 2;
+
+        // ============================================================
+        //  SECTION 4: SCAN TRAKTOR (TOTAL SAJA)
+        // ============================================================
+        $sec4Start = $row;
+        $sheet->setCellValue("A{$row}", 'SCAN TRAKTOR');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF5B9BD5');
+        $sheet->getStyle("A{$row}")->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row++;
+
+        $sheet->setCellValue("A{$row}", 'Keterangan');
+        $sheet->setCellValue("B{$row}", 'Total Jam (h)');
+        $sheet->mergeCells("B{$row}:E{$row}");
+        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFDCE6F1');
+        $row++;
+
+        $totalScanHours = $scans->sum('Assigned_Hour_Scan');
+        $sheet->setCellValue("A{$row}", 'Total Jam Scan Traktor Keseluruhan');
+        $sheet->setCellValue("B{$row}", round($totalScanHours, 2));
+        $sheet->mergeCells("B{$row}:E{$row}");
+        $sheet->getStyle("B{$row}")->getFont()->setBold(true);
+
+        // Border Section 4
+        $sheet->getStyle("A{$sec4Start}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        $row += 2;
+
+        // ============================================================
+        //  SECTION 5: RINGKASAN PER AREA
+        // ============================================================
+        $sec5Start = $row;
+        $sheet->setCellValue("A{$row}", 'RINGKASAN PER AREA');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF7030A0');
+        $sheet->getStyle("A{$row}")->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row++;
+
+        $summaryHeaders = ['Area', 'Non Op (h)', 'Absensi (h)', 'Perbantuan (h)', 'Scan Traktor (h)'];
+        foreach ($summaryHeaders as $i => $h) {
+            $col = chr(65 + $i);
+            $sheet->setCellValue("{$col}{$row}", $h);
+        }
+        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2D1F0');
+        $summaryHeaderRow = $row;
+        $row++;
+
+        $summaryStartRow = $row;
+        foreach ($areas as $area) {
+            $areaCost = $costs->where('Id_Area', $area->Id_Area)->sum('Non_Operational_Cost');
+            $areaPower = $powers->where('Id_Area', $area->Id_Area)->sum('Leave_Hour_Power');
+            $areaPenanganan = $penanganans->where('Id_Area', $area->Id_Area)->sum('Hour_Penanganan');
+            $areaScan = $scans->where('Id_Area', $area->Id_Area)->sum('Assigned_Hour_Scan');
+
+            $sheet->setCellValue("A{$row}", $area->Name_Area);
+            $sheet->setCellValue("B{$row}", round($areaCost, 2));
+            $sheet->setCellValue("C{$row}", round($areaPower, 2));
+            $sheet->setCellValue("D{$row}", round($areaPenanganan, 2));
+            $sheet->setCellValue("E{$row}", round($areaScan, 2));
+            $row++;
+        }
+        $summaryEndRow = $row - 1;
+
+        // Grand Total
+        $sheet->setCellValue("A{$row}", 'TOTAL');
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        foreach (['B', 'C', 'D', 'E'] as $col) {
+            $sheet->setCellValue("{$col}{$row}", "=SUM({$col}{$summaryStartRow}:{$col}{$summaryEndRow})");
+            $sheet->getStyle("{$col}{$row}")->getFont()->setBold(true);
+        }
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF0E0C0');
+
+        // Border Section 5
+        $sheet->getStyle("A{$sec5Start}:E{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+        $row++;
+
+        // === FORMATTING ===
+        $lastRow = $row - 1;
+
+        // Column widths
+        $sheet->getColumnDimension('A')->setWidth(22);
+        $sheet->getColumnDimension('B')->setWidth(18);
+        $sheet->getColumnDimension('C')->setWidth(30);
+        $sheet->getColumnDimension('D')->setWidth(14);
+        $sheet->getColumnDimension('E')->setWidth(18);
+
+        // Number format for jam columns
+        $sheet->getStyle("D1:D{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+
+        // Vertical center
+        $sheet->getStyle("A1:E{$lastRow}")->getAlignment()->setVertical('center');
+        $sheet->getStyle("A1:E{$lastRow}")->getAlignment()->setWrapText(true);
+
+        // === DOWNLOAD ===
+        $fileName = "{$filePrefix}_Report_Data_{$dateString}.xlsx";
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), $fileName);
+        $writer->save($tempFile);
+
+        return Response::download($tempFile, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 }

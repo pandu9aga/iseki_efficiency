@@ -44,6 +44,11 @@
                     <div class="col-auto">
                         <button type="submit" class="btn btn-primary">Apply</button>
                     </div>
+                    <div class="col-auto ms-auto">
+                        <a href="{{ route('leaders.reports.export', request()->all()) }}" class="btn btn-success">
+                            <i class="bi bi-file-earmark-excel"></i> Export Excel
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>
