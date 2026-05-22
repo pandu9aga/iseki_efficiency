@@ -308,30 +308,15 @@
                             }
                             if (label === 'Tractor') {
                                 const total = scans.reduce((s, x) => s + x.value, 0);
-                                const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
-                                const labels = scans.map(s =>
-                                    `${s.label} (${decimalToHoursMinutes(s.value)})`);
-                                for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
-                                    .join(', '));
-                                return lines;
+                                return [`Total Tractor: ${decimalToHoursMinutes(total)}`];
                             }
                             if (label === 'Non Operational') {
                                 const total = costs.reduce((s, x) => s + x.value, 0);
-                                const lines = [`Total Non Operational: ${decimalToHoursMinutes(total)}`];
-                                const labels = costs.map(c =>
-                                    `${c.label} (${decimalToHoursMinutes(c.value)})`);
-                                for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
-                                    .join(', '));
-                                return lines;
+                                return [`Total Non Operational: ${decimalToHoursMinutes(total)}`];
                             }
                             if (label === 'Handling') {
                                 const total = penanganans.reduce((s, x) => s + x.value, 0);
-                                const lines = [`Total Handling: ${decimalToHoursMinutes(total)}`];
-                                const labels = penanganans.map(p =>
-                                    `${p.label} (${decimalToHoursMinutes(p.value)})`);
-                                for (let i = 0; i < labels.length; i += 5) lines.push(labels.slice(i, i + 5)
-                                    .join(', '));
-                                return lines;
+                                return [`Total Handling: ${decimalToHoursMinutes(total)}`];
                             }
                             return null;
                         },

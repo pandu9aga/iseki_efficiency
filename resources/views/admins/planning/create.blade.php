@@ -5,10 +5,18 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="text-primary">Perencanaan Harian</h4>
-            <div>
-                <span class="text-muted me-2">Tanggal:</span>
-                <input type="date" id="datePicker" class="form-control d-inline-block" style="width: auto;"
-                    value="{{ $dateString }}" onchange="changeDate(this.value)">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted">Tanggal:</span>
+                <div class="input-group" style="width:auto;">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="prevPlanDate">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <input type="date" id="datePicker" class="form-control form-control-sm text-center fw-bold"
+                        style="width:150px;" value="{{ $dateString }}">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="nextPlanDate">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
         <div class="card-body">
@@ -117,6 +125,15 @@
         window.location.href = url;
     }
 
+    function shiftPlanDate(delta) {
+        const dp = document.getElementById('datePicker');
+        if (!dp || !dp.value) return;
+        const parts = dp.value.split('-');
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        d.setDate(d.getDate() + delta);
+        changeDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    }
+
 
     document.addEventListener('DOMContentLoaded', function() {
         // Aktifkan tab berdasarkan parameter URL atau sessionStorage
@@ -144,11 +161,15 @@
             });
         });
 
+        // Prev/Next date navigation
+        document.getElementById('prevPlanDate')?.addEventListener('click', () => shiftPlanDate(-1));
+        document.getElementById('nextPlanDate')?.addEventListener('click', () => shiftPlanDate(1));
+        document.getElementById('datePicker')?.addEventListener('change', function() { changeDate(this.value); });
 
         // Inisialisasi TomSelect
         const initTomSelect = (selector, placeholder) => {
             document.querySelectorAll(selector).forEach(el => {
-                if (!el.tomselect) { // hindari inisialisasi ganda
+                if (!el.tomselect) {
                     new TomSelect(el, {
                         placeholder: placeholder,
                         allowEmptyOption: true,
@@ -159,8 +180,6 @@
         };
 
         initTomSelect('.tom-select-member', '-- Pilih atau Cari Member --');
-
-
     });
 </script>
 @endsection

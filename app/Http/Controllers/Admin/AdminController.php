@@ -474,13 +474,13 @@ class AdminController extends Controller
                 } else {
                     $dayMembers = 0;
                     $dayHours = 0;
-                    foreach ($areas as $area) {
-                        $areaReport = $dayReports->get($area->Id_Area);
+                    foreach ($areas as $a) {
+                        $areaReport = $dayReports->get($a->Id_Area);
                         if ($areaReport) {
                             $dayMembers += (int) $areaReport->Total_Member_Report;
                             $dayHours += (float) $areaReport->Total_Hours_Report;
                         } else {
-                            $ac = DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $area->Id_Area)->distinct('Nik_Daily_Job')->count();
+                            $ac = DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $a->Id_Area)->distinct('Nik_Daily_Job')->count();
                             $dayMembers += $ac;
                             $dayHours += ($ac * 8.0);
                         }
@@ -509,14 +509,14 @@ class AdminController extends Controller
             } else {
                 $sumMembers = 0;
                 $sumHoursManual = 0;
-                foreach ($areas as $area) {
-                    $areaReport = $allReports->get($area->Id_Area);
+                foreach ($areas as $a) {
+                    $areaReport = $allReports->get($a->Id_Area);
                     if ($areaReport) {
                         $sumMembers += (int) $areaReport->Total_Member_Report;
                         $sumHoursManual += (float) $areaReport->Total_Hours_Report;
                     } else {
                         $areaCount = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-                            ->where('Id_Area', $area->Id_Area)->distinct('Nik_Daily_Job')->count();
+                            ->where('Id_Area', $a->Id_Area)->distinct('Nik_Daily_Job')->count();
                         $sumMembers += $areaCount;
                         $sumHoursManual += ($areaCount * 8.0);
                     }
@@ -892,7 +892,7 @@ class AdminController extends Controller
         $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
         $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '';
+        $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '_All_Area';
         $fileName = 'Operational_Performance' . $areaSuffix . '_' . $dateString . '.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), $fileName);
@@ -963,13 +963,13 @@ class AdminController extends Controller
             } else {
                 $dayMembers = 0;
                 $dayHours = 0;
-                foreach ($areas as $area) {
-                    $areaReport = $dayReports->get($area->Id_Area);
+                foreach ($areas as $a) {
+                    $areaReport = $dayReports->get($a->Id_Area);
                     if ($areaReport) {
                         $dayMembers += (int) $areaReport->Total_Member_Report;
                         $dayHours += (float) $areaReport->Total_Hours_Report;
                     } else {
-                        $ac = DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $area->Id_Area)->distinct('Nik_Daily_Job')->count();
+                        $ac = DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $a->Id_Area)->distinct('Nik_Daily_Job')->count();
                         $dayMembers += $ac;
                         $dayHours += ($ac * 8.0);
                     }
@@ -1279,7 +1279,7 @@ class AdminController extends Controller
         $sheet->getStyle('A1:C' . ($row - 1))->getAlignment()->setVertical('center');
         $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-        $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '';
+        $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '_All_Area';
         $fileName = 'Monthly_Performance' . $areaSuffix . '_' . $dateString . '.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), $fileName);

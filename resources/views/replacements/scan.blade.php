@@ -7,8 +7,8 @@
     <title>Scan Traktor Pergantian - Iseki Efficiency</title>
     <link rel="shortcut icon" href="{{ asset('assets/images/icon.png') }}" type="image/x-icon">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/custom-fonts.css') }}">
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/js/html5-qrcode.min.js') }}"></script>
 
     <style>

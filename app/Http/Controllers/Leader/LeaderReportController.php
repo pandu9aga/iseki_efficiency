@@ -47,54 +47,91 @@ class LeaderReportController extends Controller
         $areaId = $activeArea->Id_Area;
         $area = Area::findOrFail($areaId);
 
-        $date = $request->filled('date')
-            ? Carbon::parse($request->date)->startOfDay()
-            : Carbon::today()->startOfDay();
+        $isMonthFilter = $request->filled('month');
 
-        $dateString = $date->format('Y-m-d');
-        $productionDateYmd = $date->format('Ymd');
+        if ($isMonthFilter) {
+            $monthParsed = Carbon::parse($request->month . '-01');
+            $startDate = $monthParsed->copy()->startOfMonth();
+            $endDate = $monthParsed->copy()->endOfMonth();
+            $dateString = $monthParsed->format('Y-m');
 
-        // Hanya ambil data untuk area leader ini
-        $areaReports = Report::where('Day_Report', $date->format('Y-m-d'))
-            ->where('Id_Area', $areaId)
-            ->get();
+            $areaReports = Report::whereDate('Day_Report', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Day_Report', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->get();
+            
+            $costs = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->with('area')
+                ->get();
 
-        $currentMembersPerArea = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->where('Id_Area', $areaId)
-            ->count();
+            $powers = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->with('member', 'area')
+                ->get();
 
-        $costs = Cost::whereDate('Start_Cost', $date->format('Y-m-d'))
-            ->where('Id_Area', $areaId)
-            ->with('area')
-            ->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->with('area')
+                ->get();
 
-        $powers = Power::whereDate('Start_Power', $date->format('Y-m-d'))
-            ->where('Id_Area', $areaId)
-            ->with('member', 'area')
-            ->get();
+            $scans = Scan::where('Id_Area', $areaId)
+                ->whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
+                ->with(['tractor', 'dailyJob'])
+                ->orderBy('Time_Scan', 'desc')
+                ->get();
 
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $date->format('Y-m-d'))
-            ->where('Id_Area', $areaId)
-            ->with('area')
-            ->get();
+            $currentMembersPerArea = 0;
+            $activeMembers = collect();
+            $activeMembersByArea = [];
+        } else {
+            $date = $request->filled('date')
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today()->startOfDay();
 
-        // Active members di area ini hari ini
-        $dailyJobNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->where('Id_Area', $areaId)
-            ->pluck('Nik_Daily_Job')
-            ->unique();
-        $activeMembers = Member::whereIn('nik', $dailyJobNiks)->get();
-        $activeMembersByArea = [$areaId => $activeMembers];
+            $dateString = $date->format('Y-m-d');
+            $productionDateYmd = $date->format('Ymd');
 
-        // 🔥 Ambil SEMUA member dari semua area (untuk dropdown "All Areas")
-        $allMembers = Member::with('area')->get();
+            $areaReports = Report::where('Day_Report', $date->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->get();
 
-        // 🔥 Ambil scan: filter by date
-        $scans = Scan::where('Id_Area', $areaId)
-            ->whereDate('Time_Scan', $date->format('Y-m-d'))
-            ->with(['tractor', 'dailyJob'])
-            ->orderBy('Time_Scan', 'desc')
-            ->get();
+            $currentMembersPerArea = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                ->where('Id_Area', $areaId)
+                ->count();
+
+            $costs = Cost::whereDate('Start_Cost', $date->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->with('area')
+                ->get();
+
+            $powers = Power::whereDate('Start_Power', $date->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->with('member', 'area')
+                ->get();
+
+            $penanganans = Penanganan::whereDate('Start_Penanganan', $date->format('Y-m-d'))
+                ->where('Id_Area', $areaId)
+                ->with('area')
+                ->get();
+
+            $dailyJobNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                ->where('Id_Area', $areaId)
+                ->pluck('Nik_Daily_Job')
+                ->unique();
+            $activeMembers = Member::whereIn('nik', $dailyJobNiks)->get();
+            $activeMembersByArea = [$areaId => $activeMembers];
+
+            $scans = Scan::where('Id_Area', $areaId)
+                ->whereDate('Time_Scan', $date->format('Y-m-d'))
+                ->with(['tractor', 'dailyJob'])
+                ->orderBy('Time_Scan', 'desc')
+                ->get();
+        }
 
         $nikReplaces = $scans->pluck('Nik_Replace')->filter()->unique()->values();
         $memberMap = [];
@@ -124,6 +161,9 @@ class LeaderReportController extends Controller
 
         // View uses $areas for modals loop.
         $areas = $assignedAreas;
+
+        // 🔥 Ambil SEMUA member dari semua area (untuk dropdown "All Areas")
+        $allMembers = Member::with('area')->get();
 
         // ✅ Map NIK => nama untuk tampilan popover cost
         $allNiks = Member::pluck('nama', 'nik')->toArray();

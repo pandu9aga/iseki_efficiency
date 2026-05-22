@@ -23,51 +23,82 @@ class AdminReportController extends Controller
             abort(403);
         }
 
-        $date = $request->filled('date')
-            ? Carbon::parse($request->date)->startOfDay()
-            : Carbon::today()->startOfDay();
+        $isMonthFilter = $request->filled('month');
 
-        $dateString = $date->format('Y-m-d');
-        $productionDateYmd = $date->format('Ymd');
+        if ($isMonthFilter) {
+            $monthParsed = Carbon::parse($request->month . '-01');
+            $startDate = $monthParsed->copy()->startOfMonth();
+            $endDate = $monthParsed->copy()->endOfMonth();
+            $dateString = $monthParsed->format('Y-m');
 
-        // Untuk data harian lainnya, gunakan $date
-        $areaReports = Report::where('Day_Report', $date->format('Y-m-d'))->get();
+            $areaReports = Report::whereDate('Day_Report', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Day_Report', '<=', $endDate->format('Y-m-d'))->get();
+            $costs = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))->with('area')->get();
+            $powers = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))->with('member', 'area')->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))->with('area')->get();
+            
+            $scans = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
+                ->with(['tractor', 'dailyJob.area'])
+                ->orderBy('Time_Scan', 'desc')
+                ->get();
 
-        $currentMembersPerArea = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->select('Id_Area', DB::raw('COUNT(DISTINCT Nik_Daily_Job) as total'))
-            ->groupBy('Id_Area')
-            ->pluck('total', 'Id_Area');
+            // We just set these to 0/empty for monthly view since they are daily concepts
+            $currentMembersPerArea = collect();
+            $currentTotalMembers = 0;
+            $currentTotalHours = 0;
+            $activeMembers = collect();
+            $activeMembersByArea = [];
+            $areas = Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
 
-        $currentTotalMembers = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->distinct('Nik_Daily_Job')
-            ->count();
-        $currentTotalHours = round($currentTotalMembers * 8, 2);
+        } else {
+            $date = $request->filled('date')
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today()->startOfDay();
 
-        $costs = Cost::whereDate('Start_Cost', $date->format('Y-m-d'))->with('area')->get();
-        $powers = Power::whereDate('Start_Power', $date->format('Y-m-d'))->with('member', 'area')->get();
-        $penanganans = Penanganan::whereDate('Start_Penanganan', $date->format('Y-m-d'))->with('area')->get();
+            $dateString = $date->format('Y-m-d');
+            $productionDateYmd = $date->format('Ymd');
 
-        $dailyJobNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-            ->pluck('Nik_Daily_Job')
-            ->unique();
-        $activeMembers = Member::whereIn('nik', $dailyJobNiks)->get();
+            $areaReports = Report::where('Day_Report', $date->format('Y-m-d'))->get();
 
-        $areas = Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
-        $activeMembersByArea = [];
-        foreach ($areas as $area) {
-            $nks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
-                ->where('Id_Area', $area->Id_Area)
+            $currentMembersPerArea = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                ->select('Id_Area', DB::raw('COUNT(DISTINCT Nik_Daily_Job) as total'))
+                ->groupBy('Id_Area')
+                ->pluck('total', 'Id_Area');
+
+            $currentTotalMembers = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                ->distinct('Nik_Daily_Job')
+                ->count();
+            $currentTotalHours = round($currentTotalMembers * 8, 2);
+
+            $costs = Cost::whereDate('Start_Cost', $date->format('Y-m-d'))->with('area')->get();
+            $powers = Power::whereDate('Start_Power', $date->format('Y-m-d'))->with('member', 'area')->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', $date->format('Y-m-d'))->with('area')->get();
+
+            $dailyJobNiks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
                 ->pluck('Nik_Daily_Job')
                 ->unique();
-            $members = Member::whereIn('nik', $nks)->get();
-            $activeMembersByArea[$area->Id_Area] = $members;
-        }
+            $activeMembers = Member::whereIn('nik', $dailyJobNiks)->get();
 
-        // 🔥 Ambil scan: filter by date
-        $scans = Scan::whereDate('Time_Scan', $date->format('Y-m-d'))
-            ->with(['tractor', 'dailyJob.area'])
-            ->orderBy('Time_Scan', 'desc')
-            ->get();
+            $areas = Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
+            $activeMembersByArea = [];
+            foreach ($areas as $area) {
+                $nks = DailyJob::where('Production_Date_Plan', $productionDateYmd)
+                    ->where('Id_Area', $area->Id_Area)
+                    ->pluck('Nik_Daily_Job')
+                    ->unique();
+                $members = Member::whereIn('nik', $nks)->get();
+                $activeMembersByArea[$area->Id_Area] = $members;
+            }
+
+            $scans = Scan::whereDate('Time_Scan', $date->format('Y-m-d'))
+                ->with(['tractor', 'dailyJob.area'])
+                ->orderBy('Time_Scan', 'desc')
+                ->get();
+        }
 
         // 🔥 Ambil NIK pengganti unik
         $nikReplaces = $scans->pluck('Nik_Replace')->filter()->unique()->values();

@@ -371,12 +371,7 @@
                                 }
                                 if (label === 'Tractor') {
                                     const total = scans.reduce((s, x) => s + x.value, 0);
-                                    const lines = [`Total Tractor: ${decimalToHoursMinutes(total)}`];
-                                    const labels = scans.map(s => `${s.label} (${decimalToHoursMinutes(s.value)})`);
-                                    for (let i = 0; i < labels.length; i += 5) {
-                                        lines.push(labels.slice(i, i + 5).join(', '));
-                                    }
-                                    return lines;
+                                    return [`Total Tractor: ${decimalToHoursMinutes(total)}`];
                                 }
                                 if (label === 'Non Operational') {
                                     const total = costTotal;

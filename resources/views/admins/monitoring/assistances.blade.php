@@ -33,7 +33,15 @@
                         </div>
                         <div class="col-auto" id="dailyFilter" style="{{ $filterType === 'monthly' ? 'display:none;' : '' }}">
                             <label class="form-label fw-bold mb-1">Tanggal</label>
-                            <input type="date" name="filter_date" class="form-control" value="{{ $filterDate }}">
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" id="prevDate">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <input type="date" name="filter_date" id="filterDateInput" class="form-control text-center fw-bold" value="{{ $filterDate }}">
+                                <button type="button" class="btn btn-outline-secondary" id="nextDate">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-auto" id="monthlyFilter" style="{{ $filterType === 'daily' ? 'display:none;' : '' }}">
                             <label class="form-label fw-bold mb-1">Bulan</label>
@@ -119,8 +127,24 @@ function toggleFilter() {
     document.getElementById('monthlyFilter').style.display = type === 'monthly' ? '' : 'none';
 }
 
-// Init DataTable dengan urutan No descending (terbaru di atas, terlama No.1 di bawah)
 document.addEventListener('DOMContentLoaded', function() {
+    // Prev/Next date navigation
+    const dateInput = document.getElementById('filterDateInput');
+    const form = document.getElementById('filterForm');
+
+    function shiftDate(delta) {
+        if (!dateInput || !dateInput.value) return;
+        const parts = dateInput.value.split('-');
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        d.setDate(d.getDate() + delta);
+        dateInput.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        form.submit();
+    }
+
+    document.getElementById('prevDate')?.addEventListener('click', () => shiftDate(-1));
+    document.getElementById('nextDate')?.addEventListener('click', () => shiftDate(1));
+
+    // Init DataTable
     const monitorTable = document.querySelector('#monitorTable');
     if (monitorTable) {
         new DataTable(monitorTable, { order: [[0, 'desc']] });

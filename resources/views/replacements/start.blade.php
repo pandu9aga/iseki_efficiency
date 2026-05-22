@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mulai Pergantian - Iseki Efficiency</title>
     <link rel="shortcut icon" href="{{ asset('assets/images/icon.png') }}" type="image/x-icon">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/custom-fonts.css') }}">
+    <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/select2.min.css') }}">
+    <script src="{{ asset('assets/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/js/html5-qrcode.min.js') }}"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif}

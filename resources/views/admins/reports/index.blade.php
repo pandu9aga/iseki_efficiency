@@ -13,13 +13,34 @@
     <section class="section">
         <div class="card">
             <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-3">
-                        <label for="date">Date</label>
-                        <input type="date" name="date" id="date" class="form-control"
-                            value="{{ $dateString }}">
+                <form method="GET" class="row g-3 align-items-end" id="reportFilterForm">
+                    <div class="col-auto">
+                        <label class="col-form-label" id="reportDateLabel">
+                            {{ request()->filled('month') ? 'Month:' : 'Date:' }}
+                        </label>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-auto">
+                        <div class="input-group">
+                            <button type="button" id="prevReportDate" class="btn btn-outline-primary">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <input
+                                type="{{ request()->filled('month') ? 'month' : 'date' }}"
+                                id="reportDateInput"
+                                name="{{ request()->filled('month') ? 'month' : 'date' }}"
+                                class="form-control text-center fw-bold"
+                                value="{{ $dateString }}">
+                            <button type="button" id="nextReportDate" class="btn btn-outline-primary">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" id="toggleReportDateType" class="btn btn-outline-secondary btn-sm">
+                            {{ request()->filled('month') ? 'Date' : 'Month' }}
+                        </button>
+                    </div>
+                    <div class="col-auto">
                         <button type="submit" class="btn btn-primary">Apply</button>
                     </div>
                 </form>
@@ -29,11 +50,18 @@
 
     <!-- Tab Area -->
     <ul class="nav nav-tabs mb-3" id="reportAreaTabs" role="tablist">
+        @if(request()->filled('month'))
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-all-areas-tab" data-bs-toggle="tab" data-bs-target="#tab-all-areas" type="button" role="tab" aria-controls="tab-all-areas" aria-selected="true">
+                All Areas Summary
+            </button>
+        </li>
+        @endif
         @foreach ($areas as $index => $area)
         <li class="nav-item" role="presentation">
-            <button class="nav-link {{ $index === 0 ? 'active' : '' }}" id="tab-{{ $area->Id_Area }}-tab"
+            <button class="nav-link {{ (!request()->filled('month') && $index === 0) ? 'active' : '' }}" id="tab-{{ $area->Id_Area }}-tab"
                 data-bs-toggle="tab" data-bs-target="#tab-{{ $area->Id_Area }}" type="button" role="tab"
-                aria-controls="tab-{{ $area->Id_Area }}" aria-selected="{{ $index === 0 ? 'true' : 'false' }}">
+                aria-controls="tab-{{ $area->Id_Area }}" aria-selected="{{ (!request()->filled('month') && $index === 0) ? 'true' : 'false' }}">
                 {{ $area->Name_Area }}
             </button>
         </li>
@@ -66,8 +94,144 @@
         @endphp
 
         <div class="tab-content" id="reportAreaTabContent">
+            @if(request()->filled('month'))
+            <div class="tab-pane fade show active" id="tab-all-areas" role="tabpanel">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0 text-white">Monthly Summary - All Areas ({{ \Carbon\Carbon::parse($dateString)->format('F Y') }})</h5>
+                    </div>
+                    <div class="card-body mt-3">
+                        <div class="mb-4">
+                            <h6>Non Operational Cost</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Kategori</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    @php $grandTotalCost = 0; @endphp
+                                    @forelse($costs->groupBy('Keterangan_Cost') as $category => $items)
+                                    <tr>
+                                        <td>{{ $category }}</td>
+                                        <td>
+                                            @php
+                                                $totalHours = $items->sum('Non_Operational_Cost');
+                                                $grandTotalCost += $totalHours;
+                                                $jamMenit = decimalToJamMenit($totalHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenit['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total Non Operational Cost</th>
+                                        <th>
+                                            @php $grandTotalJamMenitCost = decimalToJamMenit($grandTotalCost); @endphp
+                                            <strong>{{ number_format($grandTotalCost, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $grandTotalJamMenitCost['text'] }}</small>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mb-4">
+                            <h6>Absensi</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Kategori</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    @php $grandTotalPower = 0; @endphp
+                                    @forelse($powers->groupBy('Keterangan_Power') as $category => $items)
+                                    <tr>
+                                        <td>{{ $category }}</td>
+                                        <td>
+                                            @php
+                                                $totalHours = $items->sum('Leave_Hour_Power');
+                                                $grandTotalPower += $totalHours;
+                                                $jamMenit = decimalToJamMenit($totalHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenit['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total Absensi</th>
+                                        <th>
+                                            @php $grandTotalJamMenitPower = decimalToJamMenit($grandTotalPower); @endphp
+                                            <strong>{{ number_format($grandTotalPower, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $grandTotalJamMenitPower['text'] }}</small>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mb-2">
+                            <h6>Perbantuan</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Kategori</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    @php $grandTotalPenanganan = 0; @endphp
+                                    @forelse($penanganans->groupBy('Keterangan_Penanganan') as $category => $items)
+                                    <tr>
+                                        <td>{{ $category }}</td>
+                                        <td>
+                                            @php
+                                                $totalHours = $items->sum('Hour_Penanganan');
+                                                $grandTotalPenanganan += $totalHours;
+                                                $jamMenit = decimalToJamMenit($totalHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenit['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total Perbantuan</th>
+                                        <th>
+                                            @php $grandTotalJamMenitPenanganan = decimalToJamMenit($grandTotalPenanganan); @endphp
+                                            <strong>{{ number_format($grandTotalPenanganan, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $grandTotalJamMenitPenanganan['text'] }}</small>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mb-2">
+                            <h6>Scan Traktor</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Keterangan</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Total Jam Scan Traktor Keseluruhan</td>
+                                        <td>
+                                            @php
+                                                $totalScanHours = $scans->sum('Assigned_Hour_Scan');
+                                                $jamMenitScan = decimalToJamMenit($totalScanHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalScanHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenitScan['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             @foreach ($areas as $index => $area)
-            <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" id="tab-{{ $area->Id_Area }}"
+            <div class="tab-pane fade {{ (!request()->filled('month') && $index === 0) ? 'show active' : '' }}" id="tab-{{ $area->Id_Area }}"
                 role="tabpanel">
 
                 {{-- ✅ REPORT PER AREA --}}
@@ -119,6 +283,140 @@
                         </div>
                     </div>
                 </div>
+
+                @if(request()->filled('month'))
+                <div class="card mb-4 border-info">
+                    <div class="card-header bg-info bg-opacity-10">
+                        <h5 class="card-title mb-0 text-info">Monthly Summary - {{ $area->Name_Area }} ({{ \Carbon\Carbon::parse($dateString)->format('F Y') }})</h5>
+                    </div>
+                    <div class="card-body mt-3">
+                        <div class="mb-4">
+                            <h6>Non Operational Cost</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Kategori</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    @php $grandTotalCostArea = 0; @endphp
+                                    @forelse($costs->where('Id_Area', $area->Id_Area)->groupBy('Keterangan_Cost') as $category => $items)
+                                    <tr>
+                                        <td>{{ $category }}</td>
+                                        <td>
+                                            @php
+                                                $totalHours = $items->sum('Non_Operational_Cost');
+                                                $grandTotalCostArea += $totalHours;
+                                                $jamMenit = decimalToJamMenit($totalHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenit['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total Non Operational Cost</th>
+                                        <th>
+                                            @php $grandTotalJamMenitCostArea = decimalToJamMenit($grandTotalCostArea); @endphp
+                                            <strong>{{ number_format($grandTotalCostArea, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $grandTotalJamMenitCostArea['text'] }}</small>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mb-4">
+                            <h6>Absensi</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Kategori</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    @php $grandTotalPowerArea = 0; @endphp
+                                    @forelse($powers->where('Id_Area', $area->Id_Area)->groupBy('Keterangan_Power') as $category => $items)
+                                    <tr>
+                                        <td>{{ $category }}</td>
+                                        <td>
+                                            @php
+                                                $totalHours = $items->sum('Leave_Hour_Power');
+                                                $grandTotalPowerArea += $totalHours;
+                                                $jamMenit = decimalToJamMenit($totalHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenit['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total Absensi</th>
+                                        <th>
+                                            @php $grandTotalJamMenitPowerArea = decimalToJamMenit($grandTotalPowerArea); @endphp
+                                            <strong>{{ number_format($grandTotalPowerArea, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $grandTotalJamMenitPowerArea['text'] }}</small>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mb-2">
+                            <h6>Perbantuan</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Kategori</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    @php $grandTotalPenangananArea = 0; @endphp
+                                    @forelse($penanganans->where('Id_Area', $area->Id_Area)->groupBy('Keterangan_Penanganan') as $category => $items)
+                                    <tr>
+                                        <td>{{ $category }}</td>
+                                        <td>
+                                            @php
+                                                $totalHours = $items->sum('Hour_Penanganan');
+                                                $grandTotalPenangananArea += $totalHours;
+                                                $jamMenit = decimalToJamMenit($totalHours);
+                                            @endphp
+                                            <strong>{{ number_format($totalHours, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenit['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th>Total Perbantuan</th>
+                                        <th>
+                                            @php $grandTotalJamMenitPenangananArea = decimalToJamMenit($grandTotalPenangananArea); @endphp
+                                            <strong>{{ number_format($grandTotalPenangananArea, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $grandTotalJamMenitPenangananArea['text'] }}</small>
+                                        </th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mb-2">
+                            <h6>Scan Traktor</h6>
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
+                                <thead class="table-light"><tr><th style="width: 65%;">Keterangan</th><th style="width: 35%;">Total Jam</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Total Jam Scan Traktor Area {{ $area->Name_Area }}</td>
+                                        <td>
+                                            @php
+                                                $totalScanHoursArea = $scans->where('Id_Area', $area->Id_Area)->sum('Assigned_Hour_Scan');
+                                                $jamMenitScanArea = decimalToJamMenit($totalScanHoursArea);
+                                            @endphp
+                                            <strong>{{ number_format($totalScanHoursArea, 2) }} h</strong><br>
+                                            <small class="text-muted">{{ $jamMenitScanArea['text'] }}</small>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                @endif
 
                 {{-- COST --}}
                 <div class="card mb-4">
@@ -1127,7 +1425,7 @@ $isNegative = $p->Hour_Penanganan < 0;
             $('[data-bs-toggle="popover"]').popover();
         });
 
-        // Tab persistence
+        // Tab persistence and Date navigation
         document.addEventListener('DOMContentLoaded', function() {
             const activeTab = sessionStorage.getItem('activeReportTab');
             if (activeTab) {
@@ -1138,6 +1436,54 @@ $isNegative = $p->Hour_Penanganan < 0;
                 btn.addEventListener('shown.bs.tab', e => {
                     sessionStorage.setItem('activeReportTab', e.target.getAttribute('data-bs-target'));
                 });
+            });
+
+            // Date & Month Navigation
+            const reportDateInput = document.getElementById('reportDateInput');
+            const reportFilterForm = document.getElementById('reportFilterForm');
+            const toggleBtn = document.getElementById('toggleReportDateType');
+            const dateLabel = document.getElementById('reportDateLabel');
+
+            function shiftReportDate(delta) {
+                if (!reportDateInput || !reportDateInput.value) return;
+                const isMonth = reportDateInput.type === 'month';
+                const parts = reportDateInput.value.split('-');
+                let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, isMonth ? 1 : parseInt(parts[2]));
+
+                if (isMonth) {
+                    d.setMonth(d.getMonth() + delta);
+                    reportDateInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                } else {
+                    d.setDate(d.getDate() + delta);
+                    reportDateInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                }
+                reportFilterForm.submit();
+            }
+
+            document.getElementById('prevReportDate')?.addEventListener('click', () => shiftReportDate(-1));
+            document.getElementById('nextReportDate')?.addEventListener('click', () => shiftReportDate(1));
+
+            toggleBtn?.addEventListener('click', () => {
+                const isCurrentlyMonth = reportDateInput.type === 'month';
+                if (isCurrentlyMonth) {
+                    // Switch to Date
+                    reportDateInput.type = 'date';
+                    reportDateInput.name = 'date';
+                    reportDateInput.value = "{{ \Carbon\Carbon::now()->format('Y-m-d') }}";
+                    toggleBtn.textContent = 'Month';
+                    dateLabel.textContent = 'Date:';
+                } else {
+                    // Switch to Month
+                    reportDateInput.type = 'month';
+                    reportDateInput.name = 'month';
+                    reportDateInput.value = "{{ \Carbon\Carbon::now()->format('Y-m') }}";
+                    toggleBtn.textContent = 'Date';
+                    dateLabel.textContent = 'Month:';
+                }
+            });
+
+            reportDateInput?.addEventListener('change', () => {
+                reportFilterForm.submit();
             });
         });
 
