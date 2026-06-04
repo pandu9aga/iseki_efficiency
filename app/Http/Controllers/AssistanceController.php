@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\DailyJob;
 use App\Models\Tractor;
 use App\Models\Assistance;
+use App\Models\AssistanceDuration;
 
 class AssistanceController extends Controller
 {
@@ -97,7 +98,13 @@ class AssistanceController extends Controller
         $dailyJobId = session('assistance_daily_job_id');
         $dailyJob = DailyJob::with('member')->find($dailyJobId);
 
-        return view('assistances.scan', compact('dailyJob'));
+        // Ambil riwayat scan sebelumnya untuk sesi ini
+        $history = Assistance::where('NIK_Assistance', session('assistance_nik'))
+            ->where('Id_Daily_Job', $dailyJobId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('assistances.scan', compact('dailyJob', 'history'));
     }
 
     /**
@@ -266,5 +273,56 @@ class AssistanceController extends Controller
     {
         session()->forget(['assistance_nik', 'assistance_daily_job_id']);
         return redirect()->route('login.form')->with('success', 'Proses perbantuan selesai.');
+    }
+
+    /**
+     * Ambil riwayat perbantuan berdasarkan NIK (untuk ditampilkan di halaman start)
+     * Tidak memerlukan session — data diambil langsung dari DB
+     */
+    public function history(Request $request)
+    {
+        $request->validate(['nik' => 'required|numeric']);
+
+        $today = Carbon::now()->format('Ymd');
+
+        // Ambil semua daily job hari ini
+        $dailyJobIds = DailyJob::where('Production_Date_Plan', $today)
+            ->pluck('Id_Daily_Job');
+
+        // Ambil semua scan hari ini untuk NIK ini
+        $scans = Assistance::where('NIK_Assistance', $request->nik)
+            ->whereIn('Id_Daily_Job', $dailyJobIds)
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($item, $idx) {
+                return [
+                    'no'           => $idx + 1,
+                    'sequence_no'  => $item->Sequence_No_Plan,
+                    'tractor_name' => $item->Name_Tractor,
+                    'model_mower'  => $item->Model_Mower_Plan,
+                    'waktu'        => $item->created_at ? $item->created_at->format('H:i') : '-',
+                    'pic_job_id'   => $item->Id_Daily_Job,
+                ];
+            });
+
+        // Ambil durasi yang sudah tersimpan
+        $durations = AssistanceDuration::where('NIK_Assistance', $request->nik)
+            ->whereIn('Id_Daily_Job', $dailyJobIds)
+            ->get()
+            ->map(function ($d) {
+                $job = DailyJob::with('member')->find($d->Id_Daily_Job);
+                return [
+                    'pic_nama'     => $job && $job->member ? $job->member->nama : '-',
+                    'total_menit'  => $d->Total_Minutes,
+                    'waktu'        => $d->created_at ? $d->created_at->format('H:i') : '-',
+                ];
+            });
+
+        return response()->json([
+            'success'   => true,
+            'total'     => $scans->count(),
+            'scans'     => $scans,
+            'durations' => $durations,
+        ]);
     }
 }

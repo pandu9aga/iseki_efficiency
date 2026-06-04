@@ -48,6 +48,7 @@ Route::middleware('web')->group(function () {
     Route::prefix('replacements')->name('replacements.')->group(function () {
         Route::get('/start', [ReplacementController::class, 'start'])->name('start');
         Route::post('/verify-nik', [ReplacementController::class, 'verifyNik'])->name('verifyNik')->middleware('throttle:20,1');
+        Route::post('/history', [ReplacementController::class, 'history'])->name('history')->middleware('throttle:30,1');
         Route::post('/start', [ReplacementController::class, 'storeStart'])->name('storeStart');
         Route::get('/scan', [ReplacementController::class, 'scan'])->name('scan');
         Route::post('/scan', [ReplacementController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');
@@ -59,6 +60,7 @@ Route::middleware('web')->group(function () {
     Route::prefix('assistances')->name('assistances.')->group(function () {
         Route::get('/start', [AssistanceController::class, 'start'])->name('start');
         Route::post('/verify-nik', [AssistanceController::class, 'verifyNik'])->name('verifyNik')->middleware('throttle:20,1');
+        Route::post('/history', [AssistanceController::class, 'history'])->name('history')->middleware('throttle:30,1');
         Route::post('/start', [AssistanceController::class, 'storeStart'])->name('storeStart');
         Route::get('/scan', [AssistanceController::class, 'scan'])->name('scan');
         Route::post('/scan', [AssistanceController::class, 'storeScan'])->name('storeScan')->middleware('throttle:30,1');

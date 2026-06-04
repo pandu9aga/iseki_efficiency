@@ -277,10 +277,22 @@
     </div>
 
     <script>
+        var historyData = @json($history);
+
         $(document).ready(function() {
             let isProcessing = false;
             let lastScanned = "";
-            let scanCount = 0;
+            let scanCount = historyData.length;
+
+            // Muat riwayat scan sebelumnya
+            historyData.forEach(function(item, index) {
+                $('#scanned-list').append(
+                    `<li class="list-group-item">
+                        <span><strong>${index + 1}.</strong> &nbsp; [${item.Sequence_No_Plan}] ${item.Name_Tractor}</span>
+                        <span class="badge">Tersimpan</span>
+                    </li>`
+                );
+            });
 
             let html5QrcodeScanner = null;
 
