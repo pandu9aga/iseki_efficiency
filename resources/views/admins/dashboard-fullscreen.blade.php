@@ -145,10 +145,14 @@
                             @php
                             $kategori1 = $data['reportNetHours'] + $data['penangananTotal'];
                             $kategori2 = $data['scanTotal'] + $data['costTotal'];
-                            $persenOperasional =
-                            $kategori2 != 0 ? (($kategori2 - $data['reportNetHours']) / $kategori2) * 100 : 0;
-                            $persenNonOperasional =
-                            $kategori2 != 0 ? ($data['costTotal'] / $kategori2) * 100 : 0;
+                            $selisihJamArea = $kategori2 - $kategori1;
+                            
+                            // Sesuaikan rumus dengan Excel: Penghematan (selisihJamArea) / Total Beban (kategori2)
+                            $persenOperasional = $kategori2 != 0 ? ($selisihJamArea / $kategori2) * 100 : 0;
+                            
+                            // Sesuaikan rumus dengan Excel: Total NonOp / Total Power
+                            $totalPowerForNonOp = $data['memberHours'] + $data['penangananTotal'];
+                            $persenNonOperasional = $totalPowerForNonOp != 0 ? ($data['costTotal'] / $totalPowerForNonOp) * 100 : 0;
                             @endphp
 
                             <div class="small mb-1">
