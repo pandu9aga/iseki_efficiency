@@ -147,16 +147,16 @@
                             $kategori2 = $data['scanTotal'] + $data['costTotal'];
                             $selisihJamArea = $kategori2 - $kategori1;
                             
-                            // Sesuaikan rumus dengan Excel: Penghematan (selisihJamArea) / Total Beban (kategori2)
-                            $persenOperasional = $kategori2 != 0 ? ($selisihJamArea / $kategori2) * 100 : 0;
+                            // Sesuaikan rumus dengan Excel: Penghematan (selisihJamArea) / Total Beban (scanTotal)
+                            $persenOperasional = $data['scanTotal'] != 0 ? ($selisihJamArea / $data['scanTotal']) * 100 : 0;
                             
                             // Sesuaikan rumus dengan Excel: Total NonOp / Total Power
-                            $totalPowerForNonOp = $data['memberHours'] + $data['penangananTotal'];
+                            $totalPowerForNonOp = $data['memberHours'] + $data['penangananTotal'] - $data['areaLainTotal'];
                             $persenNonOperasional = $totalPowerForNonOp != 0 ? ($data['costTotal'] / $totalPowerForNonOp) * 100 : 0;
                             @endphp
 
                             <div class="small mb-1">
-                                Operational Ratio:
+                                Efficiency Operational:
                                 <strong>{{ number_format($persenOperasional, 0) }}%</strong>
                             </div>
                             <div class="progress mb-1">
@@ -165,7 +165,7 @@
                             </div>
 
                             <div class="small mb-1">
-                                Non-Operational:
+                                Efficiency Non Operational:
                                 <strong>{{ number_format($persenNonOperasional, 0) }}%</strong>
                             </div>
                             <div class="progress">

@@ -351,6 +351,10 @@ class AdminController extends Controller
             $scanTotal = $scans->sum('Assigned_Hour_Scan') * (1 - 0.078);
             $costTotal = $costs->sum('Non_Operational_Cost');
             $penangananTotal = $penanganans->sum('Hour_Penanganan');
+            $areaLainTotal = $penanganans->filter(function ($p) {
+                $desc = strtolower($p->Keterangan_Penanganan);
+                return str_contains($desc, 'area lain') || str_contains($desc, '他部署応援');
+            })->sum('Hour_Penanganan');
             $powerTotal = $powers->sum('Leave_Hour_Power');
             $reportNetHours = $memberHours - $powerTotal;
             $kategori1 = $reportNetHours + $penangananTotal;
@@ -366,6 +370,7 @@ class AdminController extends Controller
                 'scanTotal' => $scanTotal,
                 'costTotal' => $costTotal,
                 'penangananTotal' => $penangananTotal,
+                'areaLainTotal' => $areaLainTotal,
                 'powerTotal' => $powerTotal,
                 'selisihJam' => $selisihJam,
                 'nilaiRupiah' => $nilaiRupiah,

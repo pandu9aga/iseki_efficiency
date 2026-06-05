@@ -171,11 +171,11 @@
                             <div class="col-12">
                                 <div class="card h-100">
                                     <div class="card-body">
-                                        <h6 class="card-title mb-3">Efficency Ratio</h6>
+                                        <h6 class="card-title mb-3">Operational Ratio</h6>
 
                                         <div class="mb-3">
                                             <div class="d-flex justify-content-between small mb-1">
-                                                <span>Operational Ratio - 工数低減率</span>
+                                                <span>Efficiency Operational - 工数低減率</span>
                                                 <span id="persenOperasional">0%</span>
                                             </div>
                                             <div class="progress" style="height: 8px;">
@@ -185,7 +185,7 @@
 
                                         <div>
                                             <div class="d-flex justify-content-between small mb-1">
-                                                <span>Non Operational Ratio - 非稼働工数率</span>
+                                                <span>Efficiency Non Operational - 非稼働工数率</span>
                                                 <span id="persenNonOperasional">0%</span>
                                             </div>
                                             <div class="progress" style="height: 8px;">
@@ -446,11 +446,14 @@
         const selisihJam = kategori2 - kategori1;
         const nilaiRupiah = selisihJam * 60000;
 
-        // Sesuaikan rumus dengan Excel: Penghematan (selisihJam) / Total Beban (kategori2)
-        const persenOperasional = kategori2 !== 0 ? (selisihJam / kategori2) * 100 : 0;
+        // Sesuaikan rumus dengan Excel: Penghematan (selisihJam) / Total Beban (scanTotal)
+        const persenOperasional = scanTotal !== 0 ? (selisihJam / scanTotal) * 100 : 0;
         
         // Sesuaikan rumus dengan Excel: Total NonOp / Total Power
-        const totalPowerForNonOp = memberHours + penangananTotal;
+        const areaLainTotal = penanganans
+            .filter(p => p.label.toLowerCase().includes('area lain') || p.label.includes('他部署応援'))
+            .reduce((sum, p) => sum + p.value, 0);
+        const totalPowerForNonOp = memberHours + penangananTotal - areaLainTotal;
         const persenNonOperasional = totalPowerForNonOp !== 0 ? (costTotal / totalPowerForNonOp) * 100 : 0;
 
         function formatRupiahWithSign(angka) {
