@@ -394,13 +394,13 @@
     const mainCard = document.getElementById('mainCard');
     mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#28a745' : '#dc3545';
 
-    document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
+    document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(0) + '%';
     const absPersenOp = Math.abs(persenOperasional);
     const persenOpBar = document.getElementById('persenOperasionalBar');
     persenOpBar.style.width = Math.min(100, absPersenOp) + '%';
     persenOpBar.className = 'progress-bar ' + (nilaiRupiah >= 0 ? 'bg-success' : 'bg-danger');
 
-    document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
+    document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(0) + '%';
     document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
 </script>
 <script>

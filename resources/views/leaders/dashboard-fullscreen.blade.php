@@ -468,14 +468,14 @@
         const mainCard = document.getElementById('mainCard');
         mainCard.style.backgroundColor = nilaiRupiah >= 0 ? '#34d399' : '#f43f5e';
 
-        document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(1) + '%';
+        document.getElementById('persenOperasional').textContent = persenOperasional.toFixed(0) + '%';
         const absPersenOp = Math.abs(persenOperasional);
         const persenOpBar = document.getElementById('persenOperasionalBar');
         persenOpBar.style.width = Math.min(100, absPersenOp) + '%';
         persenOpBar.className = 'progress-bar';
         persenOpBar.style.backgroundColor = nilaiRupiah >= 0 ? '#34d399' : '#f43f5e';
 
-        document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(1) + '%';
+        document.getElementById('persenNonOperasional').textContent = persenNonOperasional.toFixed(0) + '%';
         const persenNonOpBar = document.getElementById('persenNonOperasionalBar');
         persenNonOpBar.style.width = Math.min(100, persenNonOperasional) + '%';
         persenNonOpBar.className = 'progress-bar';

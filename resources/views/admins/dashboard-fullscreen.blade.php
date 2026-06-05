@@ -157,7 +157,7 @@
 
                             <div class="small mb-1">
                                 Operational Ratio:
-                                <strong>{{ number_format($persenOperasional, 1) }}%</strong>
+                                <strong>{{ number_format($persenOperasional, 0) }}%</strong>
                             </div>
                             <div class="progress mb-1">
                                 <div class="progress-bar"
@@ -166,7 +166,7 @@
 
                             <div class="small mb-1">
                                 Non-Operational:
-                                <strong>{{ number_format($persenNonOperasional, 1) }}%</strong>
+                                <strong>{{ number_format($persenNonOperasional, 0) }}%</strong>
                             </div>
                             <div class="progress">
                                 <div class="progress-bar"
