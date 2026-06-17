@@ -1,3 +1,9 @@
+@php
+    $isRange = $filterMode === 'range';
+    $fromDate = request('from', '');
+    $toDate = request('to', '');
+@endphp
+
 @extends('layouts.leader')
 
 @section('content')
@@ -19,7 +25,7 @@
                     @foreach($assignedAreas as $a)
                     <li class="nav-item">
                         <a class="nav-link {{ $a->Id_Area == $area->Id_Area ? 'active' : '' }}"
-                            href="{{ route('leaders.dashboard', [$filterMode => $dateString, 'area' => $a->Id_Area]) }}">
+                            href="{{ $isRange ? route('leaders.dashboard', ['from' => $fromDate, 'to' => $toDate, 'area' => $a->Id_Area]) : route('leaders.dashboard', [$filterMode => $dateString, 'area' => $a->Id_Area]) }}">
                             {{ $a->Name_Area }}
                         </a>
                     </li>
@@ -32,19 +38,20 @@
                         <!-- Judul Area Otomatis -->
                         <h5 class="mb-3">Area: {{ $area->Name_Area }}</h5>
 
-                        <!-- Form Tanggal / Bulan -->
+                        <!-- Form Tanggal / Bulan / Range -->
                         <form method="GET" class="mb-3" id="filterForm">
                             @if(request('area'))
                             <input type="hidden" name="area" value="{{ request('area') }}">
                             @endif
                             <div class="row g-3 align-items-center">
-                                <div class="col-auto">
-                                    <label for="filterDateInput" class="col-form-label" id="filterDateLabel">
-                                        {{ $filterMode === 'month' ? 'Month:' : 'Date:' }}
+                                <div class="col-auto" id="filterLabelCol">
+                                    <label class="col-form-label" id="filterDateLabel">
+                                        {{ $filterMode === 'month' ? 'Month:' : ($filterMode === 'range' ? 'Range:' : 'Date:') }}
                                     </label>
                                 </div>
-                                <div class="col-auto">
-                                    <div class="input-group">
+                                <div class="col-auto" id="filterInputCol">
+                                    {{-- Date mode --}}
+                                    <div id="dateInputGroup" class="input-group" style="{{ $filterMode === 'range' ? 'display:none' : '' }}">
                                         <button type="button" id="prevDateBtn" class="btn btn-outline-primary">
                                             <i class="bi bi-chevron-left"></i>
                                         </button>
@@ -57,20 +64,35 @@
                                             <i class="bi bi-chevron-right"></i>
                                         </button>
                                     </div>
+                                    {{-- Range mode --}}
+                                    <div id="rangeInputGroup" style="{{ $filterMode === 'range' ? '' : 'display:none' }}">
+                                        <div class="input-group">
+                                            <span class="input-group-text">From</span>
+                                            <input type="date" name="from" id="filterFromInput"
+                                                class="form-control text-center fw-bold"
+                                                value="{{ $fromDate }}">
+                                            <span class="input-group-text">To</span>
+                                            <input type="date" name="to" id="filterToInput"
+                                                class="form-control text-center fw-bold"
+                                                value="{{ $toDate }}">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-auto">
-                                    <button type="button" id="toggleDateType" class="btn btn-outline-secondary btn-sm">
-                                        {{ $filterMode === 'month' ? 'Date' : 'Month' }}
-                                    </button>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary filter-mode-btn {{ $filterMode === 'date' ? 'active' : '' }}" data-mode="date">Date</button>
+                                        <button type="button" class="btn btn-outline-secondary filter-mode-btn {{ $filterMode === 'month' ? 'active' : '' }}" data-mode="month">Month</button>
+                                        <button type="button" class="btn btn-outline-secondary filter-mode-btn {{ $filterMode === 'range' ? 'active' : '' }}" data-mode="range">Range</button>
+                                    </div>
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-primary">Show</button>
                                 </div>
                                 <div class="col-auto">
-                                    <a href="{{ route('leaders.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-success">
+                                    <a href="{{ $isRange ? route('leaders.dashboard.export', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('leaders.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-success">
                                         <i class="fas fa-file-excel"></i> Export Excel
                                     </a>
-                                    <a href="{{ route('leaders.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-info">
+                                    <a href="{{ $isRange ? route('leaders.dashboard.fullscreen', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('leaders.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-info">
                                         Fullscreen View
                                     </a>
                                 </div>
@@ -123,7 +145,7 @@
                                             <!-- % Operasional -->
                                             <div class="mb-3">
                                                 <div class="d-flex justify-content-between small mb-1">
-                                                    <span>Efficiency Operational - 工数低減率</span>
+                                                    <span>Efficiency - 工数低減率</span>
                                                     <span id="persenOperasional">0%</span>
                                                 </div>
                                                 <div class="progress" style="height: 8px;">
@@ -135,7 +157,7 @@
                                             <!-- % Non-Operasional -->
                                             <div>
                                                 <div class="d-flex justify-content-between small mb-1">
-                                                    <span>Efficiency Non Operational - 非稼働工数率</span>
+                                                    <span>Non Operational - 非稼働工数率</span>
                                                     <span id="persenNonOperasional">0%</span>
                                                 </div>
                                                 <div class="progress" style="height: 8px;">
@@ -389,74 +411,78 @@
     document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
 </script>
 <script>
-    // Toggle Date / Month filter
     document.addEventListener('DOMContentLoaded', function() {
-        const input = document.getElementById('filterDateInput');
-        const toggleBtn = document.getElementById('toggleDateType');
-        const label = document.getElementById('filterDateLabel');
-        const prevBtn = document.getElementById('prevDateBtn');
-        const nextBtn = document.getElementById('nextDateBtn');
-        const form = document.getElementById('filterForm');
+        const form        = document.getElementById('filterForm');
+        const modeBtns    = document.querySelectorAll('.filter-mode-btn');
+        const dateGroup   = document.getElementById('dateInputGroup');
+        const rangeGroup  = document.getElementById('rangeInputGroup');
+        const filterLabel = document.getElementById('filterDateLabel');
+        const dateInput   = document.getElementById('filterDateInput');
+        const fromInput   = document.getElementById('filterFromInput');
+        const toInput     = document.getElementById('filterToInput');
 
-        toggleBtn.addEventListener('click', function() {
-            if (input.type === 'date') {
-                input.type = 'month';
-                input.name = 'month';
-                input.value = '';
-                label.textContent = 'Month:';
-                toggleBtn.textContent = 'Date';
+        // ── Disable fields that are NOT active so they're excluded from submit ──
+        function syncDisabled(mode) {
+            if (mode === 'range') {
+                dateInput.disabled = true;
+                fromInput.disabled = false;
+                toInput.disabled   = false;
             } else {
-                input.type = 'date';
-                input.name = 'date';
-                input.value = '';
-                label.textContent = 'Date:';
-                toggleBtn.textContent = 'Month';
+                dateInput.disabled = false;
+                fromInput.disabled = true;
+                toInput.disabled   = true;
             }
+        }
+
+        // Init on load based on current server-rendered mode
+        syncDisabled(dateGroup.style.display === 'none' ? 'range' : dateInput.name);
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const mode = this.dataset.mode;
+                modeBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                if (mode === 'range') {
+                    dateGroup.style.display  = 'none';
+                    rangeGroup.style.display = '';
+                    filterLabel.textContent  = 'Range:';
+                } else {
+                    dateGroup.style.display  = '';
+                    rangeGroup.style.display = 'none';
+                    dateInput.type  = (mode === 'month') ? 'month' : 'date';
+                    dateInput.name  = mode;
+                    dateInput.value = '';
+                    filterLabel.textContent = (mode === 'month') ? 'Month:' : 'Date:';
+                }
+                syncDisabled(mode);
+            });
         });
 
-        if (prevBtn && nextBtn) {
-            prevBtn.addEventListener('click', function() {
-                if (!input.value) return;
-                if (input.type === 'date') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                    d.setDate(d.getDate() - 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    let day = String(d.getDate()).padStart(2, '0');
-                    input.value = `${y}-${m}-${day}`;
-                } else if (input.type === 'month') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-                    d.setMonth(d.getMonth() - 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    input.value = `${y}-${m}`;
-                }
-                form.submit();
-            });
-
-            nextBtn.addEventListener('click', function() {
-                if (!input.value) return;
-                if (input.type === 'date') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                    d.setDate(d.getDate() + 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    let day = String(d.getDate()).padStart(2, '0');
-                    input.value = `${y}-${m}-${day}`;
-                } else if (input.type === 'month') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-                    d.setMonth(d.getMonth() + 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    input.value = `${y}-${m}`;
-                }
-                form.submit();
-            });
+        // ── Prev / Next navigation ──
+        function shiftDate(delta) {
+            if (!dateInput.value) return;
+            if (dateInput.type === 'date') {
+                const parts = dateInput.value.split('-');
+                const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+                d.setDate(d.getDate() + delta);
+                dateInput.value = d.getFullYear() + '-'
+                    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(d.getDate()).padStart(2, '0');
+            } else if (dateInput.type === 'month') {
+                const parts = dateInput.value.split('-');
+                const d = new Date(+parts[0], +parts[1] - 1, 1);
+                d.setMonth(d.getMonth() + delta);
+                dateInput.value = d.getFullYear() + '-'
+                    + String(d.getMonth() + 1).padStart(2, '0');
+            }
+            form.submit();
         }
+
+        const prevBtn = document.getElementById('prevDateBtn');
+        const nextBtn = document.getElementById('nextDateBtn');
+        if (prevBtn) prevBtn.addEventListener('click', () => shiftDate(-1));
+        if (nextBtn) nextBtn.addEventListener('click', () => shiftDate(1));
     });
 </script>
 @endsection

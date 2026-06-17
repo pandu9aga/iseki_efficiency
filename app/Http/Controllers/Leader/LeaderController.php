@@ -60,59 +60,74 @@ class LeaderController extends Controller
         $area = $activeArea;
         $areaId = $area->Id_Area;
 
-        // ✅ Determine filter mode: month or date
-        $isMonthFilter = $request->filled('month');
+        // ✅ Determine filter mode: range, month, or date
+        $isRangeFilter = $request->filled('from') && $request->filled('to');
+        $isMonthFilter = !$isRangeFilter && $request->filled('month');
 
-        if ($isMonthFilter) {
-            $monthParsed = \Carbon\Carbon::parse($request->month . '-01');
+        if ($isRangeFilter) {
+            $startDate = Carbon::parse($request->from)->startOfDay();
+            $endDate = Carbon::parse($request->to)->startOfDay();
+            $dateString = $startDate->format('Y-m-d') . ' ~ ' . $endDate->format('Y-m-d');
+            $isToday = $startDate->isToday() && $endDate->isToday();
+            $filterMode = 'range';
+        } elseif ($isMonthFilter) {
+            $monthParsed = Carbon::parse($request->month . '-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
             $isToday = false;
+            $filterMode = 'month';
         } else {
             $date = $request->filled('date')
-                ? \Carbon\Carbon::parse($request->date)->startOfDay()
-                : \Carbon\Carbon::today();
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today();
             $startDate = $date->copy();
             $endDate = $date->copy();
             $dateString = $date->format('Y-m-d');
             $isToday = $date->isToday();
+            $filterMode = 'date';
         }
 
         // ✅ Build date-aware queries
-        if ($isMonthFilter) {
-            $scans = \App\Models\Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+        if ($isRangeFilter || $isMonthFilter) {
+            $scans = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->with('tractor')->get();
-            $costs = \App\Models\Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+            $costs = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->get();
-            $powers = \App\Models\Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+            $powers = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->with('member')->get();
-            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+            $penanganans = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->get();
         } else {
-            $scans = \App\Models\Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
-            $costs = \App\Models\Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
-            $powers = \App\Models\Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
-            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
+            $scans = Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
+            $costs = Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
+            $powers = Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
         }
 
         // ✅ Hitung member & jam member
-        if ($isMonthFilter) {
+        if ($isRangeFilter || $isMonthFilter) {
             $reportMembers = 0;
             $memberHours = 0.0;
             $daysCounted = 0;
+            $todayStr = Carbon::today()->format('Y-m-d');
             $cursor = $startDate->copy();
             while ($cursor->lte($endDate)) {
                 $dayStr = $cursor->format('Y-m-d');
                 $dayYmd = $cursor->format('Ymd');
-                $dayReport = \App\Models\Report::where('Day_Report', $dayStr)->where('Id_Area', $areaId)->first();
-                $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
-                    : \App\Models\DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
-                $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
+                $dayReport = Report::where('Day_Report', $dayStr)->where('Id_Area', $areaId)->first();
+                $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report : 0;
+                $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : 0;
+
+                // Progressive untuk hari ini
+                if ($dayStr === $todayStr && $dayMembers > 0) {
+                    $dayHours = $this->calculateProgressiveMemberHours($dayMembers);
+                }
+
                 if ($dayMembers > 0) $daysCounted++;
                 $reportMembers += $dayMembers;
                 $memberHours += $dayHours;
@@ -130,7 +145,7 @@ class LeaderController extends Controller
             if ($isToday) {
                 $now = \Carbon\Carbon::now();
                 $start = \Carbon\Carbon::today()->setTime(7, 30);
-                $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
+                $endOfWork = \Carbon\Carbon::today()->setTime(16, 30);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
                 } elseif ($now->gt($endOfWork)) {
@@ -190,8 +205,6 @@ class LeaderController extends Controller
             'reportMembers' => (int) $reportMembers,
             'powerTotal' => (float) $powerTotal,
         ];
-
-        $filterMode = $isMonthFilter ? 'month' : 'date';
 
         return view('leaders.dashboard', compact(
             'scans',
@@ -258,59 +271,75 @@ class LeaderController extends Controller
         $area = $activeArea;
         $areaId = $area->Id_Area;
 
-        // ✅ Determine filter mode: month or date
-        $isMonthFilter = $request->filled('month');
+        // ✅ Determine filter mode: range, month, or date
+        $isRangeFilter = $request->filled('from') && $request->filled('to');
+        $isMonthFilter = !$isRangeFilter && $request->filled('month');
 
-        if ($isMonthFilter) {
-            $monthParsed = \Carbon\Carbon::parse($request->month . '-01');
+        if ($isRangeFilter) {
+            $startDate = Carbon::parse($request->from)->startOfDay();
+            $endDate = Carbon::parse($request->to)->startOfDay();
+            $dateString = $startDate->format('Y-m-d') . ' ~ ' . $endDate->format('Y-m-d');
+            $isToday = $startDate->isToday() && $endDate->isToday();
+            $filterMode = 'range';
+        } elseif ($isMonthFilter) {
+            $monthParsed = Carbon::parse($request->month . '-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
             $isToday = false;
+            $filterMode = 'month';
         } else {
             $date = $request->filled('date')
-                ? \Carbon\Carbon::parse($request->date)->startOfDay()
-                : \Carbon\Carbon::today();
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today();
             $startDate = $date->copy();
             $endDate = $date->copy();
             $dateString = $date->format('Y-m-d');
             $isToday = $date->isToday();
+            $filterMode = 'date';
         }
 
         // ✅ Build date-aware queries
-        if ($isMonthFilter) {
-            $scans = \App\Models\Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
+        if ($isRangeFilter || $isMonthFilter) {
+            $scans = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->with('tractor')->get();
-            $costs = \App\Models\Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
+            $costs = Cost::whereDate('Start_Cost', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Start_Cost', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->get();
-            $powers = \App\Models\Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
+            $powers = Power::whereDate('Start_Power', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Start_Power', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->with('member')->get();
-            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
+            $penanganans = Penanganan::whereDate('Start_Penanganan', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Start_Penanganan', '<=', $endDate->format('Y-m-d'))
                 ->where('Id_Area', $areaId)->get();
         } else {
-            $scans = \App\Models\Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
-            $costs = \App\Models\Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
-            $powers = \App\Models\Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
-            $penanganans = \App\Models\Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
+            $scans = Scan::whereDate('Time_Scan', $dateString)->where('Id_Area', $areaId)->with('tractor')->get();
+            $costs = Cost::whereDate('Start_Cost', $dateString)->where('Id_Area', $areaId)->get();
+            $powers = Power::whereDate('Start_Power', $dateString)->where('Id_Area', $areaId)->with('member')->get();
+            $penanganans = Penanganan::whereDate('Start_Penanganan', $dateString)->where('Id_Area', $areaId)->get();
         }
 
         // ✅ Member hours
-        if ($isMonthFilter) {
+        if ($isRangeFilter || $isMonthFilter) {
             $reportMembers = 0;
             $memberHours = 0.0;
             $daysCounted = 0;
+            $todayStr = Carbon::today()->format('Y-m-d');
             $cursor = $startDate->copy();
             while ($cursor->lte($endDate)) {
                 $dayStr = $cursor->format('Y-m-d');
                 $dayYmd = $cursor->format('Ymd');
-                $dayReport = \App\Models\Report::where('Day_Report', $dayStr)->where('Id_Area', $areaId)->first();
+                $dayReport = Report::where('Day_Report', $dayStr)->where('Id_Area', $areaId)->first();
                 $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
-                    : \App\Models\DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
+                    : DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
                 $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
+
+                // Progressive untuk hari ini
+                if ($dayStr === $todayStr && $dayMembers > 0) {
+                    $dayHours = $this->calculateProgressiveMemberHours($dayMembers);
+                }
+
                 if ($dayMembers > 0) $daysCounted++;
                 $reportMembers += $dayMembers;
                 $memberHours += $dayHours;
@@ -327,7 +356,7 @@ class LeaderController extends Controller
             if ($isToday) {
                 $now = \Carbon\Carbon::now();
                 $start = \Carbon\Carbon::today()->setTime(7, 30);
-                $endOfWork = \Carbon\Carbon::today()->setTime(16, 0);
+                $endOfWork = \Carbon\Carbon::today()->setTime(16, 30);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
                 } elseif ($now->gt($endOfWork)) {
@@ -367,8 +396,6 @@ class LeaderController extends Controller
             'powerTotal' => (float) $powerTotal,
         ];
 
-        $filterMode = $isMonthFilter ? 'month' : 'date';
-
         return view('leaders.dashboard-fullscreen', compact(
             'dateString',
             'isToday',
@@ -384,6 +411,26 @@ class LeaderController extends Controller
             'dashboardJsData',
             'filterMode'
         ));
+    }
+
+    private function calculateProgressiveMemberHours(int $memberCount): float
+    {
+        $now = Carbon::now();
+        $start = Carbon::today()->setTime(7, 30);
+        $endOfWork = Carbon::today()->setTime(16, 30);
+
+        if ($now->lt($start)) {
+            return 0.0;
+        } elseif ($now->gt($endOfWork)) {
+            return $memberCount * 8.0;
+        } else {
+            $totalHours = $start->diffInRealSeconds($now) / 3600.0;
+            if ($now->gt(Carbon::today()->setTime(10, 0))) $totalHours -= 10 / 60;
+            if ($now->gt(Carbon::today()->setTime(12, 0))) $totalHours -= 40 / 60;
+            if ($now->gt(Carbon::today()->setTime(15, 0))) $totalHours -= 10 / 60;
+            $totalHours = max(0, $totalHours);
+            return $memberCount * min($totalHours, 8.0);
+        }
     }
 
     private function formatHoursToText(float $totalHours): string
@@ -432,16 +479,24 @@ class LeaderController extends Controller
         $area = $activeArea;
         $areaId = $area->Id_Area;
 
-        // ✅ Determine filter mode: month or date
-        $isMonthFilter = $request->filled('month');
+        // ✅ Determine filter mode: range, month, or date
+        $isRangeFilter = $request->filled('from') && $request->filled('to');
+        $isMonthFilter = !$isRangeFilter && $request->filled('month');
 
-        if ($isMonthFilter) {
+        if ($isRangeFilter) {
+            $startDate = Carbon::parse($request->from)->startOfDay();
+            $endDate = Carbon::parse($request->to)->startOfDay();
+            $dateString = $startDate->format('Y-m-d') . ' ~ ' . $endDate->format('Y-m-d');
+            $isToday = $startDate->isToday() && $endDate->isToday();
+            $totalWorkDays = 0;
+        } elseif ($isMonthFilter) {
             $monthInput = $request->get('month');
             $monthParsed = Carbon::parse($monthInput . '-01');
             $startDate = $monthParsed->copy()->startOfMonth();
             $endDate = $monthParsed->copy()->endOfMonth();
             $dateString = $monthParsed->format('Y-m');
             $monthKey = $monthParsed->format('Y-m');
+            $isToday = false;
 
             // Ambil hari kerja dari work_days
             $workDay = \App\Models\WorkDay::where('Moth_Work_Day', $monthKey)->first();
@@ -450,7 +505,18 @@ class LeaderController extends Controller
             if ($totalWorkDays <= 0) {
                 return back()->with('error', "Hari kerja bulan {$monthKey} belum diisi. Silakan isi di menu Work Day terlebih dahulu.");
             }
+        } else {
+            $date = $request->filled('date')
+                ? Carbon::parse($request->date)->startOfDay()
+                : Carbon::today();
+            $startDate = $date->copy();
+            $endDate = $date->copy();
+            $dateString = $date->format('Y-m-d');
+            $isToday = $date->isToday();
+            $totalWorkDays = 0;
+        }
 
+        if ($isRangeFilter || $isMonthFilter) {
             // === DATA QUERIES ===
             $scans = Scan::whereDate('Time_Scan', '>=', $startDate->format('Y-m-d'))
                 ->whereDate('Time_Scan', '<=', $endDate->format('Y-m-d'))
@@ -471,10 +537,11 @@ class LeaderController extends Controller
                 ->where('Id_Area', $areaId)
                 ->get();
 
-            // === MEMBER HOURS (monthly sum) ===
+            // === MEMBER HOURS (monthly/range sum) ===
             $reportMembers = 0;
             $memberHours = 0.0;
             $daysCounted = 0;
+            $todayStr = Carbon::today()->format('Y-m-d');
             $cursor = $startDate->copy();
             while ($cursor->lte($endDate)) {
                 $dayStr = $cursor->format('Y-m-d');
@@ -483,6 +550,12 @@ class LeaderController extends Controller
                 $dayMembers = $dayReport ? (int) $dayReport->Total_Member_Report
                     : DailyJob::where('Production_Date_Plan', $dayYmd)->where('Id_Area', $areaId)->distinct('Nik_Daily_Job')->count();
                 $dayHours = $dayReport ? (float) $dayReport->Total_Hours_Report : ($dayMembers * 8.0);
+
+                // Progressive untuk hari ini
+                if ($dayStr === $todayStr && $dayMembers > 0) {
+                    $dayHours = $this->calculateProgressiveMemberHours($dayMembers);
+                }
+
                 if ($dayMembers > 0) $daysCounted++;
                 $reportMembers += $dayMembers;
                 $memberHours += $dayHours;
@@ -567,53 +640,77 @@ class LeaderController extends Controller
             // ============ EXCEL ============
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setTitle('Monthly Performance');
 
-            $exportYear = $monthParsed->format('Y');
-            $exportMonthName = $monthParsed->format('F Y');
-            $sheet->setCellValue('A1', $exportYear . ' MONTHLY OPERATIONAL PERFORMANCE');
-            $sheet->setCellValue('A2', $exportYear . '年の月次操業実績');
-            $sheet->mergeCells('A1:C1');
-            $sheet->mergeCells('A2:C2');
-            $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(14);
-            $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal('center');
+            if ($isRangeFilter) {
+                $sheet->setTitle('Range Performance');
+                $exportYear = $startDate->format('Y');
+                $sheet->setCellValue('A1', $exportYear . ' RANGE OPERATIONAL PERFORMANCE');
+                $sheet->setCellValue('A2', $exportYear . '年の操業実績（期間指定）');
+                $sheet->mergeCells('A1:C1');
+                $sheet->mergeCells('A2:C2');
+                $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(14);
+                $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal('center');
 
-            $sheet->setCellValue('A4', 'Bulan / 月');
-            $sheet->setCellValue('B4', $exportMonthName);
-            $sheet->mergeCells('B4:C4');
-            $sheet->getStyle('A4:C4')->getFont()->setBold(true);
-            $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->setCellValue('A4', 'Periode / 期間');
+                $sheet->setCellValue('B4', $startDate->format('d F Y') . ' - ' . $endDate->format('d F Y'));
+                $sheet->mergeCells('B4:C4');
+                $sheet->getStyle('A4:C4')->getFont()->setBold(true);
+                $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-            // B5: Hari Kerja — dipakai sebagai referensi formula Man
-            $sheet->setCellValue('A5', 'Hari Kerja / 稼働日数');
-            $sheet->setCellValue('B5', $totalWorkDays);
-            $sheet->mergeCells('B5:C5');
-            $sheet->getStyle('B5')->getAlignment()->setHorizontal('left');
-            $sheet->getStyle('A5:C5')->getFont()->setBold(true);
-            $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->setCellValue('A5', 'Area / 部署');
+                $sheet->setCellValue('B5', $area ? $area->Name_Area : 'ALL AREAS');
+                $sheet->mergeCells('B5:C5');
+                $sheet->getStyle('A5:C5')->getFont()->setBold(true);
+                $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+                // Man formula: =B_row/8 (jam ÷ 8)
+                $manFormula = function (int $r): string {
+                    return "=B{$r}/8";
+                };
+            } else {
+                $sheet->setTitle('Monthly Performance');
+                $exportYear = $monthParsed->format('Y');
+                $exportMonthName = $monthParsed->format('F Y');
+                $sheet->setCellValue('A1', $exportYear . ' MONTHLY OPERATIONAL PERFORMANCE');
+                $sheet->setCellValue('A2', $exportYear . '年の月次操業実績');
+                $sheet->mergeCells('A1:C1');
+                $sheet->mergeCells('A2:C2');
+                $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(14);
+                $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal('center');
+
+                $sheet->setCellValue('A4', 'Bulan / 月');
+                $sheet->setCellValue('B4', $exportMonthName);
+                $sheet->mergeCells('B4:C4');
+                $sheet->getStyle('A4:C4')->getFont()->setBold(true);
+                $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+                // B5: Hari Kerja — dipakai sebagai referensi formula Man
+                $sheet->setCellValue('A5', 'Hari Kerja / 稼働日数');
+                $sheet->setCellValue('B5', $totalWorkDays);
+                $sheet->mergeCells('B5:C5');
+                $sheet->getStyle('B5')->getAlignment()->setHorizontal('left');
+                $sheet->getStyle('A5:C5')->getFont()->setBold(true);
+                $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+                // Man formula: =B_row/8/$B$5 (jam ÷ 8 ÷ hari kerja)
+                $manFormula = function (int $r): string {
+                    return "=B{$r}/8/\$B\$5";
+                };
+            }
+
             $sheet->getRowDimension(4)->setRowHeight(20);
             $sheet->getRowDimension(5)->setRowHeight(20);
 
-            $sheet->setCellValue('A6', 'Area / 部署');
-            $sheet->setCellValue('B6', $area ? $area->Name_Area : 'ALL AREAS');
-            $sheet->mergeCells('B6:C6');
-            $sheet->getStyle('B6')->getAlignment()->setHorizontal('left');
-            $sheet->getStyle('A6:C6')->getFont()->setBold(true);
-            $sheet->getStyle('A6:C6')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            $sheet->getRowDimension(6)->setRowHeight(20);
+            // Row 6 header
+            $row6Label = $isRangeFilter ? 6 : 7;
+            $sheet->setCellValue("A{$row6Label}", 'Item・内容');
+            $sheet->setCellValue("B{$row6Label}", 'Hour・時間');
+            $sheet->setCellValue("C{$row6Label}", 'Man・人数');
+            $sheet->getStyle("A{$row6Label}:C{$row6Label}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$row6Label}:C{$row6Label}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEEEEE');
 
-            // Man formula: =B_row/8/$B$5 (jam ÷ 8 ÷ hari kerja)
-            $manFormula = function (int $r): string {
-                return "=B{$r}/8/\$B\$5";
-            };
-
-            $sheet->setCellValue('A7', 'Item・内容');
-            $sheet->setCellValue('B7', 'Hour・時間');
-            $sheet->setCellValue('C7', 'Man・人数');
-            $sheet->getStyle('A7:C7')->getFont()->setBold(true);
-            $sheet->getStyle('A7:C7')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEEEEE');
-
-            $row = 8;
+            // Adjust row numbering for range mode (no row 6 area header since area is at row 5)
+            $row = $isRangeFilter ? 7 : 8;
 
             // ====== BEBAN ======
             $this->writeSectionHeader($sheet, $row++, 'Beban・負荷');
@@ -776,7 +873,9 @@ class LeaderController extends Controller
             $sheet->getStyle('A1:C' . ($row - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
             $areaSuffix = $area ? '_' . str_replace(' ', '_', $area->Name_Area) : '';
-            $fileName = 'Monthly_Performance' . $areaSuffix . '_' . $dateString . '.xlsx';
+            $filePrefix = $isRangeFilter ? 'Range_Performance' : 'Monthly_Performance';
+            $fileDate = $isRangeFilter ? $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') : $dateString;
+            $fileName = $filePrefix . $areaSuffix . '_' . $fileDate . '.xlsx';
             $writer = new Xlsx($spreadsheet);
             $tempFile = tempnam(sys_get_temp_dir(), $fileName);
             $writer->save($tempFile);
@@ -809,7 +908,7 @@ class LeaderController extends Controller
             if ($isToday) {
                 $now = Carbon::now();
                 $start = Carbon::today()->setTime(7, 30);
-                $endOfWork = Carbon::today()->setTime(16, 0);
+                $endOfWork = Carbon::today()->setTime(16, 30);
                 if ($now->lt($start)) {
                     $memberHours = 0.0;
                 } elseif ($now->gt($endOfWork)) {

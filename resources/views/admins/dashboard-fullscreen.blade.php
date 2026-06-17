@@ -130,7 +130,15 @@
                                 <span class="efficiency-value fw-bold"
                                     style="color: {{ $data['nilaiRupiah'] >= 0 ? '#047857' : '#be123c' }};"
                                     id="selisih-{{ $data['area']->Id_Area }}">
-                                    {{ number_format($data['selisihJam'], 2) }} jam
+                                    @php
+                                        $sign = $data['selisihJam'] < 0 ? '-' : '';
+                                        $abs = abs($data['selisihJam']);
+                                        $totalMinutes = round($abs * 60);
+                                        $jam = floor($totalMinutes / 60);
+                                        $menit = $totalMinutes % 60;
+                                        $selisihFormat = $sign . $jam . ' jam ' . $menit . ' menit';
+                                    @endphp
+                                    {{ $selisihFormat }}
                                 </span>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
@@ -156,7 +164,7 @@
                             @endphp
 
                             <div class="small mb-1">
-                                Efficiency Operational:
+                                Efficiency:
                                 <strong>{{ number_format($persenOperasional, 0) }}%</strong>
                             </div>
                             <div class="progress mb-1">
@@ -165,7 +173,7 @@
                             </div>
 
                             <div class="small mb-1">
-                                Efficiency Non Operational:
+                                Non-Operational:
                                 <strong>{{ number_format($persenNonOperasional, 0) }}%</strong>
                             </div>
                             <div class="progress">

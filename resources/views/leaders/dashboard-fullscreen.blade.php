@@ -138,7 +138,7 @@
                             @endforeach
                         </div>
                         @endif
-                        <a href="{{ route('leaders.dashboard', ['date' => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
+                        <a href="{{ $filterMode === 'range' ? route('leaders.dashboard', ['from' => request('from'), 'to' => request('to'), 'area' => $area->Id_Area]) : route('leaders.dashboard', [$filterMode => $dateString, 'area' => $area->Id_Area]) }}" class="btn btn-sm btn-danger exit-fullscreen">Exit Fullscreen</a>
                     </div>
                 </div>
 
@@ -175,7 +175,7 @@
 
                                         <div class="mb-3">
                                             <div class="d-flex justify-content-between small mb-1">
-                                                <span>Efficiency Operational - 工数低減率</span>
+                                                <span>Efficiency - 工数低減率</span>
                                                 <span id="persenOperasional">0%</span>
                                             </div>
                                             <div class="progress" style="height: 8px;">
@@ -185,7 +185,7 @@
 
                                         <div>
                                             <div class="d-flex justify-content-between small mb-1">
-                                                <span>Efficiency Non Operational - 非稼働工数率</span>
+                                                <span>Non Operational - 非稼働工数率</span>
                                                 <span id="persenNonOperasional">0%</span>
                                             </div>
                                             <div class="progress" style="height: 8px;">

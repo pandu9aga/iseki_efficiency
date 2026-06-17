@@ -1,4 +1,14 @@
+﻿@php
+    $isRange = $filterMode === 'range';
+    $fromDate = request('from', '');
+    $toDate = request('to', '');
+    $queryUrl = $isRange ? "from=$fromDate&to=$toDate" : "$filterMode=$dateString";
+    $todayStr = now()->format('Y-m-d');
+    $thisMonthStr = now()->format('Y-m');
+@endphp
+
 @extends('layouts.admin')
+
 
 @section('content')
 <div class="page-heading">
@@ -15,40 +25,38 @@
             <div class="col-md-12">
                 <div class="card mb-4">
                     <div class="card-body">
-                        <!-- ✅ TAB DINAMIS: ALL + NAMA AREA -->
+                        <!-- âœ… TAB DINAMIS: ALL + NAMA AREA -->
                         <ul class="nav nav-tabs mb-3" id="dashboardTab" role="tablist">
-                            <!-- Tab All -->
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ !request()->filled('area') ? 'active' : '' }}"
-                                    href="{{ url()->current() }}?{{ $filterMode }}={{ $dateString }}">
+                                    href="{{ url()->current() }}?{{ $queryUrl }}">
                                     All Areas
                                 </a>
                             </li>
-
-                            <!-- Tab per Area (dari database) -->
                             @foreach ($areas as $area)
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ request('area') == $area->Id_Area ? 'active' : '' }}"
-                                    href="{{ url()->current() }}?{{ $filterMode }}={{ $dateString }}&area={{ $area->Id_Area }}">
+                                    href="{{ url()->current() }}?{{ $queryUrl }}&area={{ $area->Id_Area }}">
                                     {{ $area->Name_Area }}
                                 </a>
                             </li>
                             @endforeach
                         </ul>
 
-                        <!-- Form Tanggal / Bulan -->
+                        <!-- Form Tanggal / Bulan / Range -->
                         <form method="GET" class="mb-3" id="filterForm">
                             @if(request()->filled('area'))
                             <input type="hidden" name="area" value="{{ request('area') }}">
                             @endif
                             <div class="row g-3 align-items-center">
-                                <div class="col-auto">
-                                    <label for="filterDateInput" class="col-form-label" id="filterDateLabel">
-                                        {{ $filterMode === 'month' ? 'Month:' : 'Date:' }}
+                                <div class="col-auto" id="filterLabelCol">
+                                    <label class="col-form-label" id="filterDateLabel">
+                                        {{ $filterMode === 'month' ? 'Month:' : ($filterMode === 'range' ? 'Range:' : 'Date:') }}
                                     </label>
                                 </div>
-                                <div class="col-auto">
-                                    <div class="input-group">
+                                <div class="col-auto" id="filterInputCol">
+                                    {{-- Date / Month mode --}}
+                                    <div id="dateInputGroup" class="input-group" style="{{ $filterMode === 'range' ? 'display:none' : '' }}">
                                         <button type="button" id="prevDateBtn" class="btn btn-outline-primary">
                                             <i class="bi bi-chevron-left"></i>
                                         </button>
@@ -61,27 +69,42 @@
                                             <i class="bi bi-chevron-right"></i>
                                         </button>
                                     </div>
+                                    {{-- Range mode --}}
+                                    <div id="rangeInputGroup" style="{{ $filterMode === 'range' ? '' : 'display:none' }}">
+                                        <div class="input-group">
+                                            <span class="input-group-text">From</span>
+                                            <input type="date" name="from" id="filterFromInput"
+                                                class="form-control text-center fw-bold"
+                                                value="{{ $fromDate }}">
+                                            <span class="input-group-text">To</span>
+                                            <input type="date" name="to" id="filterToInput"
+                                                class="form-control text-center fw-bold"
+                                                value="{{ $toDate }}">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-auto">
-                                    <button type="button" id="toggleDateType" class="btn btn-outline-secondary btn-sm">
-                                        {{ $filterMode === 'month' ? 'Date' : 'Month' }}
-                                    </button>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary filter-mode-btn {{ $filterMode === 'date' ? 'active' : '' }}" data-mode="date">Date</button>
+                                        <button type="button" class="btn btn-outline-secondary filter-mode-btn {{ $filterMode === 'month' ? 'active' : '' }}" data-mode="month">Month</button>
+                                        <button type="button" class="btn btn-outline-secondary filter-mode-btn {{ $filterMode === 'range' ? 'active' : '' }}" data-mode="range">Range</button>
+                                    </div>
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-primary">Show</button>
                                 </div>
                                 <div class="col-auto">
                                     @if($filterMode === 'month')
-                                    <a id="exportLink" href="{{ route('admins.dashboard.export-monthly', ['month' => $dateString, 'area' => request('area')]) }}"
+                                    <a href="{{ route('admins.dashboard.export-monthly', ['month' => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-warning">
                                         <i class="bi bi-file-earmark-spreadsheet"></i> Export Bulanan
                                     </a>
                                     @endif
-                                    <a id="exportLinkDaily" href="{{ route('admins.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}"
+                                    <a href="{{ $isRange ? route('admins.dashboard.export', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('admins.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-success">
                                         <i class="bi bi-file-earmark-excel"></i> Export Excel
                                     </a>
-                                    <a id="fullscreenLink" href="{{ route('admins.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}"
+                                    <a href="{{ $isRange ? route('admins.dashboard.fullscreen', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('admins.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-info">Fullscreen View</a>
                                 </div>
                             </div>
@@ -118,14 +141,14 @@
                     <div class="card-body">
                         <canvas id="stackedChart"></canvas>
 
-                        {{-- 🔹 KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
+                        {{-- ðŸ”¹ KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
                         <div id="efficiencyCard" class="mt-4">
                             <div class="row g-3">
                                 <!-- Nilai Utama -->
                                 <div class="col-md-6">
                                     <div class="card text-white h-100" id="mainCard">
                                         <div class="card-body text-center py-4">
-                                            <h6 class="card-title mb-2">Efisiensi Hari Ini - 今日の作業効率</h6>
+                                            <h6 class="card-title mb-2">Efisiensi Hari Ini - ä»Šæ—¥ã®ä½œæ¥­åŠ¹çŽ‡</h6>
                                             <div class="display-6 fw-bold" id="selisihJam">0.00 jam</div>
                                             <div class="mt-1 fs-4" id="nilaiRupiah">Rp0</div>
                                         </div>
@@ -141,7 +164,7 @@
                                             <!-- % Operasional -->
                                             <div class="mb-3">
                                                 <div class="d-flex justify-content-between small mb-1">
-                                                    <span>Efficiency Operational - 工数低減率</span>
+                                                    <span>Efficiency - å·¥æ•°ä½Žæ¸›çŽ‡</span>
                                                     <span id="persenOperasional">0%</span>
                                                 </div>
                                                 <div class="progress" style="height: 8px;">
@@ -153,7 +176,7 @@
                                             <!-- % Non-Operasional -->
                                             <div>
                                                 <div class="d-flex justify-content-between small mb-1">
-                                                    <span>Efficiency Non Operational - 非稼働工数率</span>
+                                                    <span>Non Operational - éžç¨¼åƒå·¥æ•°çŽ‡</span>
                                                     <span id="persenNonOperasional">0%</span>
                                                 </div>
                                                 <div class="progress" style="height: 8px;">
@@ -377,7 +400,7 @@
     
     // Sesuaikan rumus dengan Excel: Total NonOp / Total Power
     const areaLainTotal = penanganans
-        .filter(p => p.label.toLowerCase().includes('area lain') || p.label.includes('他部署応援'))
+        .filter(p => p.label.toLowerCase().includes('area lain') || p.label.includes('ä»–éƒ¨ç½²å¿œæ´'))
         .reduce((sum, p) => sum + p.value, 0);
     const totalPowerForNonOp = memberHours + penangananTotal - areaLainTotal;
     const persenNonOperasional = totalPowerForNonOp !== 0 ? (costTotal / totalPowerForNonOp) * 100 : 0;
@@ -407,74 +430,78 @@
     document.getElementById('persenNonOperasionalBar').style.width = Math.min(100, persenNonOperasional) + '%';
 </script>
 <script>
-    // Toggle Date / Month filter
     document.addEventListener('DOMContentLoaded', function() {
-        const input = document.getElementById('filterDateInput');
-        const toggleBtn = document.getElementById('toggleDateType');
-        const label = document.getElementById('filterDateLabel');
-        const prevBtn = document.getElementById('prevDateBtn');
-        const nextBtn = document.getElementById('nextDateBtn');
-        const form = document.getElementById('filterForm');
+        const form        = document.getElementById('filterForm');
+        const modeBtns    = document.querySelectorAll('.filter-mode-btn');
+        const dateGroup   = document.getElementById('dateInputGroup');
+        const rangeGroup  = document.getElementById('rangeInputGroup');
+        const filterLabel = document.getElementById('filterDateLabel');
+        const dateInput   = document.getElementById('filterDateInput');
+        const fromInput   = document.getElementById('filterFromInput');
+        const toInput     = document.getElementById('filterToInput');
 
-        toggleBtn.addEventListener('click', function() {
-            if (input.type === 'date') {
-                input.type = 'month';
-                input.name = 'month';
-                input.value = '';
-                label.textContent = 'Month:';
-                toggleBtn.textContent = 'Date';
+        // â”€â”€ Disable inactive fields so they're excluded from the GET submit â”€â”€
+        function syncDisabled(mode) {
+            if (mode === 'range') {
+                dateInput.disabled = true;
+                fromInput.disabled = false;
+                toInput.disabled   = false;
             } else {
-                input.type = 'date';
-                input.name = 'date';
-                input.value = '';
-                label.textContent = 'Date:';
-                toggleBtn.textContent = 'Month';
+                dateInput.disabled = false;
+                fromInput.disabled = true;
+                toInput.disabled   = true;
             }
+        }
+
+        // Init on page load
+        syncDisabled(dateGroup.style.display === 'none' ? 'range' : dateInput.name);
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const mode = this.dataset.mode;
+                modeBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                if (mode === 'range') {
+                    dateGroup.style.display  = 'none';
+                    rangeGroup.style.display = '';
+                    filterLabel.textContent  = 'Range:';
+                } else {
+                    dateGroup.style.display  = '';
+                    rangeGroup.style.display = 'none';
+                    dateInput.type  = (mode === 'month') ? 'month' : 'date';
+                    dateInput.name  = mode;
+                    dateInput.value = '';
+                    filterLabel.textContent = (mode === 'month') ? 'Month:' : 'Date:';
+                }
+                syncDisabled(mode);
+            });
         });
 
-        if (prevBtn && nextBtn) {
-            prevBtn.addEventListener('click', function() {
-                if (!input.value) return;
-                if (input.type === 'date') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                    d.setDate(d.getDate() - 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    let day = String(d.getDate()).padStart(2, '0');
-                    input.value = `${y}-${m}-${day}`;
-                } else if (input.type === 'month') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-                    d.setMonth(d.getMonth() - 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    input.value = `${y}-${m}`;
-                }
-                form.submit();
-            });
-
-            nextBtn.addEventListener('click', function() {
-                if (!input.value) return;
-                if (input.type === 'date') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                    d.setDate(d.getDate() + 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    let day = String(d.getDate()).padStart(2, '0');
-                    input.value = `${y}-${m}-${day}`;
-                } else if (input.type === 'month') {
-                    let parts = input.value.split('-');
-                    let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-                    d.setMonth(d.getMonth() + 1);
-                    let y = d.getFullYear();
-                    let m = String(d.getMonth() + 1).padStart(2, '0');
-                    input.value = `${y}-${m}`;
-                }
-                form.submit();
-            });
+        // â”€â”€ Prev / Next navigation â”€â”€
+        function shiftDate(delta) {
+            if (!dateInput.value) return;
+            if (dateInput.type === 'date') {
+                const parts = dateInput.value.split('-');
+                const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+                d.setDate(d.getDate() + delta);
+                dateInput.value = d.getFullYear() + '-'
+                    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(d.getDate()).padStart(2, '0');
+            } else if (dateInput.type === 'month') {
+                const parts = dateInput.value.split('-');
+                const d = new Date(+parts[0], +parts[1] - 1, 1);
+                d.setMonth(d.getMonth() + delta);
+                dateInput.value = d.getFullYear() + '-'
+                    + String(d.getMonth() + 1).padStart(2, '0');
+            }
+            form.submit();
         }
+
+        const prevBtn = document.getElementById('prevDateBtn');
+        const nextBtn = document.getElementById('nextDateBtn');
+        if (prevBtn) prevBtn.addEventListener('click', () => shiftDate(-1));
+        if (nextBtn) nextBtn.addEventListener('click', () => shiftDate(1));
     });
 </script>
 @endsection
