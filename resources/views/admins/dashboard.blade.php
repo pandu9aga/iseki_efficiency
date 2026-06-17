@@ -1,4 +1,4 @@
-﻿@php
+@php
     $isRange = $filterMode === 'range';
     $fromDate = request('from', '');
     $toDate = request('to', '');
@@ -25,7 +25,7 @@
             <div class="col-md-12">
                 <div class="card mb-4">
                     <div class="card-body">
-                        <!-- âœ… TAB DINAMIS: ALL + NAMA AREA -->
+                        <!-- ✅ TAB DINAMIS: ALL + NAMA AREA -->
                         <ul class="nav nav-tabs mb-3" id="dashboardTab" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ !request()->filled('area') ? 'active' : '' }}"
@@ -141,14 +141,14 @@
                     <div class="card-body">
                         <canvas id="stackedChart"></canvas>
 
-                        {{-- ðŸ”¹ KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
+                        {{-- 🔹 KARTU EFISIENSI (SAMA PERSIS DENGAN ADMIN) --}}
                         <div id="efficiencyCard" class="mt-4">
                             <div class="row g-3">
                                 <!-- Nilai Utama -->
                                 <div class="col-md-6">
                                     <div class="card text-white h-100" id="mainCard">
                                         <div class="card-body text-center py-4">
-                                            <h6 class="card-title mb-2">Efisiensi Hari Ini - ä»Šæ—¥ã®ä½œæ¥­åŠ¹çŽ‡</h6>
+                                            <h6 class="card-title mb-2">Efisiensi Hari Ini - 今日の作業効率</h6>
                                             <div class="display-6 fw-bold" id="selisihJam">0.00 jam</div>
                                             <div class="mt-1 fs-4" id="nilaiRupiah">Rp0</div>
                                         </div>
@@ -164,7 +164,7 @@
                                             <!-- % Operasional -->
                                             <div class="mb-3">
                                                 <div class="d-flex justify-content-between small mb-1">
-                                                    <span>Efficiency - å·¥æ•°ä½Žæ¸›çŽ‡</span>
+                                                    <span>Efficiency - 工数低減率</span>
                                                     <span id="persenOperasional">0%</span>
                                                 </div>
                                                 <div class="progress" style="height: 8px;">
@@ -176,7 +176,7 @@
                                             <!-- % Non-Operasional -->
                                             <div>
                                                 <div class="d-flex justify-content-between small mb-1">
-                                                    <span>Non Operational - éžç¨¼åƒå·¥æ•°çŽ‡</span>
+                                                    <span>Non Operational - 非稼働工数率</span>
                                                     <span id="persenNonOperasional">0%</span>
                                                 </div>
                                                 <div class="progress" style="height: 8px;">
@@ -400,7 +400,7 @@
     
     // Sesuaikan rumus dengan Excel: Total NonOp / Total Power
     const areaLainTotal = penanganans
-        .filter(p => p.label.toLowerCase().includes('area lain') || p.label.includes('ä»–éƒ¨ç½²å¿œæ´'))
+        .filter(p => p.label.toLowerCase().includes('area lain') || p.label.includes('他部署応援'))
         .reduce((sum, p) => sum + p.value, 0);
     const totalPowerForNonOp = memberHours + penangananTotal - areaLainTotal;
     const persenNonOperasional = totalPowerForNonOp !== 0 ? (costTotal / totalPowerForNonOp) * 100 : 0;
