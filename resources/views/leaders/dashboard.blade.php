@@ -131,7 +131,7 @@
                                         <div class="card-body text-center py-4">
                                             <h6 class="card-title mb-2">Efisiensi Hari Ini - 今日の作業効率</h6>
                                             <div class="display-6 fw-bold" id="nilaiRupiah">Rp0</div>
-                                            <div class="mt-1 fs-3" id="selisihJam">0.00 jam</div>
+                                            <div class="mt-1 fs-2" id="selisihJam">0.00 jam</div>
                                         </div>
                                     </div>
                                 </div>
