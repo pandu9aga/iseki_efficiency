@@ -162,8 +162,8 @@
                                         <h6 class="card-title mb-2">
                                             Efisiensi Hari Ini - 今日の作業効率
                                         </h6>
-                                        <h2 class="fw-bold text-white" id="selisihJam">0.00 jam</h2>
-                                        <h3 class="mt-1 fs-4 text-white" id="nilaiRupiah">Rp0</h3>
+                                        <h2 class="fw-bold text-white" id="nilaiRupiah">Rp0</h2>
+                                        <h2 class="mt-1 text-white" id="selisihJam">0.00 jam</h3>
                                     </div>
                                 </div>
                             </div>
