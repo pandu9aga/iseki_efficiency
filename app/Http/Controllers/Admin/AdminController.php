@@ -793,8 +793,30 @@ class AdminController extends Controller
             ->getStartColor()->setARGB('FFEEEEEE');
 
         $row      = 8;
-        // Untuk export harian: Man = Jam ÷ 8
-        $manFn    = fn(int $r): string => "=B{$r}/8";
+
+        if ($isRangeFilter) {
+            $rangeDays = 0;
+            $cursor = $startDate->copy()->startOfDay();
+            $rangeEnd = Carbon::parse($request->to)->startOfDay();
+            while ($cursor->lte($rangeEnd)) {
+                if ($cursor->isWeekday()) {
+                    $rangeDays++;
+                }
+                $cursor->addDay();
+            }
+            $sheet->setCellValue('A6', 'Hari / 日数');
+            $sheet->setCellValue('B6', $rangeDays);
+            $sheet->mergeCells('B6:C6');
+            $sheet->getStyle('B6')->getAlignment()->setHorizontal('left');
+            $sheet->getStyle('A6:C6')->getFont()->setBold(true);
+            $sheet->getStyle('A6:C6')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getRowDimension(6)->setRowHeight(20);
+            // Untuk export range: Man = Jam ÷ 8 ÷ jumlah hari range
+            $manFn    = fn(int $r): string => "=B{$r}/8/\$B\$6";
+        } else {
+            // Untuk export harian: Man = Jam ÷ 8
+            $manFn    = fn(int $r): string => "=B{$r}/8";
+        }
 
         $refs = $this->writeExcelBody(
             $sheet,

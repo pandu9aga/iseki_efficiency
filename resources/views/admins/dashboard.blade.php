@@ -99,11 +99,12 @@
                                         class="btn btn-warning">
                                         <i class="bi bi-file-earmark-spreadsheet"></i> Export Bulanan
                                     </a>
-                                    @endif
+                                    @else
                                     <a href="{{ $isRange ? route('admins.dashboard.export', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('admins.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-success">
                                         <i class="bi bi-file-earmark-excel"></i> Export Excel
                                     </a>
+                                    @endif
                                     <a href="{{ $isRange ? route('admins.dashboard.fullscreen', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('admins.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}"
                                         class="btn btn-info">Fullscreen View</a>
                                 </div>

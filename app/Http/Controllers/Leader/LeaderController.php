@@ -663,9 +663,26 @@ class LeaderController extends Controller
                 $sheet->getStyle('A5:C5')->getFont()->setBold(true);
                 $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                // Man formula: =B_row/8 (jam ÷ 8)
+                // Row 6: jumlah hari range (exclude weekend)
+                $rangeDays = 0;
+                $cursor = $startDate->copy();
+                while ($cursor->lte($endDate)) {
+                    if ($cursor->isWeekday()) {
+                        $rangeDays++;
+                    }
+                    $cursor->addDay();
+                }
+                $sheet->setCellValue('A6', 'Hari / 日数');
+                $sheet->setCellValue('B6', $rangeDays);
+                $sheet->mergeCells('B6:C6');
+                $sheet->getStyle('B6')->getAlignment()->setHorizontal('left');
+                $sheet->getStyle('A6:C6')->getFont()->setBold(true);
+                $sheet->getStyle('A6:C6')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                $sheet->getRowDimension(6)->setRowHeight(20);
+
+                // Man formula: =B_row/8/\$B\$6 (jam ÷ 8 ÷ jumlah hari range)
                 $manFormula = function (int $r): string {
-                    return "=B{$r}/8";
+                    return "=B{$r}/8/\$B\$6";
                 };
             } else {
                 $sheet->setTitle('Monthly Performance');
@@ -700,17 +717,17 @@ class LeaderController extends Controller
 
             $sheet->getRowDimension(4)->setRowHeight(20);
             $sheet->getRowDimension(5)->setRowHeight(20);
+            $sheet->getRowDimension(6)->setRowHeight(20);
 
-            // Row 6 header
-            $row6Label = $isRangeFilter ? 6 : 7;
-            $sheet->setCellValue("A{$row6Label}", 'Item・内容');
-            $sheet->setCellValue("B{$row6Label}", 'Hour・時間');
-            $sheet->setCellValue("C{$row6Label}", 'Man・人数');
-            $sheet->getStyle("A{$row6Label}:C{$row6Label}")->getFont()->setBold(true);
-            $sheet->getStyle("A{$row6Label}:C{$row6Label}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEEEEE');
+            // Row 7 header (range now uses row 6 for "Hari", monthly uses row 6 for "Area")
+            $sheet->setCellValue('A7', 'Item・内容');
+            $sheet->setCellValue('B7', 'Hour・時間');
+            $sheet->setCellValue('C7', 'Man・人数');
+            $sheet->getStyle('A7:C7')->getFont()->setBold(true);
+            $sheet->getStyle('A7:C7')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEEEEE');
 
-            // Adjust row numbering for range mode (no row 6 area header since area is at row 5)
-            $row = $isRangeFilter ? 7 : 8;
+            // Data starts at row 8 for both range and monthly
+            $row = 8;
 
             // ====== BEBAN ======
             $this->writeSectionHeader($sheet, $row++, 'Beban・負荷');

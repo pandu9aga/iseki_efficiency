@@ -89,9 +89,15 @@
                                     <button type="submit" class="btn btn-primary">Show</button>
                                 </div>
                                 <div class="col-auto">
+                                    @if($filterMode === 'month')
+                                    <a href="{{ route('leaders.dashboard.export', ['month' => $dateString, 'area' => request('area')]) }}" class="btn btn-warning">
+                                        <i class="fas fa-file-excel"></i> Export Bulanan
+                                    </a>
+                                    @else
                                     <a href="{{ $isRange ? route('leaders.dashboard.export', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('leaders.dashboard.export', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-success">
                                         <i class="fas fa-file-excel"></i> Export Excel
                                     </a>
+                                    @endif
                                     <a href="{{ $isRange ? route('leaders.dashboard.fullscreen', ['from' => $fromDate, 'to' => $toDate, 'area' => request('area')]) : route('leaders.dashboard.fullscreen', [$filterMode => $dateString, 'area' => request('area')]) }}" class="btn btn-info">
                                         Fullscreen View
                                     </a>
