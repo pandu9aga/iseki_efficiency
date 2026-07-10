@@ -6,7 +6,7 @@
         <div class="row">
             <div class="col-12 col-md-6 order-md-1 order-last">
                 <h3>Work Day / 稼働日数</h3>
-                <p class="text-subtitle text-muted">Jumlah hari kerja per bulan (sudah dikurangi libur)</p>
+                <p class="text-subtitle text-muted">Jumlah hari kerja per bulan (weekday Sen-Jum dikurangi hari libur)</p>
             </div>
         </div>
     </div>
@@ -27,6 +27,11 @@
                             </select>
                         </div>
                         <div class="col-auto">
+                            <button type="button" id="autoFillBtn" class="btn btn-info">
+                                <i class="bi bi-calculator"></i> Isi Otomatis
+                            </button>
+                        </div>
+                        <div class="col-auto">
                             <a href="{{ route('admins.dashboard') }}" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> Kembali
                             </a>
@@ -43,8 +48,9 @@
                         <table class="table table-bordered table-hover">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="text-center" style="width: 50%;">Bulan</th>
-                                    <th class="text-center" style="width: 50%;">Jumlah Hari Kerja</th>
+                                    <th class="text-center" style="width: 40%;">Bulan</th>
+                                    <th class="text-center" style="width: 30%;">Jumlah Hari Kerja</th>
+                                    <th class="text-center" style="width: 30%;">Auto (Sistem)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -61,6 +67,8 @@
                                     @php
                                         $key = "$tahun-$num";
                                         $value = $workDayData[$key] ?? null;
+                                        $autoValue = $autoWorkDayData[$key] ?? 0;
+                                        $displayValue = old("workdays.$key", $value ?? $autoValue);
                                     @endphp
                                     <tr>
                                         <td class="align-middle">{{ $nama }} {{ $tahun }}</td>
@@ -68,12 +76,14 @@
                                             <input
                                                 type="number"
                                                 name="workdays[{{ $key }}]"
-                                                value="{{ old("workdays.$key", $value) }}"
+                                                value="{{ $displayValue }}"
                                                 min="0"
                                                 max="31"
-                                                class="form-control text-center"
-                                                placeholder="Boleh kosong">
+                                                class="form-control text-center workday-input"
+                                                placeholder="Manual"
+                                                data-auto="{{ $autoValue }}">
                                         </td>
+                                        <td class="text-center align-middle text-muted">{{ $autoValue }} hari</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -98,4 +108,15 @@
         </div>
     </section>
 </div>
+@endsection
+
+@section('script')
+<script>
+    document.getElementById('autoFillBtn').addEventListener('click', function() {
+        if (!confirm('Isi otomatis semua bulan? Nilai manual yang sudah diisi akan ditimpa.')) return;
+        document.querySelectorAll('.workday-input').forEach(function(input) {
+            input.value = input.dataset.auto;
+        });
+    });
+</script>
 @endsection

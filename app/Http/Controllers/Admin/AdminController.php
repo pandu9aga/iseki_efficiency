@@ -795,15 +795,10 @@ class AdminController extends Controller
         $row      = 8;
 
         if ($isRangeFilter) {
-            $rangeDays = 0;
-            $cursor = $startDate->copy()->startOfDay();
-            $rangeEnd = Carbon::parse($request->to)->startOfDay();
-            while ($cursor->lte($rangeEnd)) {
-                if ($cursor->isWeekday()) {
-                    $rangeDays++;
-                }
-                $cursor->addDay();
-            }
+            $rangeDays = \App\Models\SpecialDate::countWorkdays(
+                $startDate->format('Y-m-d'),
+                Carbon::parse($request->to)->format('Y-m-d')
+            );
             $sheet->setCellValue('A6', 'Hari / 日数');
             $sheet->setCellValue('B6', $rangeDays);
             $sheet->mergeCells('B6:C6');
@@ -863,11 +858,13 @@ class AdminController extends Controller
         $area   = $areaId ? \App\Models\Area::find($areaId) : null;
         $areas  = \App\Models\Area::orderByRaw("FIELD(Name_Area, 'TRANSMISI', 'SUB ENGINE', 'LINE A', 'LINE B', 'SUB ASSY', 'MAIN LINE', 'INSPEKSI', 'MOWER')")->get();
 
-        $workDay       = \App\Models\WorkDay::where('Moth_Work_Day', $monthKey)->first();
-        $totalWorkDays = $workDay ? (int) $workDay->Total_Work_Day : 0;
+        $totalWorkDays = \App\Models\SpecialDate::countWorkdays(
+            $startDate->format('Y-m-d'),
+            $endDate->format('Y-m-d')
+        );
 
         if ($totalWorkDays <= 0) {
-            return back()->with('error', "Hari kerja bulan {$monthKey} belum diisi. Silakan isi di menu Work Day terlebih dahulu.");
+            return back()->with('error', "Tidak ada hari kerja di bulan {$monthKey}.");
         }
 
         $startStr = $startDate->format('Y-m-d');

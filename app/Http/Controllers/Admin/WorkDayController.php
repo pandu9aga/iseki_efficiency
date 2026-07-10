@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SpecialDate;
 use App\Models\WorkDay;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,16 @@ class WorkDayController extends Controller
             $workDayData[$wd->Moth_Work_Day] = $wd->Total_Work_Day;
         }
 
-        return view('admins.workdays.index', compact('tahun', 'workDayData'));
+        // Auto-calculate workdays for each month (weekdays - special dates)
+        $autoWorkDayData = [];
+        foreach (range(1, 12) as $m) {
+            $monthKey = sprintf('%s-%02d', $tahun, $m);
+            $start = $monthKey . '-01';
+            $end = date('Y-m-t', strtotime($start));
+            $autoWorkDayData[$monthKey] = SpecialDate::countWorkdays($start, $end);
+        }
+
+        return view('admins.workdays.index', compact('tahun', 'workDayData', 'autoWorkDayData'));
     }
 
     public function bulkUpdate(Request $request)

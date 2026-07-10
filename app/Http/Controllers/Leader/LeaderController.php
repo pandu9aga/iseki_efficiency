@@ -498,12 +498,14 @@ class LeaderController extends Controller
             $monthKey = $monthParsed->format('Y-m');
             $isToday = false;
 
-            // Ambil hari kerja dari work_days
-            $workDay = \App\Models\WorkDay::where('Moth_Work_Day', $monthKey)->first();
-            $totalWorkDays = $workDay ? (int) $workDay->Total_Work_Day : 0;
+            // Hitung hari kerja: weekday di bulan ini dikurangi special dates
+            $totalWorkDays = \App\Models\SpecialDate::countWorkdays(
+                $startDate->format('Y-m-d'),
+                $endDate->format('Y-m-d')
+            );
 
             if ($totalWorkDays <= 0) {
-                return back()->with('error', "Hari kerja bulan {$monthKey} belum diisi. Silakan isi di menu Work Day terlebih dahulu.");
+                return back()->with('error', "Tidak ada hari kerja di bulan {$monthKey}.");
             }
         } else {
             $date = $request->filled('date')
@@ -663,15 +665,11 @@ class LeaderController extends Controller
                 $sheet->getStyle('A5:C5')->getFont()->setBold(true);
                 $sheet->getStyle('A5:C5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                // Row 6: jumlah hari range (exclude weekend)
-                $rangeDays = 0;
-                $cursor = $startDate->copy();
-                while ($cursor->lte($endDate)) {
-                    if ($cursor->isWeekday()) {
-                        $rangeDays++;
-                    }
-                    $cursor->addDay();
-                }
+                // Row 6: jumlah hari range (exclude weekend & special dates)
+                $rangeDays = \App\Models\SpecialDate::countWorkdays(
+                    $startDate->format('Y-m-d'),
+                    $endDate->format('Y-m-d')
+                );
                 $sheet->setCellValue('A6', 'Hari / 日数');
                 $sheet->setCellValue('B6', $rangeDays);
                 $sheet->mergeCells('B6:C6');
