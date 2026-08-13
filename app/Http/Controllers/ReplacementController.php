@@ -208,6 +208,25 @@ class ReplacementController extends Controller
                 'Name_Tractor' => $scannedTractorName
             ]);
 
+            // Auto-copy jobdesc ke report member pengganti di iseki_aspro
+            try {
+                $dailyJob = DailyJob::find(session('replacement_daily_job_id'));
+                if ($dailyJob && $dailyJob->Nik_Daily_Job) {
+                    $startReport = $dailyJob->Production_Date_Plan
+                        ? Carbon::createFromFormat('Ymd', $dailyJob->Production_Date_Plan)->format('Y-m-d')
+                        : null;
+
+                    app(\App\Services\AsproJobCopyService::class)->copyJobdesc(
+                        $dailyJob->Nik_Daily_Job,      // member yang digantikan (source)
+                        (string) session('replacement_nik'), // member pengganti (target)
+                        $plan->Type_Plan ?? null,
+                        $startReport
+                    );
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Auto copy jobdesc ke iseki_aspro gagal: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'tractor_name' => $scannedTractorName,
