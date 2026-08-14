@@ -220,7 +220,9 @@ class ReplacementController extends Controller
                         $dailyJob->Nik_Daily_Job,      // member yang digantikan (source)
                         (string) session('replacement_nik'), // member pengganti (target)
                         $plan->Type_Plan ?? null,
-                        $startReport
+                        $startReport,
+                        $originalSequenceNo,
+                        $productionDate
                     );
                 }
             } catch (\Throwable $e) {
