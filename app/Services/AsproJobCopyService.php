@@ -136,21 +136,7 @@ class AsproJobCopyService
 
         $sourceReportStart = Carbon::parse($sourceReport->Start_Report)->format('Y-m-d');
 
-        // 2. Cari / buat Report target untuk member pengganti (tanggal sama dengan sumber)
-        $targetReport = DB::connection('aspro')
-            ->table('reports')
-            ->where('Id_Member', $targetMemberId)
-            ->whereDate('Start_Report', $sourceReportStart)
-            ->first();
-
-        if (! $targetReport) {
-            $targetId = DB::connection('aspro')->table('reports')->insertGetId([
-                'Id_Member'   => $targetMemberId,
-                'Start_Report' => $sourceReportStart,
-                'Name_Report'  => null,
-            ]);
-            $targetReport = (object) ['Id_Report' => $targetId];
-        }
+        // 2. (Tanpa pembuatan Report target) Replacement hanya disimpan di report_replacements.
 
         // 3. Mapping Type_Plan -> tractors
         $mappedTractors = $this->mapTypePlanToTractors($typePlan);
@@ -176,44 +162,7 @@ class AsproJobCopyService
             ?? DB::connection('aspro')->table('members')->where('Id_Member', $targetMemberId)->value('Name_Member')
             ?? null;
 
-        $sourceFolder = 'reports/' . $sourceReportStart . '_' . $sourceMemberId;
-        $targetFolder = 'reports/' . $sourceReportStart . '_' . $targetMemberId;
-
-        $this->ensureDir('reports/' . $sourceReportStart . '_' . $targetMemberId);
-
-        $copied = 0;
-        foreach ($sourceListReports as $slr) {
-            // Cek sudah ada di target
-            $exists = DB::connection('aspro')
-                ->table('list_reports')
-                ->where('Id_Report', $targetReport->Id_Report)
-                ->where('Name_Procedure', $slr->Name_Procedure)
-                ->where('Name_Area', $slr->Name_Area)
-                ->where('Name_Tractor', $slr->Name_Tractor)
-                ->exists();
-
-            if ($exists) {
-                continue;
-            }
-
-            DB::connection('aspro')->table('list_reports')->insert([
-                'Id_Report'             => $targetReport->Id_Report,
-                'Name_Procedure'        => $slr->Name_Procedure,
-                'Name_Area'             => $slr->Name_Area,
-                'Name_Tractor'          => $slr->Name_Tractor,
-                'Item_Procedure'        => $slr->Item_Procedure,
-                'Time_List_Report'      => null,
-                'Time_Approved_Leader'  => null,
-                'Time_Approved_Auditor' => null,
-                'Reporter_Name'         => $targetName,
-                'Leader_Name'           => null,
-                'Auditor_Name'          => null,
-            ]);
-
-            // Salin file PDF dari master prosedur
-            $this->copyProcedureFile($slr, $targetFolder, $copied);
-            $copied++;
-        }
+        // (Tanpa penyalinan list_reports ke report target - replacement hanya di report_replacements.)
 
         // Simpan header ke tabel report_replacements (agar tampil di list_report & flag is_copied)
         $paddedSeq = $sequenceNo;
@@ -237,7 +186,7 @@ class AsproJobCopyService
                 'Sequence_No_Plan'    => $paddedSeq,
                 'Production_Date_Plan' => $productionDate,
                 'Type_Plan'           => $typePlan,
-                'Id_Report_Target'    => $targetReport->Id_Report,
+                'Id_Report_Target'    => null,
                 'created_at'          => now(),
                 'updated_at'          => now(),
             ]);
@@ -276,8 +225,8 @@ class AsproJobCopyService
         }
 
         $result['success'] = true;
-        $result['copied'] = $copied;
-        $result['message'] = "Berhasil menyalin {$copied} prosedur ke member pengganti.";
+        $result['copied'] = $sourceListReports->count();
+        $result['message'] = "Berhasil menyalin {$result['copied']} prosedur ke member pengganti.";
         return $result;
     }
 
@@ -294,26 +243,6 @@ class AsproJobCopyService
             . DIRECTORY_SEPARATOR . $listReport->Name_Procedure . '.pdf';
 
         $targetPath = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $repFolder)
-            . DIRECTORY_SEPARATOR . $listReport->Name_Procedure . '.pdf';
-
-        if (is_file($masterSource) && ! is_file($targetPath)) {
-            @copy($masterSource, $targetPath);
-        }
-    }
-
-    /**
-     * Salin file PDF prosedur dari folder master ke folder report target.
-     */
-    protected function copyProcedureFile($listReport, string $targetFolder, int $index): void
-    {
-        $root = rtrim($this->storageRoot, '/\\');
-
-        $masterSource = $root . DIRECTORY_SEPARATOR . 'procedures'
-            . DIRECTORY_SEPARATOR . $listReport->Name_Tractor
-            . DIRECTORY_SEPARATOR . $listReport->Name_Area
-            . DIRECTORY_SEPARATOR . $listReport->Name_Procedure . '.pdf';
-
-        $targetPath = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $targetFolder)
             . DIRECTORY_SEPARATOR . $listReport->Name_Procedure . '.pdf';
 
         if (is_file($masterSource) && ! is_file($targetPath)) {
