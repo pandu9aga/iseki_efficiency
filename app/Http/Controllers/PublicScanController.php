@@ -54,7 +54,7 @@ class PublicScanController extends Controller
 
             $searchSequenceNo = $originalSequenceNo;
             if (!preg_match('/[T]/i', $originalSequenceNo)) {
-                $searchSequenceNo = str_pad($originalSequenceNo, 5, '0', STR_PAD_LEFT);
+                $searchSequenceNo = (strpos(strtoupper($originalSequenceNo), 'T') !== false || strpos(strtoupper($originalSequenceNo), 'MP') !== false) ? $originalSequenceNo : ((strpos(strtoupper($originalSequenceNo), 'T') !== false || strpos(strtoupper($originalSequenceNo), 'MP') !== false) ? $originalSequenceNo : str_pad($originalSequenceNo, 5, '0', STR_PAD_LEFT));
             }
 
             $plan = Plan::where('Sequence_No_Plan', $searchSequenceNo)
